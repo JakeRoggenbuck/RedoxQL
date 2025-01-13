@@ -1,4 +1,6 @@
 # ecs-165a-database
+![Rust](https://img.shields.io/badge/Rust-1A5D8A?style=for-the-badge&logo=rust&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
 
 > [!IMPORTANT]
 > Read the Structure section — We use both Rust and Python and they go in different places
