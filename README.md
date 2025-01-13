@@ -56,6 +56,17 @@ The lstore (`./lstore`) directory is where the Python code goes. This is what ge
 The src (`./src`) directory is where the Rust code goes. This gets called by the code in the lstore module.
 
 ## Testing
+
+#### Rust testing
 ```
 cargo test
 ```
+
+Rust tests are located in each Rust file and can be found in `./src`
+
+#### Python testing
+```
+pytest
+```
+
+Python tests are located in a seperate directory called `tests` located in `./python`

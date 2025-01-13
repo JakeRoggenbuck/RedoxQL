@@ -1,4 +1,4 @@
-name: Rust
+name: Python
 
 on:
   push:
@@ -16,11 +16,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: Build
-      run: cargo build --verbose
     - name: Run tests
-      run: cargo test --verbose
-    - name: Maturin build
       run: |
-        pip install -r requirements.txt
-        maturin build
+          pip install -r requirements.txt
+          pytest
