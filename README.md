@@ -29,6 +29,22 @@ Install the module (Note: the version will change so check the exact filename in
 pip install target/wheels/lstore-0.1.0-cp312-cp312-manylinux_2_34_x86_64.whl
 ```
 
+Run the database benchmark
+```
+python3 __main__.py
+```
+
+You should see this ...
+```
+(venv) ecs-165a-database (main) λ p __main__.py
+Inserting 10k records took:  			 0.0017988820000000016
+Updating 10k records took:  			 0.008435604000000003
+Selecting 10k records took:  			 0.003455875000000004
+Aggregate 10k of 100 record batch took:	 4.326100000000277e-05
+Deleting 10k records took:  			 0.0006921710000000053
+(venv) ecs-165a-database (main) λ
+```
+
 ## Structure
 
 ![image](https://github.com/user-attachments/assets/4bc1e607-9b01-4992-a853-4a7636ba6196)
