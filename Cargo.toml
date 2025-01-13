@@ -1,11 +1,11 @@
 [package]
-name = "ecs-165a-database"
+name = "lstore"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
-name = "ecs_165a_database"
+name = "lstore"
 crate-type = ["cdylib"]
 
 [dependencies]
