@@ -15,7 +15,7 @@ python3 -m venv venv
 
 Install maturin
 ```
-pip install maturin
+pip install -r requirements.txt
 ```
 
 ## Running
