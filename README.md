@@ -13,6 +13,10 @@ Create a virtual envirement
 python3 -m venv venv
 ```
 
+```
+source venv/bin/activate
+```
+
 Install maturin
 ```
 pip install -r requirements.txt
