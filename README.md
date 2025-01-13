@@ -13,6 +13,7 @@ Create a virtual envirement
 python3 -m venv venv
 ```
 
+Source the virtual envirement
 ```
 source venv/bin/activate
 ```
