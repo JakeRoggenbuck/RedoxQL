@@ -54,3 +54,8 @@ The lstore (`./lstore`) directory is where the Python code goes. This is what ge
 
 #### src
 The src (`./src`) directory is where the Rust code goes. This gets called by the code in the lstore module.
+
+## Testing
+```
+cargo test
+```
