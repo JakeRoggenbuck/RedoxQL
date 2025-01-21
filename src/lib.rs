@@ -1,7 +1,6 @@
 use pyo3::prelude::*;
 use std::fs::{read_dir, read_to_string};
-
-const DRIVE: &'static str = "nvme0n1";
+use std::path::Path;
 
 /// Return a list of all of the ddrives in /dev/
 pub fn get_all_drives() -> Vec<String> {
@@ -11,7 +10,13 @@ pub fn get_all_drives() -> Vec<String> {
         for entry in entries {
             if let Ok(entry) = entry {
                 if let Some(name) = entry.file_name().to_str() {
-                    drives.push(name.to_string());
+                    // Check if the file is a drive
+                    if name.starts_with("nvme") || name.starts_with("sd") {
+                        // Check if the drive exists in /sys/block
+                        if Path::new(&format!("/sys/block/{}", name)).exists() {
+                            drives.push(name.to_string());
+                        }
+                    }
                 }
             }
         }
@@ -20,10 +25,9 @@ pub fn get_all_drives() -> Vec<String> {
     return drives;
 }
 
-
 /// Read the block size for the machine
-fn read_block_size(type_of_block: &str) -> i16 {
-    let path = format!("/sys/block/{}/queue/{}_block_size", DRIVE, type_of_block);
+fn read_block_size(drive: &str, type_of_block: &str) -> i16 {
+    let path = format!("/sys/block/{}/queue/{}_block_size", drive, type_of_block);
     let mut block_size_str =
         read_to_string(path).expect("Should be able to read physical_block_size from file.");
 
@@ -38,12 +42,12 @@ fn read_block_size(type_of_block: &str) -> i16 {
     block_size
 }
 
-pub fn get_logical_block_size() -> i16 {
-    read_block_size("logical")
+pub fn get_logical_block_size(drive: &str) -> i16 {
+    read_block_size(drive, "logical")
 }
 
-pub fn get_physical_block_size() -> i16 {
-    read_block_size("physical")
+pub fn get_physical_block_size(drive: &str) -> i16 {
+    read_block_size(drive, "physical")
 }
 
 /// Blazingly fast hello
@@ -65,8 +69,11 @@ mod tests {
 
     #[test]
     fn get_logical_block_size_test() {
-        assert_eq!(get_logical_block_size(), 512);
-        assert_eq!(get_physical_block_size(), 512);
+        let all_drives = get_all_drives();
+        let drive = all_drives.first().expect("There should be one drive");
+
+        assert_eq!(get_logical_block_size(drive), 512);
+        assert_eq!(get_physical_block_size(drive), 512);
     }
 
     #[test]
