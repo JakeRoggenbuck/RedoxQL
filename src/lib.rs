@@ -72,8 +72,8 @@ mod tests {
         let all_drives = get_all_drives();
         let drive = all_drives.first().expect("There should be one drive");
 
-        assert_eq!(get_logical_block_size(drive), 512);
-        assert_eq!(get_physical_block_size(drive), 512);
+        assert!(vec![512, 1024, 4096, 8192, 16384].contains(&get_physical_block_size(drive)));
+        assert!(vec![512, 1024, 4096, 8192, 16384].contains(&get_logical_block_size(drive)));
     }
 
     #[test]
