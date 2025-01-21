@@ -1,4 +1,31 @@
 use pyo3::prelude::*;
+use std::fs::read_to_string;
+
+const DRIVE: &'static str = "nvme0n1";
+
+fn read_block_size(type_of_block: &str) -> i16 {
+    let path = format!("/sys/block/{}/queue/{}_block_size", DRIVE, type_of_block);
+    let mut block_size_str =
+        read_to_string(path).expect("Should be able to read physical_block_size from file.");
+
+    // Remove '\n' from end of file
+    block_size_str.pop();
+
+    // Cast the number into an i16 from the String
+    let block_size = block_size_str
+        .parse::<i16>()
+        .expect("Should parse block size.");
+
+    block_size
+}
+
+pub fn get_logical_block_size() -> i16 {
+    read_block_size("logical")
+}
+
+pub fn get_physical_block_size() -> i16 {
+    read_block_size("physical")
+}
 
 /// Blazingly fast hello
 #[pyfunction]
@@ -11,4 +38,15 @@ fn hello_from_rust() -> PyResult<String> {
 fn lstore(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(hello_from_rust, m)?)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn get_logical_block_size_test() {
+        assert_eq!(get_logical_block_size(), 512);
+        assert_eq!(get_physical_block_size(), 512);
+    }
 }
