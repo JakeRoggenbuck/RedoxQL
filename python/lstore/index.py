@@ -27,12 +27,12 @@ class Index:
     # optional: Create index on specific column
     """
 
-    def create_index(self, column_number):
+    def create_index(self, column_number: int):
         pass
 
     """
     # optional: Drop index of specific column
     """
 
-    def drop_index(self, column_number):
+    def drop_index(self, column_number: int):
         pass
