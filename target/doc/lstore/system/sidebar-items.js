@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["get_all_drives","get_logical_block_size","get_physical_block_size"]};
