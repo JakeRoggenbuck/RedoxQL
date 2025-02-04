@@ -1,5 +1,4 @@
 use pyo3::prelude::*;
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 #[derive(Debug)]
@@ -96,7 +95,7 @@ pub struct Table {
 }
 
 impl Table {
-    fn insert_row(&mut self, values: Vec<i64>) {
+    pub fn insert_row(&mut self, values: Vec<i64>) {
         let mut i = 0usize;
 
         for value in values {
@@ -110,7 +109,7 @@ impl Table {
         }
     }
 
-    fn fetch_row(&mut self, index: usize) -> Vec<i64> {
+    pub fn fetch_row(&mut self, index: usize) -> Vec<i64> {
         let mut row = Vec::<i64>::new();
 
         for m in &self.columns.columns {
@@ -141,11 +140,16 @@ impl Database {
         Database { tables: vec![] }
     }
 
-    fn create_table(&mut self, name: String) {
-        let t = Table {
+    fn create_table(&mut self, name: String, num_columns: i64, _primary_key_column: i64) {
+        let mut t = Table {
             name,
             columns: Columns::new(),
         };
+
+        // Create num_columns amount of columns
+        for _ in 0..num_columns {
+            t.columns.create_column();
+        }
 
         self.tables.push(t);
     }
@@ -160,13 +164,10 @@ mod tests {
         let mut db = Database::new();
 
         // Create a table "users"
-        db.create_table(String::from("users"));
-
-        // Create a column
-        let c: usize = db.tables[0].columns.create_column();
+        db.create_table(String::from("users"), 1, 0);
 
         // This is an internal API
-        match db.tables[0].columns.insert(c, 1) {
+        match db.tables[0].columns.insert(0, 1) {
             Ok(a) => assert_eq!(a, 1),
             Err(e) => panic!("{:?}", e),
         }
@@ -177,7 +178,7 @@ mod tests {
         let mut db = Database::new();
 
         // Create a table "users"
-        db.create_table(String::from("users"));
+        db.create_table(String::from("users"), 1, 0);
 
         // Create a column
         let c: usize = db.tables[0].columns.create_column();
@@ -199,12 +200,7 @@ mod tests {
         let mut db = Database::new();
 
         // Create a table "users"
-        db.create_table(String::from("users"));
-
-        // Create a column
-        db.tables[0].columns.create_column();
-        db.tables[0].columns.create_column();
-        db.tables[0].columns.create_column();
+        db.create_table(String::from("users"), 3, 0);
 
         let users: &mut Table = &mut db.tables[0];
         users.insert_row(vec![0, 11, 12]);
@@ -215,12 +211,7 @@ mod tests {
         let mut db = Database::new();
 
         // Create a table "users"
-        db.create_table(String::from("users"));
-
-        // Create a column
-        db.tables[0].columns.create_column();
-        db.tables[0].columns.create_column();
-        db.tables[0].columns.create_column();
+        db.create_table(String::from("users"), 3, 0);
 
         let users: &mut Table = &mut db.tables[0];
         users.insert_row(vec![0, 11, 12]);
