@@ -1,7 +1,6 @@
 use std::fs::{read_dir, read_to_string};
 use std::path::Path;
 
-
 /// Return a list of all of the ddrives in /dev/
 pub fn get_all_drives() -> Vec<String> {
     let mut drives = Vec::<String>::new();
@@ -49,4 +48,3 @@ pub fn get_logical_block_size(drive: &str) -> i16 {
 pub fn get_physical_block_size(drive: &str) -> i16 {
     read_block_size(drive, "physical")
 }
-

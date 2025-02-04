@@ -1,22 +1,53 @@
-use std::collections::BTreeMap;
 use pyo3::prelude::*;
+use std::collections::BTreeMap;
 
-// Hard code row schema - TODO: make this dynamic schema set by table or something similar
+/// This is the place that actually stores the values
+#[derive(Clone)]
+#[pyclass]
+pub struct Column {
+    values: Vec<i64>,
+}
+
+/// A BasePage holds a reference to a
+pub struct BasePage {
+    column: Column,
+}
+
+pub struct TailPage {
+    value: i64,
+}
+
+#[derive(Copy, Clone)]
+#[pyclass]
+pub struct Record {
+    RID: i64,
+    key: i64,
+}
+
+pub struct Index {
+    indices: Vec<Option<i64>>,
+}
+
+pub struct Table {
+    name: String,
+    key: i64,
+    num_columns: i64,
+
+    columns: Vec<Column>,
+
+    index: Index,
+}
+
 #[derive(Copy, Clone)]
 #[pyclass]
 pub struct Row {
-    id: i64,
-    value: i64,
+    a: i64,
 }
 
 #[pyclass]
 pub enum RowOption {
     Empty(),
     Some(Row),
-}
-
-pub struct Page {
-    rows: Vec<Row>,
 }
 
 #[pyclass]
@@ -112,4 +143,3 @@ mod tests {
         }
     }
 }
-
