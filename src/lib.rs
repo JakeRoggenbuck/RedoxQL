@@ -1,4 +1,4 @@
-use database::{Database, Row, RowOption};
+use database::Database;
 use pyo3::prelude::*;
 
 pub mod database;
@@ -14,8 +14,6 @@ fn hello_from_rust() -> PyResult<String> {
 #[pymodule]
 fn lstore(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Database>()?;
-    m.add_class::<Row>()?;
-    m.add_class::<RowOption>()?;
     m.add_function(wrap_pyfunction!(hello_from_rust, m)?)?;
     Ok(())
 }

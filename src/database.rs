@@ -1,61 +1,103 @@
 use pyo3::prelude::*;
-use std::collections::BTreeMap;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+
+#[derive(Debug)]
+enum DatabaseError {
+    OutOfBounds,
+}
 
 /// This is the place that actually stores the values
+///
+/// TODO: Keep track of the Base and Tail Pages
 #[derive(Clone)]
 #[pyclass]
 pub struct Column {
+    // TODO: This should be pages later
     values: Vec<i64>,
 }
 
-/// A BasePage holds a reference to a
-pub struct BasePage {
-    column: Column,
+impl Column {
+    fn insert(&mut self, value: i64) {
+        // TODO: Use pages to do this
+        self.values.push(value);
+    }
+
+    fn fetch(&self, index: usize) -> i64 {
+        // TODO: Out of bounds check
+        return self.values[index];
+    }
+
+    fn new() -> Self {
+        Column { values: Vec::new() }
+    }
 }
 
-pub struct TailPage {
-    value: i64,
+/// Hold a shared reference to every column
+/// Have multiple Arc<Mutex> instead of an Arc<Mutex<Vec>> so that each can be locked and unlocked
+/// separately by different threads
+///
+/// Columns and Column are just attractions on Base and Tail Pages
+pub struct Columns {
+    len: usize,
+    colums: Vec<Arc<Mutex<Column>>>,
 }
 
-#[derive(Copy, Clone)]
-#[pyclass]
-pub struct Record {
-    RID: i64,
-    key: i64,
-}
+impl Columns {
+    fn insert(&mut self, col_index: usize, value: i64) -> Result<i64, DatabaseError> {
+        if col_index >= self.len {
+            return Err(DatabaseError::OutOfBounds);
+        }
 
-pub struct Index {
-    indices: Vec<Option<i64>>,
+        // Access the index'th column
+        let m: &Arc<Mutex<Column>> = &self.colums[col_index];
+        let mut col = m.lock().unwrap();
+
+        // Add another value to the column
+        col.insert(value);
+
+        return Ok(value);
+    }
+
+    fn fetch(&mut self, col_index: usize, val_index: usize) -> Result<Option<i64>, DatabaseError> {
+        if col_index >= self.len {
+            return Err(DatabaseError::OutOfBounds);
+        }
+
+        // Access the index'th column
+        let m: &Arc<Mutex<Column>> = &self.colums[col_index];
+        let col = m.lock().unwrap();
+
+        let v = col.fetch(val_index);
+        Ok(Some(v))
+    }
+
+    fn create_column(&mut self) -> usize {
+        let c = Arc::new(Mutex::new(Column::new()));
+        self.colums.push(c);
+
+        let index = self.len;
+        self.len += 1;
+
+        index
+    }
+
+    fn new() -> Self {
+        Columns {
+            len: 0,
+            colums: vec![],
+        }
+    }
 }
 
 pub struct Table {
-    name: String,
-    key: i64,
-    num_columns: i64,
-
-    columns: Vec<Column>,
-
-    index: Index,
-}
-
-#[derive(Copy, Clone)]
-#[pyclass]
-pub struct Row {
-    a: i64,
-}
-
-#[pyclass]
-pub enum RowOption {
-    Empty(),
-    Some(Row),
+    pub name: String,
+    pub columns: Columns,
 }
 
 #[pyclass]
 pub struct Database {
-    #[pyo3(get, set)]
-    page_size: usize,
-
-    pages: BTreeMap<i64, Page>,
+    tables: Vec<Table>,
 }
 
 #[pymethods]
@@ -65,34 +107,18 @@ impl Database {
         return String::from("pong!");
     }
 
-    fn insert(&mut self, id: i64, value: i64) {
-        // Make a new row
-        let r = Row { id, value };
-
-        // Make a new page - TODO: look up page to add to existing page
-        let p = Page { rows: vec![r] };
-
-        self.pages.insert(id, p);
+    #[staticmethod]
+    fn new() -> Self {
+        Database { tables: vec![] }
     }
 
-    fn fetch(&mut self, id: i64) -> RowOption {
-        let found = self.pages.get(&id);
+    fn create_table(&mut self, name: String) {
+        let t = Table {
+            name,
+            columns: Columns::new(),
+        };
 
-        match found {
-            Some(page) => {
-                // Linear search through rows - TODO: Figure out how this is normally done, maybe
-                // binary search?
-                for row in &page.rows {
-                    if row.id == id {
-                        return RowOption::Some(*row);
-                    }
-                }
-
-                return RowOption::Empty();
-            }
-
-            None => RowOption::Empty(),
-        }
+        self.tables.push(t);
     }
 }
 
@@ -101,45 +127,40 @@ mod tests {
     use super::*;
 
     #[test]
-    fn insert_found_eq_test() {
-        let mut db = Database {
-            page_size: 4096,
-            pages: BTreeMap::new(),
-        };
-        db.insert(0, 100);
+    fn insert_test() {
+        let mut db = Database::new();
 
-        match db.fetch(0) {
-            RowOption::Some(row) => assert_eq!(row.value, 100),
-            RowOption::Empty() => assert!(false),
+        // Create a table "users"
+        db.create_table(String::from("users"));
+
+        // Create a column
+        let c: usize = db.tables[0].columns.create_column();
+
+        match db.tables[0].columns.insert(c, 1) {
+            Ok(a) => assert_eq!(a, 1),
+            Err(e) => panic!("{:?}", e),
         }
     }
 
     #[test]
-    fn insert_found_ne_test() {
-        let mut db = Database {
-            page_size: 4096,
-            pages: BTreeMap::new(),
-        };
-        db.insert(0, 100);
+    fn fetch_test() {
+        let mut db = Database::new();
 
-        match db.fetch(0) {
-            RowOption::Some(row) => assert_ne!(row.value, 111),
-            RowOption::Empty() => assert!(false),
+        // Create a table "users"
+        db.create_table(String::from("users"));
+
+        // Create a column
+        let c: usize = db.tables[0].columns.create_column();
+
+        match db.tables[0].columns.insert(c, 1) {
+            Ok(a) => assert_eq!(a, 1),
+            Err(e) => panic!("{:?}", e),
         }
-    }
 
-    #[test]
-    fn fetch_not_found_test() {
-        let mut db = Database {
-            page_size: 4096,
-            pages: BTreeMap::new(),
-        };
-        db.insert(0, 100);
-
-        // Fetch the wrong index and assert true if it's Empty
-        match db.fetch(1) {
-            RowOption::Some(_) => assert!(false),
-            RowOption::Empty() => assert!(true),
+        // Try to fetch the 0th id of the c'th column
+        match db.tables[0].columns.fetch(c, 0) {
+            Ok(a) => assert_eq!(a, Some(1)),
+            Err(e) => panic!("{:?}", e),
         }
     }
 }
