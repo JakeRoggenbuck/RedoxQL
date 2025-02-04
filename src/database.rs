@@ -40,7 +40,7 @@ impl Column {
 /// Columns and Column are just attractions on Base and Tail Pages
 pub struct Columns {
     len: usize,
-    colums: Vec<Arc<Mutex<Column>>>,
+    columns: Vec<Arc<Mutex<Column>>>,
 }
 
 impl Columns {
@@ -50,7 +50,7 @@ impl Columns {
         }
 
         // Access the index'th column
-        let m: &Arc<Mutex<Column>> = &self.colums[col_index];
+        let m: &Arc<Mutex<Column>> = &self.columns[col_index];
         let mut col = m.lock().unwrap();
 
         // Add another value to the column
@@ -65,7 +65,7 @@ impl Columns {
         }
 
         // Access the index'th column
-        let m: &Arc<Mutex<Column>> = &self.colums[col_index];
+        let m: &Arc<Mutex<Column>> = &self.columns[col_index];
         let col = m.lock().unwrap();
 
         let v = col.fetch(val_index);
@@ -74,7 +74,7 @@ impl Columns {
 
     fn create_column(&mut self) -> usize {
         let c = Arc::new(Mutex::new(Column::new()));
-        self.colums.push(c);
+        self.columns.push(c);
 
         let index = self.len;
         self.len += 1;
@@ -85,7 +85,7 @@ impl Columns {
     fn new() -> Self {
         Columns {
             len: 0,
-            colums: vec![],
+            columns: vec![],
         }
     }
 }
@@ -93,6 +93,35 @@ impl Columns {
 pub struct Table {
     pub name: String,
     pub columns: Columns,
+}
+
+impl Table {
+    fn insert_row(&mut self, values: Vec<i64>) {
+        let mut i = 0usize;
+
+        for value in values {
+            // TODO: Handle bounds check for cols
+            let m = &self.columns.columns[i];
+
+            let mut col = m.lock().unwrap();
+
+            col.insert(value);
+            i += 1;
+        }
+    }
+
+    fn fetch_row(&mut self, index: usize) -> Vec<i64> {
+        let mut row = Vec::<i64>::new();
+
+        for m in &self.columns.columns {
+            let col = m.lock().unwrap();
+            let val = col.fetch(index);
+
+            row.push(val);
+        }
+
+        row
+    }
 }
 
 #[pyclass]
@@ -136,6 +165,7 @@ mod tests {
         // Create a column
         let c: usize = db.tables[0].columns.create_column();
 
+        // This is an internal API
         match db.tables[0].columns.insert(c, 1) {
             Ok(a) => assert_eq!(a, 1),
             Err(e) => panic!("{:?}", e),
@@ -162,5 +192,40 @@ mod tests {
             Ok(a) => assert_eq!(a, Some(1)),
             Err(e) => panic!("{:?}", e),
         }
+    }
+
+    #[test]
+    fn insert_row_test() {
+        let mut db = Database::new();
+
+        // Create a table "users"
+        db.create_table(String::from("users"));
+
+        // Create a column
+        db.tables[0].columns.create_column();
+        db.tables[0].columns.create_column();
+        db.tables[0].columns.create_column();
+
+        let users: &mut Table = &mut db.tables[0];
+        users.insert_row(vec![0, 11, 12]);
+    }
+
+    #[test]
+    fn fetch_row_test() {
+        let mut db = Database::new();
+
+        // Create a table "users"
+        db.create_table(String::from("users"));
+
+        // Create a column
+        db.tables[0].columns.create_column();
+        db.tables[0].columns.create_column();
+        db.tables[0].columns.create_column();
+
+        let users: &mut Table = &mut db.tables[0];
+        users.insert_row(vec![0, 11, 12]);
+
+        // Fetch the 0th row
+        assert_eq!(users.fetch_row(0), vec![0, 11, 12]);
     }
 }
