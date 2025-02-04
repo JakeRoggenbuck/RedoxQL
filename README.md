@@ -78,3 +78,7 @@ pytest
 ```
 
 Python tests are located in a seperate directory called `tests` located in `./python`
+
+## Rust Docs
+
+Rust has a way of making docs from the source code. Run `cargo doc` and view the produced HTML page in your browser. Adding comments to yor code starting with `///` will be put into these docs. 
