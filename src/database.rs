@@ -1,4 +1,5 @@
 use pyo3::prelude::*;
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 #[derive(Debug)]
@@ -22,9 +23,9 @@ impl Column {
         self.values.push(value);
     }
 
-    fn fetch(&self, index: usize) -> i64 {
+    fn fetch(&self, index: i64) -> i64 {
         // TODO: Out of bounds check
-        return self.values[index];
+        return self.values[index as usize];
     }
 
     fn new() -> Self {
@@ -58,7 +59,7 @@ impl Columns {
         return Ok(value);
     }
 
-    fn fetch(&mut self, col_index: usize, val_index: usize) -> Result<Option<i64>, DatabaseError> {
+    fn fetch(&mut self, col_index: usize, val_index: i64) -> Result<Option<i64>, DatabaseError> {
         if col_index >= self.len {
             return Err(DatabaseError::OutOfBounds);
         }
@@ -92,6 +93,7 @@ impl Columns {
 pub struct Table {
     pub name: String,
     pub columns: Columns,
+    cache: HashMap<i64, Vec<i64>>,
 }
 
 impl Table {
@@ -109,7 +111,12 @@ impl Table {
         }
     }
 
-    pub fn fetch_row(&mut self, index: usize) -> Vec<i64> {
+    pub fn fetch_row(&mut self, index: i64) -> Vec<i64> {
+        // TODO: Cache invalidation on update
+        if self.cache.contains_key(&index) {
+            return self.cache[&index].clone();
+        }
+
         let mut row = Vec::<i64>::new();
 
         for m in &self.columns.columns {
@@ -118,6 +125,9 @@ impl Table {
 
             row.push(val);
         }
+
+        // Add to cache
+        self.cache.insert(index, row.clone());
 
         row
     }
@@ -144,6 +154,7 @@ impl Database {
         let mut t = Table {
             name,
             columns: Columns::new(),
+            cache: HashMap::<i64, Vec<i64>>::new(),
         };
 
         // Create num_columns amount of columns
