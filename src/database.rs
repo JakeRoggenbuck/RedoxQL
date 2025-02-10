@@ -39,7 +39,7 @@ impl Column {
 ///
 /// Columns and Column are just attractions on Base and Tail Pages
 pub struct Columns {
-    len: usize,
+    pub len: usize,
     columns: Vec<Arc<Mutex<Column>>>,
 }
 
