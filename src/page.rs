@@ -1,5 +1,5 @@
 use pyo3::prelude::*;
-use std::sync::atomic::{AtomicUsize, Ordering}; // 
+use std::sync::atomic::{AtomicUsize, Ordering}; // lock mechanism
 
 static MAX_SIZE_RECORD: usize = 512;
 
@@ -7,15 +7,16 @@ static MAX_SIZE_RECORD: usize = 512;
 pub struct Page {
     num_records: usize,
     data: [u8; 4096],  // 4 KB page bytearray
+    locked: AtomicUsize,
 }
 
 impl Page {
     // Init
     pub fn new() -> Self {
         Page {
-            num_records = 0,
+            num_records: 0,
             data: [0; 4096],
-            locked: AtomicUSize,
+            locked: AtomicUsize::new(0),
         }
     }
 
@@ -26,7 +27,7 @@ impl Page {
 
     // Writes a record to the page
     // Returns Ok() or Err()
-    pub fn write(&self, value: i64) -> Result<(), String> {
+    pub fn write(&mut self, value: i64) -> Result<(), String> {
         // Wait until page is unlocked
         while self.locked.load(Ordering::Acquire) == 1 {
             continue;
@@ -34,7 +35,7 @@ impl Page {
         self.locked.store(1, Ordering::Release);
 
         // Check if page has capacity
-        if (!self.has_capacity()) {
+        if !self.has_capacity() {
             self.locked.store(0, Ordering::Release);
             return Err(String::from("Page is full."));
         }
@@ -49,7 +50,7 @@ impl Page {
     }
 
     // Read bytes from index
-    pub fn read(&self, index) -> Option<[u8; 8]> {
+    pub fn read(&self, index: usize) -> Option<[u8; 8]> {
         // Check range
         if index >= self.num_records {
             return None;
@@ -62,3 +63,80 @@ impl Page {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_write_and_read() {
+        let mut page = Page::new();
+
+        // Write a value to the page
+        assert!(page.write(42).is_ok());
+
+        // Read the value back and check if it matches
+        if let Some(data) = page.read(0) {
+            let value = i64::from_be_bytes(data);
+            assert_eq!(value, 42);
+        } else {
+            panic!("Failed to read value");
+        }
+    }
+
+    #[test]
+    fn test_capacity_limit() {
+        let mut page = Page::new();
+
+        // Write 512 records to the page
+        for i in 0..512 {
+            assert!(page.write(i as i64).is_ok());
+        }
+
+        // The next write should fail
+        assert!(page.write(513).is_err());
+    }
+
+    use std::sync::{Arc, Mutex};
+    use std::thread;
+
+    #[test]
+    fn test_thread_safety() {
+        let page = Arc::new(Mutex::new(Page::new()));
+
+        let mut handles = vec![];
+        for i in 0..10 {
+            let page_clone = Arc::clone(&page);
+            handles.push(thread::spawn(move || {
+                for _ in 0..50 {
+                    let mut p = page_clone.lock().unwrap();
+                    p.write(i as i64).unwrap_or_else(|_| ());
+                }
+            }));
+        }
+
+        for handle in handles {
+            handle.join().unwrap();
+        }
+
+        let p = page.lock().unwrap();
+        assert!(p.num_records <= 512);
+    }
+}
+    /*
+    #[test]
+    fn test_update_record() {
+        let mut page = Page::new();
+
+        // Write and then update a record
+        assert!(page.write(100).is_ok());
+        assert!(page.update(0, 200).is_ok());
+
+        // Read the updated record and verify it matches the new value
+        if let Some(data) = page.read(0) {
+            let value = i64::from_be_bytes(data);
+            assert_eq!(value, 200);
+        } else {
+            panic!("Failed to read updated value");
+        }
+    }
+}
+*/
