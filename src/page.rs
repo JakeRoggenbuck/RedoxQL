@@ -63,17 +63,21 @@ impl Page {
     }
 }
 
+/*-------------------------------------------
+ ---------------- TESTING -------------------
+ --------------------------------------------*/
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
     fn test_write_and_read() {
         let mut page = Page::new();
 
-        // Write a value to the page
+        // Write a value to page
         assert!(page.write(42).is_ok());
 
-        // Read the value back and check if it matches
+        // Read value back and check if it matches
         if let Some(data) = page.read(0) {
             let value = i64::from_be_bytes(data);
             assert_eq!(value, 42);
@@ -91,7 +95,7 @@ mod tests {
             assert!(page.write(i as i64).is_ok());
         }
 
-        // The next write should fail
+        // Next write should fail
         assert!(page.write(513).is_err());
     }
 
@@ -121,22 +125,3 @@ mod tests {
         assert!(p.num_records <= 512);
     }
 }
-    /*
-    #[test]
-    fn test_update_record() {
-        let mut page = Page::new();
-
-        // Write and then update a record
-        assert!(page.write(100).is_ok());
-        assert!(page.update(0, 200).is_ok());
-
-        // Read the updated record and verify it matches the new value
-        if let Some(data) = page.read(0) {
-            let value = i64::from_be_bytes(data);
-            assert_eq!(value, 200);
-        } else {
-            panic!("Failed to read updated value");
-        }
-    }
-}
-*/
