@@ -4,6 +4,7 @@ use pyo3::prelude::*;
 pub mod database;
 pub mod system;
 pub mod page;
+pub mod index;
 
 /// Blazingly fast hello
 #[pyfunction]

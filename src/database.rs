@@ -39,7 +39,7 @@ impl Column {
 ///
 /// Columns and Column are just attractions on Base and Tail Pages
 pub struct Columns {
-    len: usize,
+    pub len: usize,
     columns: Vec<Arc<Mutex<Column>>>,
 }
 
@@ -94,7 +94,6 @@ impl Columns {
 pub struct Table {
     pub name: String,
     pub columns: Columns,
-    cache: HashMap<i64, Vec<i64>>,
 }
 
 impl Table {
@@ -113,11 +112,6 @@ impl Table {
     }
 
     pub fn fetch_row(&mut self, index: i64) -> Vec<i64> {
-        // TODO: Cache invalidation on update
-        if self.cache.contains_key(&index) {
-            return self.cache[&index].clone();
-        }
-
         let mut row = Vec::<i64>::new();
 
         for m in &self.columns.columns {
@@ -126,9 +120,6 @@ impl Table {
 
             row.push(val);
         }
-
-        // Add to cache
-        self.cache.insert(index, row.clone());
 
         row
     }
@@ -155,7 +146,6 @@ impl Database {
         let mut t = Table {
             name,
             columns: Columns::new(),
-            cache: HashMap::<i64, Vec<i64>>::new(),
         };
 
         // Create num_columns amount of columns
