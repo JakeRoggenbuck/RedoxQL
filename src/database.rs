@@ -94,7 +94,7 @@ impl Column {
 
 #[derive(Clone)]
 #[pyclass]
-pub struct Table {
+pub struct RTable {
     pub name: String,
     pub primary_key_column: i64,
     pub columns: Vec<Arc<Mutex<Column>>>,
@@ -104,7 +104,7 @@ pub struct Table {
     // TODO: Add index
 }
 
-impl Table {
+impl RTable {
     pub fn insert_row(&mut self, values: Vec<i64>) {
         let mut i = 0usize;
 
@@ -174,8 +174,8 @@ impl Table {
 
 #[pyclass]
 pub struct RDatabase {
-    tables: Vec<Table>,
-    // Map table names to index on the tables: Vec<Table>
+    tables: Vec<RTable>,
+    // Map table names to index on the tables: Vec<RTable>
     tables_hashmap: HashMap<String, usize>,
 }
 
@@ -194,8 +194,8 @@ impl RDatabase {
         unreachable!("Not used in milestone 1");
     }
 
-    fn create_table(&mut self, name: String, num_columns: i64, primary_key_column: i64) -> Table {
-        let mut t = Table {
+    fn create_table(&mut self, name: String, num_columns: i64, primary_key_column: i64) -> RTable {
+        let mut t = RTable {
             name: name.clone(),
             columns: vec![],
             primary_key_column,
@@ -219,7 +219,7 @@ impl RDatabase {
         return self.tables[i].clone();
     }
 
-    fn get_table(&self, name: String) -> Table {
+    fn get_table(&self, name: String) -> RTable {
         let i = self.tables_hashmap.get(&name).expect("Should exist");
         // Should it really be cloning here?
         return self.tables[*i].clone();
@@ -334,7 +334,7 @@ mod tests {
         // Create a table "users"
         db.create_table(String::from("users"), 3, 0);
 
-        let users: &mut Table = &mut db.tables[0];
+        let users: &mut RTable = &mut db.tables[0];
         users.insert_row(vec![0, 11, 12]);
     }
 
@@ -345,7 +345,7 @@ mod tests {
         // Create a table "users"
         db.create_table(String::from("users"), 3, 0);
 
-        let users: &mut Table = &mut db.tables[0];
+        let users: &mut RTable = &mut db.tables[0];
         users.insert_row(vec![0, 11, 12]);
 
         // Fetch the 0th row

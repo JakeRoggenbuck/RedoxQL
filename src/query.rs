@@ -1,14 +1,14 @@
-use super::database::Table;
+use super::database::RTable;
 use pyo3::prelude::*;
 use std::iter::zip;
 
 #[pyclass]
 pub struct Query {
-    pub table: Table,
+    pub table: RTable,
 }
 
 impl Query {
-    fn new(table: Table) -> Self {
+    fn new(table: RTable) -> Self {
         Query { table }
     }
 

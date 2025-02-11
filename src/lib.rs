@@ -1,4 +1,4 @@
-use database::{RDatabase, Table};
+use database::{RDatabase, RTable};
 use pyo3::prelude::*;
 use query::Query;
 
@@ -19,7 +19,7 @@ fn hello_from_rust() -> PyResult<String> {
 fn lstore(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<RDatabase>()?;
     m.add_class::<Query>()?;
-    m.add_class::<Table>()?;
+    m.add_class::<RTable>()?;
     m.add_function(wrap_pyfunction!(hello_from_rust, m)?)?;
     Ok(())
 }
