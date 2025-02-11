@@ -1,11 +1,17 @@
 use super::database::Table;
+use pyo3::prelude::*;
 use std::iter::zip;
 
-struct Query {
-    table: Table,
+#[pyclass]
+pub struct Query {
+    pub table: Table,
 }
 
 impl Query {
+    fn new(table: Table) -> Self {
+        Query { table }
+    }
+
     fn delete(&mut self, primary_key: i64) {
         // Delete the value in each column where the id == primary_key
         // i.e. delete the whole record
