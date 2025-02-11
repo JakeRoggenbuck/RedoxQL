@@ -187,6 +187,7 @@ impl Database {
             name,
             columns: vec![],
             primary_key_column,
+            page_directory: HashMap::new(),
         };
 
         // Create num_columns amount of columns
