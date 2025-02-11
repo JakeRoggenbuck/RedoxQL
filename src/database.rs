@@ -6,20 +6,48 @@ struct PageRange {
     // Max amount of base pages should be set to 16
     base_pages: Vec<Arc<Mutex<Page>>>,
     tail_pages: Vec<Arc<Mutex<Page>>>,
+
+    // The index of the first non-full base page
+    first_non_full_page: usize,
 }
 
 impl PageRange {
-    fn write(&self, value: i64) {
-        // TODO: Implement
+    fn write(&mut self, value: i64) {
+        println!("Starting write");
+        // Get the current page
+        let cur_page = self.base_pages[self.first_non_full_page].clone();
+
+        // Make a closure to prevent multiple mutex lock deadlock
+        {
+            let page = cur_page.lock().unwrap();
+
+            // Check the current page's capacity
+            if !page.has_capacity() {
+                self.first_non_full_page += 1;
+                self.base_pages.push(Arc::new(Mutex::new(Page::new())));
+            }
+        }
+
+        let _ = self.base_pages[self.first_non_full_page]
+            .lock()
+            .unwrap()
+            .write(value);
     }
+
     fn read(&self, index: usize) -> Option<i64> {
-        Some(0) // TODO: Implement
+        println!("Starting read {:?}", self);
+        // Get the current page
+        let cur_page = self.base_pages[self.first_non_full_page].clone();
+        let page = cur_page.lock().unwrap();
+
+        return page.read(index);
     }
 
     fn new() -> Self {
         PageRange {
-            base_pages: vec![],
+            base_pages: vec![Arc::new(Mutex::new(Page::new()))],
             tail_pages: vec![],
+            first_non_full_page: 0,
         }
     }
 }
