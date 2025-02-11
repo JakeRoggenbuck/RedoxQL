@@ -1,3 +1,4 @@
+use super::page::Page;
 use pyo3::prelude::*;
 use std::sync::{Arc, Mutex};
 
@@ -9,26 +10,26 @@ enum DatabaseError {
 /// This is the place that actually stores the values
 ///
 /// TODO: Keep track of the Base and Tail Pages
-#[derive(Clone)]
 #[pyclass]
 pub struct Column {
     // TODO: This should be pages later
-    values: Vec<i64>,
+    base_page: Page,
 }
 
 impl Column {
     fn insert(&mut self, value: i64) {
-        // TODO: Use pages to do this
-        self.values.push(value);
+        let _ = self.base_page.write(value);
     }
 
-    fn fetch(&self, index: i64) -> i64 {
+    fn fetch(&self, index: i64) -> Option<i64> {
         // TODO: Out of bounds check
-        return self.values[index as usize];
+        return self.base_page.read(index as usize);
     }
 
     fn new() -> Self {
-        Column { values: Vec::new() }
+        Column {
+            base_page: Page::new(),
+        }
     }
 }
 
@@ -60,7 +61,7 @@ impl Table {
             let col = m.lock().unwrap();
             let val = col.fetch(index);
 
-            row.push(val);
+            row.push(val.expect("Value should be fetched"));
         }
 
         row
@@ -91,7 +92,7 @@ impl Table {
         let col = m.lock().unwrap();
 
         let v = col.fetch(val_index);
-        Ok(Some(v))
+        Ok(Some(v.expect("Value should be fetched.")))
     }
 
     fn create_column(&mut self) -> usize {
