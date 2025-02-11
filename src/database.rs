@@ -168,6 +168,8 @@ impl Table {
 #[pyclass]
 pub struct Database {
     tables: Vec<Table>,
+    // Map table names to index on the tables: Vec<Table>
+    tables_hashmap: HashMap<String, usize>,
 }
 
 #[pymethods]
@@ -179,12 +181,15 @@ impl Database {
 
     #[staticmethod]
     fn new() -> Self {
-        Database { tables: vec![] }
+        Database {
+            tables: vec![],
+            tables_hashmap: HashMap::new(),
+        }
     }
 
     fn create_table(&mut self, name: String, num_columns: i64, primary_key_column: i64) -> usize {
         let mut t = Table {
-            name,
+            name: name.clone(),
             columns: vec![],
             primary_key_column,
             page_directory: HashMap::new(),
@@ -196,6 +201,9 @@ impl Database {
         }
 
         let i = self.tables.len();
+
+        // Map a name of a table to it's index on the self.tables field
+        self.tables_hashmap.insert(name, i);
 
         self.tables.push(t);
 
