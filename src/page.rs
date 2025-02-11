@@ -6,7 +6,7 @@ static MAX_SIZE_RECORD: usize = 512;
 #[pyclass]
 pub struct Page {
     num_records: usize,
-    data: [u8; 4096],  // 4 KB page bytearray
+    data: [u8; 4096], // 4 KB page bytearray
     locked: AtomicUsize,
 }
 
@@ -64,8 +64,8 @@ impl Page {
 }
 
 /*-------------------------------------------
- ---------------- TESTING -------------------
- --------------------------------------------*/
+---------------- TESTING -------------------
+--------------------------------------------*/
 #[cfg(test)]
 mod tests {
     use super::*;
