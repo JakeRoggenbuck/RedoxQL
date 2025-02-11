@@ -1,4 +1,4 @@
-use crate::database::{Column, Database, Table};
+use crate::database::{Column, RTable};
 use pyo3::prelude::*;
 use std::collections::BTreeMap;
 
@@ -18,14 +18,29 @@ pub struct Index {
 
         Vec<[usize; 3]>: Will later change it to the RID of the record.
      */
-    indices: Vec<Option<BTreeMap<i64, Vec<[usize; 3]>>>>, // change <[usize; 3]> to RID
-    table: Table,
+
+       Option<BTreeMap<...>>: Each element in the vector can be either:
+       -- None (no index exists for the column), or --
+       -- ome(BTreeMap<...>) (an index exists). --
+
+       BTreeMap<i64, Vec<[usize; 3]>>:
+       -- BTreeMap: A balanced binary search tree (B-Tree), for maintaining sorted key-value pairs. --
+       -- i64: The key type of the map (e.g., the column value being indexed). --
+
+       Vec<[usize; 3]>: The value type of the map, representing a list of pointers to records.
+        -- Each pointer is represented as a 3-element array of usize, referring to:
+           -- Page range index --
+           -- Page index within that range --
+           -- Record offset within the page --
+    */
+    indices: Vec<Option<BTreeMap<i64, Vec<[usize; 3]>>>>, // One BTree per column
+    table: RTable,
 }
 
 impl Index {
     // Init
     // Mandatory: One index for each table. All our empty initially.
-    pub fn new(table: Table) -> Index {
+    pub fn new(table: RTable) -> Index {
         let mut indices = vec![None; table.columns.len()];
         indices[table.primary_key_column as usize] = Some(BTreeMap::new());
         Index {
