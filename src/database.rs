@@ -94,7 +94,7 @@ impl Column {
 
 #[derive(Clone)]
 #[pyclass]
-pub struct Table {
+pub struct RTable {
     pub name: String,
     pub primary_key_column: i64,
     pub columns: Vec<Arc<Mutex<Column>>>,
@@ -104,7 +104,7 @@ pub struct Table {
     // TODO: Add index
 }
 
-impl Table {
+impl RTable {
     pub fn insert_row(&mut self, values: Vec<i64>) {
         let mut i = 0usize;
 
@@ -173,20 +173,20 @@ impl Table {
 }
 
 #[pyclass]
-pub struct Database {
-    tables: Vec<Table>,
-    // Map table names to index on the tables: Vec<Table>
+pub struct RDatabase {
+    tables: Vec<RTable>,
+    // Map table names to index on the tables: Vec<RTable>
     tables_hashmap: HashMap<String, usize>,
 }
 
 #[pymethods]
-impl Database {
+impl RDatabase {
     #[staticmethod]
     fn ping() -> String {
         return String::from("pong!");
     }
 
-    fn open(&self) {
+    fn open(&self, _path: String) {
         unreachable!("Not used in milestone 1");
     }
 
@@ -194,8 +194,8 @@ impl Database {
         unreachable!("Not used in milestone 1");
     }
 
-    fn create_table(&mut self, name: String, num_columns: i64, primary_key_column: i64) -> Table {
-        let mut t = Table {
+    fn create_table(&mut self, name: String, num_columns: i64, primary_key_column: i64) -> RTable {
+        let mut t = RTable {
             name: name.clone(),
             columns: vec![],
             primary_key_column,
@@ -219,10 +219,14 @@ impl Database {
         return self.tables[i].clone();
     }
 
-    fn get_table(&self, name: String) -> Table {
+    fn get_table(&self, name: String) -> RTable {
         let i = self.tables_hashmap.get(&name).expect("Should exist");
         // Should it really be cloning here?
         return self.tables[*i].clone();
+    }
+
+    fn get_table_from_index(&self, i: i64) -> RTable {
+        return self.tables[i as usize].clone();
     }
 
     fn drop_table(&mut self, name: String) {
@@ -249,9 +253,9 @@ impl Database {
         self.tables_hashmap.remove(&name);
     }
 
-    #[staticmethod]
+    #[new]
     fn new() -> Self {
-        Database {
+        RDatabase {
             tables: vec![],
             tables_hashmap: HashMap::new(),
         }
@@ -264,7 +268,7 @@ mod tests {
 
     #[test]
     fn drop_table_test() {
-        let mut db = Database::new();
+        let mut db = RDatabase::new();
 
         // Create a table "users"
         db.create_table(String::from("users"), 1, 0);
@@ -278,7 +282,7 @@ mod tests {
 
     #[test]
     fn drop_on_of_many_tables_test() {
-        let mut db = Database::new();
+        let mut db = RDatabase::new();
 
         db.create_table(String::from("users"), 1, 0);
         db.create_table(String::from("accounts"), 2, 0);
@@ -293,7 +297,7 @@ mod tests {
 
     #[test]
     fn insert_test() {
-        let mut db = Database::new();
+        let mut db = RDatabase::new();
 
         // Create a table "users"
         db.create_table(String::from("users"), 1, 0);
@@ -307,7 +311,7 @@ mod tests {
 
     #[test]
     fn fetch_test() {
-        let mut db = Database::new();
+        let mut db = RDatabase::new();
 
         // Create a table "users"
         db.create_table(String::from("users"), 1, 0);
@@ -329,23 +333,23 @@ mod tests {
 
     #[test]
     fn insert_row_test() {
-        let mut db = Database::new();
+        let mut db = RDatabase::new();
 
         // Create a table "users"
         db.create_table(String::from("users"), 3, 0);
 
-        let users: &mut Table = &mut db.tables[0];
+        let users: &mut RTable = &mut db.tables[0];
         users.insert_row(vec![0, 11, 12]);
     }
 
     #[test]
     fn fetch_row_test() {
-        let mut db = Database::new();
+        let mut db = RDatabase::new();
 
         // Create a table "users"
         db.create_table(String::from("users"), 3, 0);
 
-        let users: &mut Table = &mut db.tables[0];
+        let users: &mut RTable = &mut db.tables[0];
         users.insert_row(vec![0, 11, 12]);
 
         // Fetch the 0th row
