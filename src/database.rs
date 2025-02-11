@@ -173,14 +173,14 @@ impl Table {
 }
 
 #[pyclass]
-pub struct Database {
+pub struct RDatabase {
     tables: Vec<Table>,
     // Map table names to index on the tables: Vec<Table>
     tables_hashmap: HashMap<String, usize>,
 }
 
 #[pymethods]
-impl Database {
+impl RDatabase {
     #[staticmethod]
     fn ping() -> String {
         return String::from("pong!");
@@ -251,7 +251,7 @@ impl Database {
 
     #[staticmethod]
     fn new() -> Self {
-        Database {
+        RDatabase {
             tables: vec![],
             tables_hashmap: HashMap::new(),
         }
@@ -264,7 +264,7 @@ mod tests {
 
     #[test]
     fn drop_table_test() {
-        let mut db = Database::new();
+        let mut db = RDatabase::new();
 
         // Create a table "users"
         db.create_table(String::from("users"), 1, 0);
@@ -278,7 +278,7 @@ mod tests {
 
     #[test]
     fn drop_on_of_many_tables_test() {
-        let mut db = Database::new();
+        let mut db = RDatabase::new();
 
         db.create_table(String::from("users"), 1, 0);
         db.create_table(String::from("accounts"), 2, 0);
@@ -293,7 +293,7 @@ mod tests {
 
     #[test]
     fn insert_test() {
-        let mut db = Database::new();
+        let mut db = RDatabase::new();
 
         // Create a table "users"
         db.create_table(String::from("users"), 1, 0);
@@ -307,7 +307,7 @@ mod tests {
 
     #[test]
     fn fetch_test() {
-        let mut db = Database::new();
+        let mut db = RDatabase::new();
 
         // Create a table "users"
         db.create_table(String::from("users"), 1, 0);
@@ -329,7 +329,7 @@ mod tests {
 
     #[test]
     fn insert_row_test() {
-        let mut db = Database::new();
+        let mut db = RDatabase::new();
 
         // Create a table "users"
         db.create_table(String::from("users"), 3, 0);
@@ -340,7 +340,7 @@ mod tests {
 
     #[test]
     fn fetch_row_test() {
-        let mut db = Database::new();
+        let mut db = RDatabase::new();
 
         // Create a table "users"
         db.create_table(String::from("users"), 3, 0);

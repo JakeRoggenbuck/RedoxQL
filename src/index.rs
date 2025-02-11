@@ -1,4 +1,4 @@
-use crate::database::{Column, Database, Table};
+use crate::database::{Column, Table};
 use pyo3::prelude::*;
 use std::collections::BTreeMap;
 
