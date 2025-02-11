@@ -1,5 +1,6 @@
 use super::page::Page;
 use pyo3::prelude::*;
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 struct PageRange {
@@ -13,7 +14,6 @@ struct PageRange {
 
 impl PageRange {
     fn write(&mut self, value: i64) {
-        println!("Starting write");
         // Get the current page
         let cur_page = self.base_pages[self.first_non_full_page].clone();
 
@@ -35,7 +35,6 @@ impl PageRange {
     }
 
     fn read(&self, index: usize) -> Option<i64> {
-        println!("Starting read {:?}", self);
         // Get the current page
         let cur_page = self.base_pages[self.first_non_full_page].clone();
         let page = cur_page.lock().unwrap();
@@ -97,6 +96,9 @@ pub struct Table {
     pub name: String,
     pub columns: Vec<Arc<Mutex<Column>>>,
     pub primary_key_column: i64,
+
+    // TODO: Fix this to be the correct usage
+    pub page_directory: HashMap<i64, i64>,
 }
 
 impl Table {
@@ -185,6 +187,7 @@ impl Database {
             name,
             columns: vec![],
             primary_key_column,
+            page_directory: HashMap::new(),
         };
 
         // Create num_columns amount of columns
