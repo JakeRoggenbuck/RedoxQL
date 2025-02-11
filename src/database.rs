@@ -91,6 +91,7 @@ impl Column {
     }
 }
 
+#[derive(Clone)]
 #[pyclass]
 pub struct Table {
     pub name: String,
@@ -168,6 +169,8 @@ impl Table {
 #[pyclass]
 pub struct Database {
     tables: Vec<Table>,
+    // Map table names to index on the tables: Vec<Table>
+    tables_hashmap: HashMap<String, usize>,
 }
 
 #[pymethods]
@@ -177,14 +180,9 @@ impl Database {
         return String::from("pong!");
     }
 
-    #[staticmethod]
-    fn new() -> Self {
-        Database { tables: vec![] }
-    }
-
-    fn create_table(&mut self, name: String, num_columns: i64, primary_key_column: i64) -> usize {
+    fn create_table(&mut self, name: String, num_columns: i64, primary_key_column: i64) -> Table {
         let mut t = Table {
-            name,
+            name: name.clone(),
             columns: vec![],
             primary_key_column,
             page_directory: HashMap::new(),
@@ -197,9 +195,28 @@ impl Database {
 
         let i = self.tables.len();
 
+        // Map a name of a table to it's index on the self.tables field
+        self.tables_hashmap.insert(name, i);
+
         self.tables.push(t);
 
-        return i;
+        // Should it really be cloning here?
+        // I guess since it has just an Arc Mutex, the underlying data should persist
+        return self.tables[i].clone();
+    }
+
+    fn get_table(&self, name: String) -> Table {
+        let i = self.tables_hashmap.get(&name).expect("Should exist");
+        // Should it really be cloning here?
+        return self.tables[*i].clone();
+    }
+
+    #[staticmethod]
+    fn new() -> Self {
+        Database {
+            tables: vec![],
+            tables_hashmap: HashMap::new(),
+        }
     }
 }
 
