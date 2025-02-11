@@ -1,3 +1,4 @@
+use super::index::Index;
 use super::page::Page;
 use pyo3::prelude::*;
 use std::collections::HashMap;
@@ -95,11 +96,12 @@ impl Column {
 #[pyclass]
 pub struct Table {
     pub name: String,
-    pub columns: Vec<Arc<Mutex<Column>>>,
     pub primary_key_column: i64,
+    pub columns: Vec<Arc<Mutex<Column>>>,
 
     // TODO: Fix this to be the correct usage
     pub page_directory: HashMap<i64, i64>,
+    // TODO: Add index
 }
 
 impl Table {
@@ -163,6 +165,10 @@ impl Table {
         self.columns.push(c);
 
         self.columns.len() - 1
+    }
+
+    fn _merge() {
+        unreachable!("Not used in milestone 1")
     }
 }
 
@@ -233,7 +239,8 @@ impl Database {
         // Decrement id
         // c0, c1, c2, c3
         for (_, id) in self.tables_hashmap.iter_mut() {
-            if *id >= i {
+            if *id > i {
+                println!("{} {}", *id, i);
                 *id -= 1;
             }
         }
@@ -254,6 +261,35 @@ impl Database {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn drop_table_test() {
+        let mut db = Database::new();
+
+        // Create a table "users"
+        db.create_table(String::from("users"), 1, 0);
+
+        assert_eq!(db.tables.len(), 1);
+
+        db.drop_table("users".to_string());
+
+        assert_eq!(db.tables.len(), 0);
+    }
+
+    #[test]
+    fn drop_on_of_many_tables_test() {
+        let mut db = Database::new();
+
+        db.create_table(String::from("users"), 1, 0);
+        db.create_table(String::from("accounts"), 2, 0);
+        db.create_table(String::from("bikes"), 4, 0);
+
+        assert_eq!(db.tables.len(), 3);
+
+        db.drop_table("users".to_string());
+
+        assert_eq!(db.tables.len(), 2);
+    }
 
     #[test]
     fn insert_test() {
