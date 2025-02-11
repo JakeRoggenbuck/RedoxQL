@@ -25,7 +25,8 @@ seed(3562901)
 for i in range(0, number_of_records):
     key = 92106429 + randint(0, number_of_records)
 
-    #skip duplicate keys
+    # Skip duplicate keys
+    # Generate a new key if it's already in the hashmap
     while key in records:
         key = 92106429 + randint(0, number_of_records)
 

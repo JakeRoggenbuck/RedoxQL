@@ -1,10 +1,10 @@
+use crate::database::{Column, Database, Table};
 use pyo3::prelude::*;
 use std::collections::BTreeMap;
-use crate::database::{Database, Table, Columns, Column};
 
-/*  A data strucutre holding indices for various columns of a table. 
-    Key column should be indexd by default, other columns can be indexed through this object. 
-    Indices are usually B-Trees, but other data structures can be used as well. */
+/*  A data strucutre holding indices for various columns of a table.
+Key column should be indexd by default, other columns can be indexed through this object.
+Indices are usually B-Trees, but other data structures can be used as well. */
 
 #[pyclass]
 pub struct Index {
@@ -72,5 +72,3 @@ impl Index {
     pub fn drop_index(&mut self, column_num: usize) {
         self.indices[column_num] = None;
     }
-
-}

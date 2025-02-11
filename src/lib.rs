@@ -2,9 +2,9 @@ use database::Database;
 use pyo3::prelude::*;
 
 pub mod database;
-pub mod system;
-pub mod page;
 pub mod index;
+pub mod page;
+pub mod system;
 
 /// Blazingly fast hello
 #[pyfunction]

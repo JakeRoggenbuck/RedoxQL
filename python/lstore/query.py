@@ -1,6 +1,7 @@
 from lstore.table import Table, Record
 from lstore.index import Index
 from typing import Any
+from .lstore import hello_from_rust, Database, Table
 
 
 class Query:
@@ -11,9 +12,8 @@ class Query:
     Any query that crashes (due to exceptions) should return False
     """
 
-    def __init__(self, table):
+    def __init__(self, table: Table):
         self.table = table
-        pass
 
     """
     # internal Method
