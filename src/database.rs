@@ -186,7 +186,7 @@ impl RDatabase {
         return String::from("pong!");
     }
 
-    fn open(&self) {
+    fn open(&self, _path: String) {
         unreachable!("Not used in milestone 1");
     }
 
