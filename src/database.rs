@@ -211,6 +211,29 @@ impl Database {
         return self.tables[*i].clone();
     }
 
+    fn drop_table(&mut self, name: String) {
+        let i_ref = self.tables_hashmap.get(&name).expect("Should exist");
+        let i = *i_ref;
+
+        // Remove from tables vec
+        self.tables.remove(i);
+
+        // c0, c1, c2, c3, c4
+        // .remove(2)
+        // c0, c1, c3, c4
+
+        // Decrement id
+        // c0, c1, c2, c3
+        for (_, id) in self.tables_hashmap.iter_mut() {
+            if *id >= i {
+                *id -= 1;
+            }
+        }
+
+        // Remove from tables hashmap
+        self.tables_hashmap.remove(&name);
+    }
+
     #[staticmethod]
     fn new() -> Self {
         Database {
