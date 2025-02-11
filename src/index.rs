@@ -43,7 +43,7 @@ impl Index {
     /// Returns the RIDs of all records with values in column "column" between "begin" and "end"
     pub fn locate_range(&self, begin: i64, end: i64, column: usize) -> Vec<[usize; 3]> { // change <[usize; 3]> to RID
         if let Some(tree) = &self.indices[column] {
-            // tree.range(begin..=end) gets all entries where the key is between begin and end
+            // Gets all entries where the key is between begin and end
             let keys = tree.range(begin..=end);
             // .flat_map() flattens the vector of vector RID's into one vector
             // _ in (_, pointers) ignores the key
@@ -53,16 +53,15 @@ impl Index {
         }
         Vec::new()
     }
-    // Create index on specific column
+    /// Create index on specific column
     pub fn create_index(&mut self, column_num: usize) {
         // Create BTree for column
         if self.indices[column_num] == None {
             self.indices[column_num] = Some(BTreeMap::new());
             // TODO: Populate new index with existing records
-
             }
     }
-    // Insert or update index for a specific column
+    /// Insert or update index for a specific column
     pub fn update_index(&mut self, key: i64, pointer: [usize; 3], column_number: usize) { // change pointer to RID
         // Gets column Some::BTreeMap, creates one if None
         let tree = self.indices[column_number].get_or_insert_with(BTreeMap::new);
@@ -72,7 +71,7 @@ impl Index {
         // Appends the provided pointer ([usize; 3]) to the vector associated with the key
         tree.entry(key).or_insert_with(Vec::new).push(pointer);
     }
-    // Drop index of specific column
+    /// Drop index of specific column
     pub fn drop_index(&mut self, column_num: usize) {
         self.indices[column_num] = None;
     }
