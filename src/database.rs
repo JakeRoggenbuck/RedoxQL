@@ -2,10 +2,26 @@ use super::page::Page;
 use pyo3::prelude::*;
 use std::sync::{Arc, Mutex};
 
-struct PageRange<'a> {
+struct PageRange {
     // Max amount of base pages should be set to 16
-    base_pages: Vec<&'a Page>,
-    tail_pages: Vec<&'a Page>,
+    base_pages: Vec<Arc<Mutex<Page>>>,
+    tail_pages: Vec<Arc<Mutex<Page>>>,
+}
+
+impl PageRange {
+    fn write(&self, value: i64) {
+        // TODO: Implement
+    }
+    fn read(&self, index: usize) -> Option<i64> {
+        Some(0) // TODO: Implement
+    }
+
+    fn new() -> Self {
+        PageRange {
+            base_pages: vec![],
+            tail_pages: vec![],
+        }
+    }
 }
 
 struct RecordAddress {
@@ -28,23 +44,22 @@ enum DatabaseError {
 /// TODO: Keep track of the Base and Tail Pages
 #[pyclass]
 pub struct Column {
-    // TODO: This should be pages later
-    base_page: Page,
+    page_range: PageRange,
 }
 
 impl Column {
     fn insert(&mut self, value: i64) {
-        let _ = self.base_page.write(value);
+        let _ = self.page_range.write(value);
     }
 
     fn fetch(&self, index: i64) -> Option<i64> {
         // TODO: Out of bounds check
-        return self.base_page.read(index as usize);
+        return self.page_range.read(index as usize);
     }
 
     fn new() -> Self {
         Column {
-            base_page: Page::new(),
+            page_range: PageRange::new(),
         }
     }
 }
