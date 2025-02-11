@@ -180,6 +180,14 @@ impl Database {
         return String::from("pong!");
     }
 
+    fn open(&self) {
+        unreachable!("Not used in milestone 1");
+    }
+
+    fn close(&self) {
+        unreachable!("Not used in milestone 1");
+    }
+
     fn create_table(&mut self, name: String, num_columns: i64, primary_key_column: i64) -> Table {
         let mut t = Table {
             name: name.clone(),
