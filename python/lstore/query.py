@@ -1,7 +1,7 @@
 from lstore.table import Table, Record
 from lstore.index import Index
 from typing import Any
-from .lstore import hello_from_rust, Database, Table
+from .lstore import hello_from_rust, Database, Query
 
 
 class Query:
