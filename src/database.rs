@@ -180,6 +180,14 @@ impl Database {
         return String::from("pong!");
     }
 
+    fn open(&self) {
+        unreachable!("Not used in milestone 1");
+    }
+
+    fn close(&self) {
+        unreachable!("Not used in milestone 1");
+    }
+
     fn create_table(&mut self, name: String, num_columns: i64, primary_key_column: i64) -> Table {
         let mut t = Table {
             name: name.clone(),
@@ -209,6 +217,29 @@ impl Database {
         let i = self.tables_hashmap.get(&name).expect("Should exist");
         // Should it really be cloning here?
         return self.tables[*i].clone();
+    }
+
+    fn drop_table(&mut self, name: String) {
+        let i_ref = self.tables_hashmap.get(&name).expect("Should exist");
+        let i = *i_ref;
+
+        // Remove from tables vec
+        self.tables.remove(i);
+
+        // c0, c1, c2, c3, c4
+        // .remove(2)
+        // c0, c1, c3, c4
+
+        // Decrement id
+        // c0, c1, c2, c3
+        for (_, id) in self.tables_hashmap.iter_mut() {
+            if *id >= i {
+                *id -= 1;
+            }
+        }
+
+        // Remove from tables hashmap
+        self.tables_hashmap.remove(&name);
     }
 
     #[staticmethod]
