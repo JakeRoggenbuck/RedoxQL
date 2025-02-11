@@ -17,7 +17,6 @@ pub struct Index {
         -- i64: The key type of the map (the column value being indexed). --
 
         Vec<[usize; 3]>: Will later change it to the RID of the record.
-     */
 
        Option<BTreeMap<...>>: Each element in the vector can be either:
        -- None (no index exists for the column), or --
