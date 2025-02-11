@@ -2,6 +2,16 @@ use super::page::Page;
 use pyo3::prelude::*;
 use std::sync::{Arc, Mutex};
 
+struct RecordAddress {
+    page: Page,
+    offset: i64,
+}
+
+struct Record<'a> {
+    rid: i64,
+    addresses: Vec<&'a RecordAddress>,
+}
+
 #[derive(Debug)]
 enum DatabaseError {
     OutOfBounds,
