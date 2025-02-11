@@ -25,7 +25,7 @@ pub struct Index {
 impl Index {
     // Init
     // Mandatory: One index for each table. All our empty initially.
-    pub fn new(table: Table) -> Index {
+    pub fn new(table: RTable) -> Index {
         let mut indices = vec![None; table.columns.len()];
         indices[table.primary_key_column as usize] = Some(BTreeMap::new());
         Index {
