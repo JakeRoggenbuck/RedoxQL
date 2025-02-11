@@ -26,7 +26,7 @@ impl Index {
     // Init
     // Mandatory: One index for each table. All our empty initially.
     pub fn new(table: Table) -> Index {
-        let mut indices = vec![None; table.columns.len]; // change to table.num_columns
+        let mut indices = vec![None; table.columns]; // change to table.num_columns
         indices[table.key] = Some(BTreeMap::new());
         Index { 
             indices,
@@ -44,9 +44,8 @@ impl Index {
     pub fn locate_range(&self, begin: i64, end: i64, column: usize) -> Vec<[usize; 3]> { // change <[usize; 3]> to RID
         if let Some(tree) = &self.indices[column] {
                 return tree.range(begin..=end).flat_map(|(_, pointers)| pointers.clone()).collect();
-            }
         }
-        vec![];
+        Vec<[usize; 3]>;
     }
     // Optional: Create index on specific column
     pub fn create_index(&mut self, column_num: usize) {
@@ -72,3 +71,4 @@ impl Index {
     pub fn drop_index(&mut self, column_num: usize) {
         self.indices[column_num] = None;
     }
+}

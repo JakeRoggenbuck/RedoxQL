@@ -50,22 +50,20 @@ impl Page {
     }
 
     // Read bytes from index
-    pub fn read(&self, index: usize) -> Option<[u8; 8]> {
+    pub fn read(&self, index: usize) -> Option<i64> {
         // Check range
         if index >= self.num_records {
             return None;
         }
         // Read data
         let position = index * 8;
-        let data = self.data[position..position + 8].try_into().unwrap();
+        let data: [u8; 8] = self.data[position..position + 8].try_into().unwrap();
+        let num: i64 = i64::from_be_bytes(data);
 
-        Some(data)
+        Some(num)
     }
 }
 
-/*----------------------------------------------------------------------------------------------------------------
- --------------------------------------------------------TESTING -------------------------------------------------
- -----------------------------------------------------------------------------------------------------------------*/
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -79,8 +77,7 @@ mod tests {
 
         // Read value back and check if it matches
         if let Some(data) = page.read(0) {
-            let value = i64::from_be_bytes(data);
-            assert_eq!(value, 42);
+            assert_eq!(data, 42);
         } else {
             panic!("Failed to read value");
         }
