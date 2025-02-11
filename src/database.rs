@@ -2,6 +2,66 @@ use super::page::Page;
 use pyo3::prelude::*;
 use std::sync::{Arc, Mutex};
 
+struct PageRange {
+    // Max amount of base pages should be set to 16
+    base_pages: Vec<Arc<Mutex<Page>>>,
+    tail_pages: Vec<Arc<Mutex<Page>>>,
+
+    // The index of the first non-full base page
+    first_non_full_page: usize,
+}
+
+impl PageRange {
+    fn write(&mut self, value: i64) {
+        println!("Starting write");
+        // Get the current page
+        let cur_page = self.base_pages[self.first_non_full_page].clone();
+
+        // Make a closure to prevent multiple mutex lock deadlock
+        {
+            let page = cur_page.lock().unwrap();
+
+            // Check the current page's capacity
+            if !page.has_capacity() {
+                self.first_non_full_page += 1;
+                self.base_pages.push(Arc::new(Mutex::new(Page::new())));
+            }
+        }
+
+        let _ = self.base_pages[self.first_non_full_page]
+            .lock()
+            .unwrap()
+            .write(value);
+    }
+
+    fn read(&self, index: usize) -> Option<i64> {
+        println!("Starting read {:?}", self);
+        // Get the current page
+        let cur_page = self.base_pages[self.first_non_full_page].clone();
+        let page = cur_page.lock().unwrap();
+
+        return page.read(index);
+    }
+
+    fn new() -> Self {
+        PageRange {
+            base_pages: vec![Arc::new(Mutex::new(Page::new()))],
+            tail_pages: vec![],
+            first_non_full_page: 0,
+        }
+    }
+}
+
+struct RecordAddress {
+    page: Page,
+    offset: i64,
+}
+
+struct Record<'a> {
+    rid: i64,
+    addresses: Vec<&'a RecordAddress>,
+}
+
 #[derive(Debug)]
 enum DatabaseError {
     OutOfBounds,
@@ -12,23 +72,22 @@ enum DatabaseError {
 /// TODO: Keep track of the Base and Tail Pages
 #[pyclass]
 pub struct Column {
-    // TODO: This should be pages later
-    base_page: Page,
+    page_range: PageRange,
 }
 
 impl Column {
     fn insert(&mut self, value: i64) {
-        let _ = self.base_page.write(value);
+        let _ = self.page_range.write(value);
     }
 
     fn fetch(&self, index: i64) -> Option<i64> {
         // TODO: Out of bounds check
-        return self.base_page.read(index as usize);
+        return self.page_range.read(index as usize);
     }
 
     fn new() -> Self {
         Column {
-            base_page: Page::new(),
+            page_range: PageRange::new(),
         }
     }
 }
@@ -37,6 +96,7 @@ impl Column {
 pub struct Table {
     pub name: String,
     pub columns: Vec<Arc<Mutex<Column>>>,
+    pub primary_key_column: i64,
 }
 
 impl Table {
@@ -120,10 +180,11 @@ impl Database {
         Database { tables: vec![] }
     }
 
-    fn create_table(&mut self, name: String, num_columns: i64, _primary_key_column: i64) -> usize {
+    fn create_table(&mut self, name: String, num_columns: i64, primary_key_column: i64) -> usize {
         let mut t = Table {
             name,
             columns: vec![],
+            primary_key_column,
         };
 
         // Create num_columns amount of columns
