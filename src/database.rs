@@ -1,5 +1,4 @@
 use pyo3::prelude::*;
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 #[derive(Debug)]
@@ -33,19 +32,42 @@ impl Column {
     }
 }
 
-/// Hold a shared reference to every column
-/// Have multiple Arc<Mutex> instead of an Arc<Mutex<Vec>> so that each can be locked and unlocked
-/// separately by different threads
-///
-/// Columns and Column are just attractions on Base and Tail Pages
-pub struct Columns {
-    pub len: usize,
-    columns: Vec<Arc<Mutex<Column>>>,
+#[pyclass]
+pub struct Table {
+    pub name: String,
+    pub columns: Vec<Arc<Mutex<Column>>>,
 }
 
-impl Columns {
+impl Table {
+    pub fn insert_row(&mut self, values: Vec<i64>) {
+        let mut i = 0usize;
+
+        for value in values {
+            // TODO: Handle bounds check for cols
+            let m = &self.columns[i];
+
+            let mut col = m.lock().unwrap();
+
+            col.insert(value);
+            i += 1;
+        }
+    }
+
+    pub fn fetch_row(&mut self, index: i64) -> Vec<i64> {
+        let mut row = Vec::<i64>::new();
+
+        for m in &self.columns {
+            let col = m.lock().unwrap();
+            let val = col.fetch(index);
+
+            row.push(val);
+        }
+
+        row
+    }
+
     fn insert(&mut self, col_index: usize, value: i64) -> Result<i64, DatabaseError> {
-        if col_index >= self.len {
+        if col_index >= self.columns.len() {
             return Err(DatabaseError::OutOfBounds);
         }
 
@@ -60,7 +82,7 @@ impl Columns {
     }
 
     fn fetch(&mut self, col_index: usize, val_index: i64) -> Result<Option<i64>, DatabaseError> {
-        if col_index >= self.len {
+        if col_index >= self.columns.len() {
             return Err(DatabaseError::OutOfBounds);
         }
 
@@ -76,52 +98,7 @@ impl Columns {
         let c = Arc::new(Mutex::new(Column::new()));
         self.columns.push(c);
 
-        let index = self.len;
-        self.len += 1;
-
-        index
-    }
-
-    fn new() -> Self {
-        Columns {
-            len: 0,
-            columns: vec![],
-        }
-    }
-}
-
-#[pyclass]
-pub struct Table {
-    pub name: String,
-    pub columns: Columns,
-}
-
-impl Table {
-    pub fn insert_row(&mut self, values: Vec<i64>) {
-        let mut i = 0usize;
-
-        for value in values {
-            // TODO: Handle bounds check for cols
-            let m = &self.columns.columns[i];
-
-            let mut col = m.lock().unwrap();
-
-            col.insert(value);
-            i += 1;
-        }
-    }
-
-    pub fn fetch_row(&mut self, index: i64) -> Vec<i64> {
-        let mut row = Vec::<i64>::new();
-
-        for m in &self.columns.columns {
-            let col = m.lock().unwrap();
-            let val = col.fetch(index);
-
-            row.push(val);
-        }
-
-        row
+        self.columns.len() - 1
     }
 }
 
@@ -145,12 +122,12 @@ impl Database {
     fn create_table(&mut self, name: String, num_columns: i64, _primary_key_column: i64) -> usize {
         let mut t = Table {
             name,
-            columns: Columns::new(),
+            columns: vec![],
         };
 
         // Create num_columns amount of columns
         for _ in 0..num_columns {
-            t.columns.create_column();
+            t.create_column();
         }
 
         let i = self.tables.len();
@@ -173,7 +150,7 @@ mod tests {
         db.create_table(String::from("users"), 1, 0);
 
         // This is an internal API
-        match db.tables[0].columns.insert(0, 1) {
+        match db.tables[0].insert(0, 1) {
             Ok(a) => assert_eq!(a, 1),
             Err(e) => panic!("{:?}", e),
         }
@@ -187,15 +164,15 @@ mod tests {
         db.create_table(String::from("users"), 1, 0);
 
         // Create a column
-        let c: usize = db.tables[0].columns.create_column();
+        let c: usize = db.tables[0].create_column();
 
-        match db.tables[0].columns.insert(c, 1) {
+        match db.tables[0].insert(c, 1) {
             Ok(a) => assert_eq!(a, 1),
             Err(e) => panic!("{:?}", e),
         }
 
         // Try to fetch the 0th id of the c'th column
-        match db.tables[0].columns.fetch(c, 0) {
+        match db.tables[0].fetch(c, 0) {
             Ok(a) => assert_eq!(a, Some(1)),
             Err(e) => panic!("{:?}", e),
         }
