@@ -1,3 +1,4 @@
+use super::index::Index;
 use super::page::Page;
 use pyo3::prelude::*;
 use std::collections::HashMap;
@@ -91,14 +92,16 @@ impl Column {
     }
 }
 
+#[derive(Clone)]
 #[pyclass]
 pub struct Table {
     pub name: String,
-    pub columns: Vec<Arc<Mutex<Column>>>,
     pub primary_key_column: i64,
+    pub columns: Vec<Arc<Mutex<Column>>>,
 
     // TODO: Fix this to be the correct usage
     pub page_directory: HashMap<i64, i64>,
+    // TODO: Add index
 }
 
 impl Table {
@@ -163,11 +166,17 @@ impl Table {
 
         self.columns.len() - 1
     }
+
+    fn _merge() {
+        unreachable!("Not used in milestone 1")
+    }
 }
 
 #[pyclass]
 pub struct Database {
     tables: Vec<Table>,
+    // Map table names to index on the tables: Vec<Table>
+    tables_hashmap: HashMap<String, usize>,
 }
 
 #[pymethods]
@@ -177,14 +186,17 @@ impl Database {
         return String::from("pong!");
     }
 
-    #[staticmethod]
-    fn new() -> Self {
-        Database { tables: vec![] }
+    fn open(&self) {
+        unreachable!("Not used in milestone 1");
     }
 
-    fn create_table(&mut self, name: String, num_columns: i64, primary_key_column: i64) -> usize {
+    fn close(&self) {
+        unreachable!("Not used in milestone 1");
+    }
+
+    fn create_table(&mut self, name: String, num_columns: i64, primary_key_column: i64) -> Table {
         let mut t = Table {
-            name,
+            name: name.clone(),
             columns: vec![],
             primary_key_column,
             page_directory: HashMap::new(),
@@ -197,15 +209,87 @@ impl Database {
 
         let i = self.tables.len();
 
+        // Map a name of a table to it's index on the self.tables field
+        self.tables_hashmap.insert(name, i);
+
         self.tables.push(t);
 
-        return i;
+        // Should it really be cloning here?
+        // I guess since it has just an Arc Mutex, the underlying data should persist
+        return self.tables[i].clone();
+    }
+
+    fn get_table(&self, name: String) -> Table {
+        let i = self.tables_hashmap.get(&name).expect("Should exist");
+        // Should it really be cloning here?
+        return self.tables[*i].clone();
+    }
+
+    fn drop_table(&mut self, name: String) {
+        let i_ref = self.tables_hashmap.get(&name).expect("Should exist");
+        let i = *i_ref;
+
+        // Remove from tables vec
+        self.tables.remove(i);
+
+        // c0, c1, c2, c3, c4
+        // .remove(2)
+        // c0, c1, c3, c4
+
+        // Decrement id
+        // c0, c1, c2, c3
+        for (_, id) in self.tables_hashmap.iter_mut() {
+            if *id > i {
+                println!("{} {}", *id, i);
+                *id -= 1;
+            }
+        }
+
+        // Remove from tables hashmap
+        self.tables_hashmap.remove(&name);
+    }
+
+    #[staticmethod]
+    fn new() -> Self {
+        Database {
+            tables: vec![],
+            tables_hashmap: HashMap::new(),
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn drop_table_test() {
+        let mut db = Database::new();
+
+        // Create a table "users"
+        db.create_table(String::from("users"), 1, 0);
+
+        assert_eq!(db.tables.len(), 1);
+
+        db.drop_table("users".to_string());
+
+        assert_eq!(db.tables.len(), 0);
+    }
+
+    #[test]
+    fn drop_on_of_many_tables_test() {
+        let mut db = Database::new();
+
+        db.create_table(String::from("users"), 1, 0);
+        db.create_table(String::from("accounts"), 2, 0);
+        db.create_table(String::from("bikes"), 4, 0);
+
+        assert_eq!(db.tables.len(), 3);
+
+        db.drop_table("users".to_string());
+
+        assert_eq!(db.tables.len(), 2);
+    }
 
     #[test]
     fn insert_test() {
