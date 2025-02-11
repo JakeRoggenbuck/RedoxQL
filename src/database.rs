@@ -1,5 +1,6 @@
 use super::page::Page;
 use pyo3::prelude::*;
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 struct PageRange {
@@ -95,6 +96,9 @@ pub struct Table {
     pub name: String,
     pub columns: Vec<Arc<Mutex<Column>>>,
     pub primary_key_column: i64,
+
+    // TODO: Fix this to be the correct usage
+    pub page_directory: HashMap<i64, i64>,
 }
 
 impl Table {
