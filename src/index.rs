@@ -1,4 +1,4 @@
-use crate::database::{Column, Database, Table};
+use crate::database::{Column, RTable};
 use pyo3::prelude::*;
 use std::collections::BTreeMap;
 
@@ -24,13 +24,13 @@ pub struct Index {
            -- Record offset within the page --
     */
     indices: Vec<Option<BTreeMap<i64, Vec<[usize; 3]>>>>, // One BTree per column
-    table: Table,
+    table: RTable,
 }
 
 impl Index {
     // Init
     // Mandatory: One index for each table. All our empty initially.
-    pub fn new(table: Table) -> Index {
+    pub fn new(table: RTable) -> Index {
         let mut indices = vec![None; table.columns.len()]; // init empty indices
         Index { indices, table }
     }
