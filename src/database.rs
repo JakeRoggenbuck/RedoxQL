@@ -37,6 +37,7 @@ impl Column {
 pub struct Table {
     pub name: String,
     pub columns: Vec<Arc<Mutex<Column>>>,
+    pub primary_key_column: i64,
 }
 
 impl Table {
@@ -120,10 +121,11 @@ impl Database {
         Database { tables: vec![] }
     }
 
-    fn create_table(&mut self, name: String, num_columns: i64, _primary_key_column: i64) -> usize {
+    fn create_table(&mut self, name: String, num_columns: i64, primary_key_column: i64) -> usize {
         let mut t = Table {
             name,
             columns: vec![],
+            primary_key_column,
         };
 
         // Create num_columns amount of columns
