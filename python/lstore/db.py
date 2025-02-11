@@ -19,7 +19,12 @@ class Database:
     :param key: int             #Index of table key in columns
     """
 
-    def create_table(self, name: str, num_columns: int, key_index: int):
+    def create_table(
+        self,
+        name: str,
+        num_columns: int,
+        key_index: int,
+    ) -> RTable:
         self.db.create_table(name, num_columns, key_index)
         return self.db.tables[0]
 
