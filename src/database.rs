@@ -13,7 +13,6 @@ struct PageRange {
 
 impl PageRange {
     fn write(&mut self, value: i64) {
-        println!("Starting write");
         // Get the current page
         let cur_page = self.base_pages[self.first_non_full_page].clone();
 
@@ -35,7 +34,6 @@ impl PageRange {
     }
 
     fn read(&self, index: usize) -> Option<i64> {
-        println!("Starting read {:?}", self);
         // Get the current page
         let cur_page = self.base_pages[self.first_non_full_page].clone();
         let page = cur_page.lock().unwrap();
