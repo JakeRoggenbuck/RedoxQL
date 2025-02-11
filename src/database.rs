@@ -90,6 +90,7 @@ impl Columns {
     }
 }
 
+#[pyclass]
 pub struct Table {
     pub name: String,
     pub columns: Columns,
@@ -150,7 +151,7 @@ impl Database {
         Database { tables: vec![] }
     }
 
-    fn create_table(&mut self, name: String, num_columns: i64, _primary_key_column: i64) {
+    fn create_table(&mut self, name: String, num_columns: i64, _primary_key_column: i64) -> usize {
         let mut t = Table {
             name,
             columns: Columns::new(),
@@ -162,7 +163,11 @@ impl Database {
             t.columns.create_column();
         }
 
+        let i = self.tables.len();
+
         self.tables.push(t);
+
+        return i;
     }
 }
 
