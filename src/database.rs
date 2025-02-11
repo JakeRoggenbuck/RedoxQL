@@ -225,6 +225,10 @@ impl RDatabase {
         return self.tables[*i].clone();
     }
 
+    fn get_table_from_index(&self, i: i64) -> RTable {
+        return self.tables[i as usize].clone();
+    }
+
     fn drop_table(&mut self, name: String) {
         let i_ref = self.tables_hashmap.get(&name).expect("Should exist");
         let i = *i_ref;
@@ -249,7 +253,7 @@ impl RDatabase {
         self.tables_hashmap.remove(&name);
     }
 
-    #[staticmethod]
+    #[new]
     fn new() -> Self {
         RDatabase {
             tables: vec![],

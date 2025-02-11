@@ -26,7 +26,8 @@ class Database:
         key_index: int,
     ) -> RTable:
         self.db.create_table(name, num_columns, key_index)
-        return self.db.tables[0]
+
+        return self.db.get_table_from_index(0)
 
     """
     # Deletes the specified table
