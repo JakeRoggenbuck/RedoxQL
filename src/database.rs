@@ -2,6 +2,12 @@ use super::page::Page;
 use pyo3::prelude::*;
 use std::sync::{Arc, Mutex};
 
+struct PageRange<'a> {
+    // Max amount of base pages should be set to 16
+    base_pages: Vec<&'a Page>,
+    tail_pages: Vec<&'a Page>,
+}
+
 struct RecordAddress {
     page: Page,
     offset: i64,
