@@ -7,12 +7,12 @@ use std::sync::{Arc, Mutex};
 
 type RID = u64;
 
-static MAX_SIZE_RECORD: u64 = 512;
+static MAX_SIZE_RECORD: u64 = u64::MAX;
 
 #[pyclass]
 #[derive(Clone, Debug)]
 pub struct PhysicalPage {
-    pub data: [u64; 512],
+    pub data: Vec<u64>,
     pub num_records: u64,
 }
 
@@ -20,7 +20,7 @@ impl PhysicalPage {
     // Init
     pub fn new() -> Self {
         PhysicalPage {
-            data: [0u64; 512],
+            data: Vec::<u64>::new(),
             num_records: 0,
         }
     }
@@ -31,7 +31,7 @@ impl PhysicalPage {
 
     pub fn write(&mut self, value: u64) {
         if self.has_capacity() {
-            self.data[self.num_records as usize] = value;
+            self.data.push(value);
             self.num_records += 1;
         }
     }
