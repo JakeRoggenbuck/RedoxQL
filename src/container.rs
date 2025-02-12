@@ -1,9 +1,7 @@
-use pyo3::prelude::*;
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use super::page::PhysicalPage;
 use super::database::{Record, RecordAddress};
+use super::page::PhysicalPage;
 
 #[derive(Clone)]
 pub struct BaseContainer {
@@ -343,7 +341,7 @@ mod tests {
 
     #[test]
     fn test_base_container_initialize() {
-        let mut container = BaseContainer::new(5); 
+        let mut container = BaseContainer::new(5);
         container.initialize();
         assert_eq!(container.physical_pages.len(), 8); // 3 reserved + 5 data columns
     }
@@ -352,10 +350,10 @@ mod tests {
     fn test_base_container_insert() {
         let mut container = BaseContainer::new(2);
         container.initialize();
-        
+
         let values = vec![42, 43];
         let record = container.insert_record(1, values);
-        
+
         assert_eq!(record.rid, 1);
         let addresses = record.addresses.lock().unwrap();
         assert_eq!(addresses.len(), 5); // 3 reserved + 2 data columns
@@ -388,17 +386,17 @@ mod tests {
     fn test_tail_container_insert() {
         let mut container = TailContainer::new(2);
         container.initialize();
-        
+
         let values = vec![42, 43];
         let record = container.insert_record(1, values);
-        
+
         assert_eq!(record.rid, 1);
         let addresses = record.addresses.lock().unwrap();
         assert_eq!(addresses.len(), 5); // 3 reserved + 2 data columns
     }
 
     #[test]
-    #[should_panic(expected = "Number of values does not match number of columns")]  
+    #[should_panic(expected = "Number of values does not match number of columns")]
     fn test_tail_container_insert_wrong_columns() {
         let mut container = TailContainer::new(2);
         container.initialize();

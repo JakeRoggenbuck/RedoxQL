@@ -1,19 +1,13 @@
 use super::container::{BaseContainer, TailContainer};
-use super::index::RIndex;
 use super::page::PhysicalPage;
 use pyo3::prelude::*;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-const PAGES_PER_PAGE_RANGE: usize = 16;
-
 #[derive(Clone)]
 pub struct PageRange {
     base_container: BaseContainer,
     tail_container: TailContainer,
-
-    // The index of the first non-full base page
-    first_non_full_page: usize,
 }
 
 impl PageRange {
@@ -27,7 +21,6 @@ impl PageRange {
         PageRange {
             base_container: base,
             tail_container: tail,
-            first_non_full_page: 0,
         }
     }
 
@@ -38,10 +31,6 @@ impl PageRange {
     fn read(&self, rid: u64) -> Option<Vec<u64>> {
         // self.base_container.read(rid);
         Some(vec![])
-    }
-
-    fn has_capacity(&self) -> bool {
-        self.first_non_full_page < PAGES_PER_PAGE_RANGE
     }
 }
 
@@ -54,11 +43,6 @@ pub struct RecordAddress {
 pub struct Record {
     pub rid: u64,
     pub addresses: Arc<Mutex<Vec<RecordAddress>>>,
-}
-
-#[derive(Debug)]
-enum DatabaseError {
-    OutOfBounds,
 }
 
 #[derive(Clone)]

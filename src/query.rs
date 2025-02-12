@@ -1,6 +1,5 @@
 use super::database::{RTable, Record};
 use pyo3::prelude::*;
-use std::iter::zip;
 
 #[pyclass]
 pub struct RQuery {

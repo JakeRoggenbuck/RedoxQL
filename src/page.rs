@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
 
-use std::collections::HashMap;
 use super::database::{Record, RecordAddress};
+use std::collections::HashMap;
 
 use std::sync::{Arc, Mutex};
 
@@ -38,7 +38,6 @@ impl PhysicalPage {
         Some(self.data[index])
     }
 }
-
 
 pub struct PageDirectory {
     pub records: HashMap<RID, Arc<Mutex<Vec<RecordAddress>>>>,
