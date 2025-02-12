@@ -76,12 +76,12 @@ pub struct RTable {
 }
 
 impl RTable {
-    fn write(&mut self, values: Vec<u64>) {
+    pub fn write(&mut self, values: Vec<u64>) {
         self.page_range.write(self.num_records, values);
         self.num_records += 1;
     }
 
-    fn read(&self, rid: u64) -> Option<u64> {
+    pub fn read(&self, rid: u64) -> Option<u64> {
         self.page_range.read(rid)
     }
 
