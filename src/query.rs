@@ -13,9 +13,8 @@ impl RQuery {
         RQuery { table }
     }
 
-    fn delete(&mut self, primary_key: i64) {
-        // Delete the value in each column where the id == primary_key
-        // i.e. delete the whole record
+    fn delete(&mut self, primary_key: u64) {
+        self.table.delete(primary_key)
     }
 
     fn insert(&mut self, values: Vec<u64>) -> Record {
@@ -27,8 +26,8 @@ impl RQuery {
         search_key: i64,
         _search_key_index: i64,
         _projected_columns_index: Vec<i64>,
-    ) -> Vec<u64> {
-        self.table.read(search_key as u64).unwrap()
+    ) -> Option<Vec<u64>> {
+        self.table.read(search_key as u64)
     }
 
     fn select_version(&mut self) {}
