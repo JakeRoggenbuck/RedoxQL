@@ -45,14 +45,14 @@ impl PageRange {
     }
 }
 
-struct RecordAddress<'a> {
-    page: &'a PhysicalPage,
-    offset: u64,
+pub struct RecordAddress {
+    pub page: Arc<Mutex<PhysicalPage>>,
+    pub offset: u64,
 }
 
-struct Record<'a> {
-    rid: u64,
-    addresses: Vec<&'a RecordAddress<'a>>,
+pub struct Record {
+    pub rid: u64,
+    pub addresses: Arc<Mutex<Vec<RecordAddress>>>,
 }
 
 #[derive(Debug)]
