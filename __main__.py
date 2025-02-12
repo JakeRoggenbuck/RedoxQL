@@ -15,8 +15,6 @@ for i in range(0, 10000):
     keys.append(906659671 + i)
 insert_time_1 = process_time()
 
-keys = list(range(0, 10000))
-
 print("Inserting 10k records took:  \t\t\t", insert_time_1 - insert_time_0)
 
 # Measuring update Performance
@@ -37,8 +35,7 @@ print("Updating 10k records took:  \t\t\t", update_time_1 - update_time_0)
 # Measuring Select Performance
 select_time_0 = process_time()
 for i in range(0, 10000):
-    a = query.select(choice(keys),0 , [1, 1, 1, 1, 1])
-    print(a)
+    query.select(choice(keys),0 , [1, 1, 1, 1, 1])
 select_time_1 = process_time()
 print("Selecting 10k records took:  \t\t\t", select_time_1 - select_time_0)
 
