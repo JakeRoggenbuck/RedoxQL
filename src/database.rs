@@ -1,3 +1,4 @@
+use super::container::{BaseContainer, TailContainer};
 use super::index::RIndex;
 use super::page::PhysicalPage;
 use pyo3::prelude::*;
@@ -8,50 +9,34 @@ const PAGES_PER_PAGE_RANGE: usize = 16;
 
 #[derive(Clone)]
 pub struct PageRange {
-    base_pages: Vec<Arc<Mutex<PhysicalPage>>>,
-    tail_pages: Vec<Arc<Mutex<PhysicalPage>>>,
+    base_container: BaseContainer,
+    tail_container: TailContainer,
 
     // The index of the first non-full base page
     first_non_full_page: usize,
 }
 
 impl PageRange {
-    fn new() -> Self {
+    fn new(num_cols: u64) -> Self {
+        let mut base = BaseContainer::new(num_cols);
+        base.initialize();
+
+        let mut tail = TailContainer::new(num_cols);
+        tail.initialize();
+
         PageRange {
-            base_pages: vec![Arc::new(Mutex::new(PhysicalPage::new()))],
-            tail_pages: vec![],
+            base_container: base,
+            tail_container: tail,
             first_non_full_page: 0,
         }
     }
 
     fn write(&mut self, value: i64) {
-        // Get the current page
-        let cur_page = self.base_pages[self.first_non_full_page].clone();
-
-        // Make a closure to prevent multiple mutex lock deadlock
-        {
-            let page = cur_page.lock().unwrap();
-
-            // Check the current page's capacity
-            if !page.has_capacity() {
-                self.first_non_full_page += 1;
-                self.base_pages
-                    .push(Arc::new(Mutex::new(PhysicalPage::new())));
-            }
-        }
-
-        let _ = self.base_pages[self.first_non_full_page]
-            .lock()
-            .unwrap()
-            .write(value);
+        // self.base_container.insert(value);
     }
 
     fn read(&self, index: usize) -> Option<i64> {
-        // Get the current page
-        let cur_page = self.base_pages[self.first_non_full_page].clone();
-        let page = cur_page.lock().unwrap();
-
-        return page.read(index);
+        Some(0)
     }
 
     fn has_capacity(&self) -> bool {
@@ -83,24 +68,13 @@ pub struct RTable {
 
     // TODO: Fix this to be the correct usage
     pub page_directory: HashMap<i64, i64>,
+    pub num_records: u64,
 
     #[pyo3(get)]
     pub num_columns: i64,
 }
 
 impl RTable {
-    fn create_column(&mut self) -> usize {
-        let i = self.page_range.base_pages.len();
-
-        self.page_range
-            .base_pages
-            .push(Arc::new(Mutex::new(PhysicalPage::new())));
-
-        self.num_columns += 1;
-
-        return i;
-    }
-
     fn _merge() {
         unreachable!("Not used in milestone 1")
     }
@@ -132,18 +106,14 @@ impl RDatabase {
     }
 
     fn create_table(&mut self, name: String, num_columns: i64, primary_key_column: i64) -> RTable {
-        let mut t = RTable {
+        let t = RTable {
             name: name.clone(),
-            page_range: PageRange::new(),
+            page_range: PageRange::new(num_columns as u64),
             primary_key_column,
             page_directory: HashMap::new(),
             num_columns: 1,
+            num_records: 0,
         };
-
-        // Create num_columns amount of columns
-        for _ in 0..num_columns {
-            t.create_column();
-        }
 
         let i = self.tables.len();
 
