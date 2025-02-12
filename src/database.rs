@@ -47,6 +47,27 @@ pub struct Record {
     pub addresses: Arc<Mutex<Vec<RecordAddress>>>,
 }
 
+#[pymethods]
+impl Record {
+    fn __str__(&self) -> String {
+        // Print the Addresses from RecordAddress
+        let addresses = self.addresses.lock().unwrap();
+        let mut addrs = Vec::<String>::new();
+        let b: Vec<RecordAddress> = addresses.clone();
+
+        for a in b {
+            let c: RecordAddress = a;
+            let d = c.page;
+            addrs.push(format!(
+                "0x{:?} + {}",
+                &d as *const Arc<Mutex<PhysicalPage>> as usize, c.offset
+            ));
+        }
+
+        format!("Record(rid={}, addresses={:?})", self.rid, addrs)
+    }
+}
+
 #[derive(Clone)]
 #[pyclass]
 pub struct RTable {
@@ -115,7 +136,12 @@ impl RDatabase {
         unreachable!("Not used in milestone 1");
     }
 
-    fn create_table(&mut self, name: String, num_columns: i64, primary_key_column: usize) -> RTable {
+    fn create_table(
+        &mut self,
+        name: String,
+        num_columns: i64,
+        primary_key_column: usize,
+    ) -> RTable {
         let t = RTable {
             name: name.clone(),
             page_range: PageRange::new(num_columns as u64),
