@@ -28,19 +28,21 @@ impl PageRange {
         self.base_container.insert_record(new_rid, values)
     }
 
-    fn read(&self, rid: u64) -> Option<Vec<u64>> {
-        // self.base_container.read(rid);
-        Some(vec![])
+    fn read(&self, record: Record) -> Option<Vec<u64>> {
+        Some(self.base_container.read_record(record))
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct RecordAddress {
     pub page: Arc<Mutex<PhysicalPage>>,
     pub offset: u64,
 }
 
+#[derive(Debug, Clone)]
 #[pyclass]
 pub struct Record {
+    #[pyo3(get)]
     pub rid: u64,
     pub addresses: Arc<Mutex<Vec<RecordAddress>>>,
 }
@@ -52,8 +54,8 @@ pub struct RTable {
     pub primary_key_column: i64,
     pub page_range: PageRange,
 
-    // TODO: Fix this to be the correct usage
-    pub page_directory: HashMap<i64, i64>,
+    // Map RIDs to Records
+    pub page_directory: HashMap<u64, Record>,
     pub num_records: u64,
 
     #[pyo3(get)]
@@ -63,12 +65,22 @@ pub struct RTable {
 impl RTable {
     pub fn write(&mut self, values: Vec<u64>) -> Record {
         let rec = self.page_range.write(self.num_records, values);
+
+        // Save the RID -> Record so it can later be read
+        self.page_directory.insert(self.num_records, rec.clone());
+
         self.num_records += 1;
         return rec;
     }
 
     pub fn read(&self, rid: u64) -> Option<Vec<u64>> {
-        self.page_range.read(rid)
+        let rec = self.page_directory.get(&rid);
+
+        // If the rec exists in the page_directory, return the read values
+        match rec {
+            Some(r) => self.page_range.read(r.clone()),
+            None => None,
+        }
     }
 
     fn _merge() {

@@ -166,6 +166,20 @@ impl BaseContainer {
             addresses: addresses.clone(),
         }
     }
+
+    pub fn read_record(&self, record: Record) -> Vec<u64> {
+        let mut values = Vec::<u64>::new();
+
+        let addrs = record.addresses.lock().unwrap();
+        let addrs_clone = addrs.clone();
+        for addr in addrs_clone {
+            let a = addr.page.lock().unwrap();
+            let b = a.read(addr.offset as usize);
+            values.push(b.expect("Value should be there"));
+        }
+
+        values
+    }
 }
 
 #[derive(Clone)]
