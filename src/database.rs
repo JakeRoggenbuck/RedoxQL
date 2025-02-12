@@ -6,8 +6,8 @@ use std::sync::{Arc, Mutex};
 
 const PAGES_PER_PAGE_RANGE: usize = 16;
 
+#[derive(Clone)]
 pub struct PageRange {
-    // Max amount of base pages should be set to 16
     base_pages: Vec<Arc<Mutex<PhysicalPage>>>,
     tail_pages: Vec<Arc<Mutex<PhysicalPage>>>,
 
@@ -16,6 +16,14 @@ pub struct PageRange {
 }
 
 impl PageRange {
+    fn new() -> Self {
+        PageRange {
+            base_pages: vec![Arc::new(Mutex::new(PhysicalPage::new()))],
+            tail_pages: vec![],
+            first_non_full_page: 0,
+        }
+    }
+
     fn write(&mut self, value: i64) {
         // Get the current page
         let cur_page = self.base_pages[self.first_non_full_page].clone();
@@ -49,14 +57,6 @@ impl PageRange {
     fn has_capacity(&self) -> bool {
         self.first_non_full_page < PAGES_PER_PAGE_RANGE
     }
-
-    fn new() -> Self {
-        PageRange {
-            base_pages: vec![Arc::new(Mutex::new(PhysicalPage::new()))],
-            tail_pages: vec![],
-            first_non_full_page: 0,
-        }
-    }
 }
 
 struct RecordAddress {
@@ -79,7 +79,7 @@ enum DatabaseError {
 pub struct RTable {
     pub name: String,
     pub primary_key_column: i64,
-    pub page_ranges: Vec<Arc<Mutex<PageRange>>>,
+    pub page_range: PageRange,
 
     // TODO: Fix this to be the correct usage
     pub page_directory: HashMap<i64, i64>,
@@ -88,7 +88,13 @@ pub struct RTable {
 
 impl RTable {
     fn create_column(&mut self) -> usize {
-        0usize
+        let i = self.page_range.base_pages.len();
+
+        self.page_range
+            .base_pages
+            .push(Arc::new(Mutex::new(PhysicalPage::new())));
+
+        return i;
     }
 
     fn _merge() {
@@ -105,9 +111,12 @@ pub struct RDatabase {
 
 #[pymethods]
 impl RDatabase {
-    #[staticmethod]
-    fn ping() -> String {
-        return String::from("pong!");
+    #[new]
+    fn new() -> Self {
+        RDatabase {
+            tables: vec![],
+            tables_hashmap: HashMap::new(),
+        }
     }
 
     fn open(&self, _path: String) {
@@ -121,7 +130,7 @@ impl RDatabase {
     fn create_table(&mut self, name: String, num_columns: i64, primary_key_column: i64) -> RTable {
         let mut t = RTable {
             name: name.clone(),
-            page_ranges: vec![],
+            page_range: PageRange::new(),
             primary_key_column,
             page_directory: HashMap::new(),
         };
@@ -168,21 +177,12 @@ impl RDatabase {
         // c0, c1, c2, c3
         for (_, id) in self.tables_hashmap.iter_mut() {
             if *id > i {
-                println!("{} {}", *id, i);
                 *id -= 1;
             }
         }
 
         // Remove from tables hashmap
         self.tables_hashmap.remove(&name);
-    }
-
-    #[new]
-    fn new() -> Self {
-        RDatabase {
-            tables: vec![],
-            tables_hashmap: HashMap::new(),
-        }
     }
 }
 
