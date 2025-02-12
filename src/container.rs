@@ -340,6 +340,20 @@ impl TailContainer {
             addresses: addresses.clone(),
         }
     }
+
+    pub fn read_record(&self, record: Record) -> Vec<u64> {
+        let mut values = Vec::<u64>::new();
+
+        let addrs = record.addresses.lock().unwrap();
+        let addrs_clone = addrs.clone();
+        for addr in addrs_clone {
+            let a = addr.page.lock().unwrap();
+            let b = a.read(addr.offset as usize);
+            values.push(b.expect("Value should be there"));
+        }
+
+        values
+    }
 }
 
 #[cfg(test)]
@@ -371,6 +385,17 @@ mod tests {
         assert_eq!(record.rid, 1);
         let addresses = record.addresses.lock().unwrap();
         assert_eq!(addresses.len(), 5); // 3 reserved + 2 data columns
+    }
+
+    #[test]
+    fn test_base_container_insert_513() {
+        let mut container = BaseContainer::new(2);
+        container.initialize();
+
+        for x in 0..513 {
+            let values = vec![42, 43];
+            let _record = container.insert_record(1, values);
+        }
     }
 
     #[test]

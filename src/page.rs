@@ -30,8 +30,10 @@ impl PhysicalPage {
     }
 
     pub fn write(&mut self, value: u64) {
-        self.data[self.num_records as usize] = value;
-        self.num_records += 1;
+        if self.has_capacity() {
+            self.data[self.num_records as usize] = value;
+            self.num_records += 1;
+        }
     }
 
     pub fn read(&self, index: usize) -> Option<u64> {
