@@ -1,5 +1,5 @@
+use super::container::{BaseContainer, TailContainer};
 use super::index::RIndex;
-use super::container::{BaseContainer, TailContainer}
 use super::page::PhysicalPage;
 use pyo3::prelude::*;
 use std::collections::HashMap;
@@ -32,11 +32,11 @@ impl PageRange {
     }
 
     fn write(&mut self, value: i64) {
-        self.base_container.insert(value);
+        // self.base_container.insert(value);
     }
 
     fn read(&self, index: usize) -> Option<i64> {
-
+        Some(0)
     }
 
     fn has_capacity(&self) -> bool {
