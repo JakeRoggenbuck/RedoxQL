@@ -110,7 +110,7 @@ impl RTable {
         self.page_directory.remove(&rid);
     }
 
-    pub fn sum(&self, start: u64, end: u64, col_index: u64) -> i64 {
+    pub fn sum(&mut self, start: u64, end: u64, col_index: u64) -> i64 {
         let mut agg = 0i64;
         for rid in start..end {
             if let Some(v) = self.read(rid) {
