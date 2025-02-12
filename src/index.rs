@@ -7,7 +7,7 @@ Key column should be indexd by default, other columns can be indexed through thi
 Indices are usually B-Trees, but other data structures can be used as well. */
 
 #[pyclass]
-pub struct Index {
+pub struct RIndex {
     /*  EXPLANATION OF BTree, NOT TOO SURE ABOUT THIS.
 
         A vector of BTreeMaps, can be either Some::BTreeMap or None as its elements.
@@ -22,13 +22,13 @@ pub struct Index {
     table: RTable,
 }
 
-impl Index {
+impl RIndex {
     // Init
     // Mandatory: One index for each table. All our empty initially.
-    pub fn new(table: RTable) -> Index {
-        let mut indices = vec![None; table.columns.len()];
+    pub fn new(table: RTable) -> RIndex {
+        let mut indices = vec![None; 0]; // table.columns.len()
         indices[table.primary_key_column as usize] = Some(BTreeMap::new());
-        Index {
+        RIndex {
             indices,
             table,
         }
