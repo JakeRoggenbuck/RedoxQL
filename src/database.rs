@@ -1,4 +1,5 @@
 use super::index::RIndex;
+use super::container::{BaseContainer, TailContainer}
 use super::page::PhysicalPage;
 use pyo3::prelude::*;
 use std::collections::HashMap;
@@ -6,20 +7,25 @@ use std::sync::{Arc, Mutex};
 
 const PAGES_PER_PAGE_RANGE: usize = 16;
 
-#[derive(Clone)]
 pub struct PageRange {
-    base_pages: Vec<Arc<Mutex<PhysicalPage>>>,
-    tail_pages: Vec<Arc<Mutex<PhysicalPage>>>,
+    base_container: BaseContainer,
+    tail_container: TailContainer,
 
     // The index of the first non-full base page
     first_non_full_page: usize,
 }
 
 impl PageRange {
-    fn new() -> Self {
+    fn new(num_cols: u64) -> Self {
+        let mut base = BaseContainer::new(num_cols);
+        base.initialize();
+
+        let mut tail = TailContainer::new(num_cols);
+        tail.initialize();
+
         PageRange {
-            base_pages: vec![Arc::new(Mutex::new(PhysicalPage::new()))],
-            tail_pages: vec![],
+            base_container: base,
+            tail_container: tail,
             first_non_full_page: 0,
         }
     }
