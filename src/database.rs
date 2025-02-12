@@ -7,6 +7,7 @@ use std::sync::{Arc, Mutex};
 
 const PAGES_PER_PAGE_RANGE: usize = 16;
 
+#[derive(Clone)]
 pub struct PageRange {
     base_container: BaseContainer,
     tail_container: TailContainer,
@@ -140,7 +141,7 @@ impl RDatabase {
     fn create_table(&mut self, name: String, num_columns: i64, primary_key_column: i64) -> RTable {
         let mut t = RTable {
             name: name.clone(),
-            page_range: PageRange::new(),
+            page_range: PageRange::new(num_columns as u64),
             primary_key_column,
             page_directory: HashMap::new(),
             num_columns: 1,

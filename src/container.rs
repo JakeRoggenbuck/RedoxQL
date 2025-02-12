@@ -4,6 +4,7 @@ use std::sync::{Arc, Mutex};
 
 use super::page::PhysicalPage;
 
+#[derive(Clone)]
 pub struct BaseContainer {
     // pages
     pub physical_pages: Vec<Arc<Mutex<PhysicalPage>>>,
@@ -105,6 +106,7 @@ impl BaseContainer {
     }
 }
 
+#[derive(Clone)]
 pub struct TailContainer {
     // pages
     pub physical_pages: Vec<Arc<Mutex<PhysicalPage>>>,
