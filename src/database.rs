@@ -45,14 +45,14 @@ impl PageRange {
     }
 }
 
-struct RecordAddress {
-    page: PhysicalPage,
-    offset: i64,
+struct RecordAddress<'a> {
+    page: &'a PhysicalPage,
+    offset: u64,
 }
 
 struct Record<'a> {
-    rid: i64,
-    addresses: Vec<&'a RecordAddress>,
+    rid: u64,
+    addresses: Vec<&'a RecordAddress<'a>>,
 }
 
 #[derive(Debug)]
