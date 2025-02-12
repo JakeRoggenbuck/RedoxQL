@@ -1,5 +1,8 @@
 from lstore.db import Database
 from lstore.query import Query
+from lstore import show_logo
+
+show_logo()
 
 db = Database()
 grades_table = db.create_table('Grades', 5, 0)
