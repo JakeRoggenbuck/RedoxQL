@@ -1,12 +1,14 @@
-use database::{RDatabase, RTable};
+use database::{RDatabase};
 use pyo3::prelude::*;
 use query::Query;
 
 pub mod database;
 pub mod index;
+pub mod record;
 pub mod page;
 pub mod query;
 pub mod system;
+pub mod table;
 
 /// Blazingly fast hello
 #[pyfunction]

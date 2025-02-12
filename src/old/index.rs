@@ -1,6 +1,6 @@
+use crate::database::{Column, RTable};
 use pyo3::prelude::*;
 use std::collections::BTreeMap;
-use super::table::RTable;
 
 /*  A data strucutre holding indices for various columns of a table.
 Key column should be indexd by default, other columns can be indexed through this object.
@@ -109,3 +109,4 @@ impl RIndex {
         self.indices[column] = None;
     }
 }
+

@@ -15,7 +15,7 @@ impl PhysicalPage {
     pub fn new() -> Self {
         PhysicalPage {
             num_records: 0,
-            data: [0; 512],
+            data: [0; 4096],
             locked: AtomicUsize::new(0),
         }
     }
@@ -73,6 +73,7 @@ pub struct BaseContainer {
 pub struct TailContainer {
     tail_container: Vec<PhysicalPage>
 }
+
 
 
 #[cfg(test)]

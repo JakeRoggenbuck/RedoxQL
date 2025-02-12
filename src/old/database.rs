@@ -1,6 +1,100 @@
+use super::index::RIndex;
+use super::page::PhysicalPage;
 use pyo3::prelude::*;
 use std::collections::HashMap;
-use super::table::RTable;
+use std::sync::{Arc, Mutex};
+
+const PAGES_PER_PAGE_RANGE: usize = 16;
+
+pub struct PageRange {
+    // Max amount of base pages should be set to 16
+    base_pages: Vec<Arc<Mutex<PhysicalPage>>>,
+    tail_pages: Vec<Arc<Mutex<PhysicalPage>>>,
+
+    // The index of the first non-full base page
+    first_non_full_page: usize,
+}
+
+impl PageRange {
+    fn write(&mut self, value: i64) {
+        // Get the current page
+        let cur_page = self.base_pages[self.first_non_full_page].clone();
+
+        // Make a closure to prevent multiple mutex lock deadlock
+        {
+            let page = cur_page.lock().unwrap();
+
+            // Check the current page's capacity
+            if !page.has_capacity() {
+                self.first_non_full_page += 1;
+                self.base_pages
+                    .push(Arc::new(Mutex::new(PhysicalPage::new())));
+            }
+        }
+
+        let _ = self.base_pages[self.first_non_full_page]
+            .lock()
+            .unwrap()
+            .write(value);
+    }
+
+    fn read(&self, index: usize) -> Option<i64> {
+        // Get the current page
+        let cur_page = self.base_pages[self.first_non_full_page].clone();
+        let page = cur_page.lock().unwrap();
+
+        return page.read(index);
+    }
+
+    fn has_capacity(&self) -> bool {
+        self.first_non_full_page < PAGES_PER_PAGE_RANGE
+    }
+
+    fn new() -> Self {
+        PageRange {
+            base_pages: vec![Arc::new(Mutex::new(PhysicalPage::new()))],
+            tail_pages: vec![],
+            first_non_full_page: 0,
+        }
+    }
+}
+
+struct RecordAddress {
+    page: PhysicalPage,
+    offset: i64,
+}
+
+struct Record<'a> {
+    rid: i64,
+    addresses: Vec<&'a RecordAddress>,
+}
+
+#[derive(Debug)]
+enum DatabaseError {
+    OutOfBounds,
+}
+
+#[derive(Clone)]
+#[pyclass]
+pub struct RTable {
+    pub name: String,
+    pub primary_key_column: i64,
+    pub page_ranges: Vec<Arc<Mutex<PageRange>>>,
+
+    // TODO: Fix this to be the correct usage
+    pub page_directory: HashMap<i64, i64>,
+    // TODO: Add index
+}
+
+impl RTable {
+    fn create_column(&mut self) -> usize {
+        0usize
+    }
+
+    fn _merge() {
+        unreachable!("Not used in milestone 1")
+    }
+}
 
 #[pyclass]
 pub struct RDatabase {
@@ -24,7 +118,7 @@ impl RDatabase {
         unreachable!("Not used in milestone 1");
     }
 
-    fn create_table(&mut self, name: String, num_columns: u64, primary_key_column: u64) -> RTable {
+    fn create_table(&mut self, name: String, num_columns: i64, primary_key_column: i64) -> RTable {
         let mut t = RTable {
             name: name.clone(),
             page_ranges: vec![],
