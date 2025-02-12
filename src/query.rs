@@ -17,7 +17,9 @@ impl Query {
         // i.e. delete the whole record
     }
 
-    fn insert(&mut self, values: Vec<i64>) {}
+    fn insert(&mut self, values: Vec<i64>) {
+        // self.table
+    }
 
     fn select(
         &mut self,
