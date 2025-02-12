@@ -84,6 +84,7 @@ pub struct RTable {
     // TODO: Fix this to be the correct usage
     pub page_directory: HashMap<i64, i64>,
     // TODO: Add index
+    pub num_columns: i64,
 }
 
 impl RTable {
@@ -93,6 +94,8 @@ impl RTable {
         self.page_range
             .base_pages
             .push(Arc::new(Mutex::new(PhysicalPage::new())));
+
+        self.num_columns += 1;
 
         return i;
     }
@@ -133,6 +136,7 @@ impl RDatabase {
             page_range: PageRange::new(),
             primary_key_column,
             page_directory: HashMap::new(),
+            num_columns: 1,
         };
 
         // Create num_columns amount of columns
