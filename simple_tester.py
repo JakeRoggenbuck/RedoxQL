@@ -1,8 +1,8 @@
 from lstore.db import Database
 from lstore.query import Query
-from lstore import show_logo
+from lstore import print_logo
 
-show_logo()
+print_logo()
 
 db = Database()
 grades_table = db.create_table('Grades', 5, 0)
@@ -12,8 +12,17 @@ recs = []
 
 for i in range(0, 10):
     rec = query.insert(10 + i, 93, 0, 0, 0)
-    recs.append(rec)
+    recs.append(10 + i)
 
 for rec in recs:
-    vals = query.select(rec.rid, 0, [0])
+    vals = query.select(rec, 0, [0])
+    print(vals)
+
+for rec in recs:
+    if rec % 2 == 0:
+        print(f"Deleting {rec}")
+        query.delete(rec)
+
+for rec in recs:
+    vals = query.select(rec, 0, [0])
     print(vals)

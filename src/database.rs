@@ -106,6 +106,10 @@ impl RTable {
         }
     }
 
+    pub fn delete(&mut self, rid: u64) {
+        self.page_directory.remove(&rid);
+    }
+
     fn _merge() {
         unreachable!("Not used in milestone 1")
     }
