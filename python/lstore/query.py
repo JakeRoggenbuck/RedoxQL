@@ -45,9 +45,7 @@ class Query:
     # Assume that select will never be called on a key that doesn't exist
     """
 
-    def select(
-        self, search_key: Any, search_key_index: int, projected_columns_index: List[int]
-    ):
+    def select(self, search_key: Any, search_key_index: int, projected_columns_index: List[int]):
         return self.rquery.select(search_key, search_key_index, projected_columns_index)
 
     """
@@ -88,8 +86,8 @@ class Query:
     # Returns False if no record exists in the given range
     """
 
-    def sum(self, start_range, end_range, aggregate_column_index):
-        pass
+    def sum(self, start_range: int, end_range: int, aggregate_column_index: int) -> int:
+        return self.rquery.sum(start_range, end_range, aggregate_column_index)
 
     """
     :param start_range: int         # Start of the key range to aggregate
@@ -101,9 +99,7 @@ class Query:
     # Returns False if no record exists in the given range
     """
 
-    def sum_version(
-        self, start_range, end_range, aggregate_column_index, relative_version
-    ):
+    def sum_version(self, start_range, end_range, aggregate_column_index, relative_version):
         pass
 
     """
