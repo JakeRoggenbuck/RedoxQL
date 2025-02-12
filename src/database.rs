@@ -31,8 +31,8 @@ impl PageRange {
         }
     }
 
-    fn write(&mut self, new_rid: u64, values: Vec<u64>) {
-        // self.base_container.insert(new_rid, values);
+    fn write(&mut self, new_rid: u64, values: Vec<u64>) -> Record {
+        self.base_container.insert_record(new_rid, values)
     }
 
     fn read(&self, rid: u64) -> Option<Vec<u64>> {
