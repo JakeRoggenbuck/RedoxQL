@@ -12,5 +12,5 @@ for i in range(0, 10):
     recs.append(rec)
 
 for rec in recs:
-    vals = query.select(rec.rid, 0, 0)
+    vals = query.select(rec.rid, 0, [0])
     print(vals)

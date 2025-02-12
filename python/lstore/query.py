@@ -1,6 +1,6 @@
 from lstore.table import Table, Record
 from lstore.index import Index
-from typing import Any
+from typing import Any, List
 from .lstore import hello_from_rust, RDatabase, RQuery
 
 
@@ -46,7 +46,7 @@ class Query:
     """
 
     def select(
-        self, search_key: Any, search_key_index: int, projected_columns_index: int
+        self, search_key: Any, search_key_index: int, projected_columns_index: List[int]
     ):
         return self.rquery.select(search_key, search_key_index, projected_columns_index)
 
