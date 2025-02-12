@@ -51,7 +51,7 @@ pub struct Record {
 #[pyclass]
 pub struct RTable {
     pub name: String,
-    pub primary_key_column: i64,
+    pub primary_key_column: usize,
     pub page_range: PageRange,
 
     // Map RIDs to Records
@@ -64,10 +64,12 @@ pub struct RTable {
 
 impl RTable {
     pub fn write(&mut self, values: Vec<u64>) -> Record {
+        // Use the primary_key_column'th value as the given key
+        let given_key = values[self.primary_key_column];
         let rec = self.page_range.write(self.num_records, values);
 
         // Save the RID -> Record so it can later be read
-        self.page_directory.insert(self.num_records, rec.clone());
+        self.page_directory.insert(given_key, rec.clone());
 
         self.num_records += 1;
         return rec;
@@ -113,7 +115,7 @@ impl RDatabase {
         unreachable!("Not used in milestone 1");
     }
 
-    fn create_table(&mut self, name: String, num_columns: i64, primary_key_column: i64) -> RTable {
+    fn create_table(&mut self, name: String, num_columns: i64, primary_key_column: usize) -> RTable {
         let t = RTable {
             name: name.clone(),
             page_range: PageRange::new(num_columns as u64),
