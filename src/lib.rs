@@ -2,12 +2,12 @@ use database::{RDatabase, RTable};
 use pyo3::prelude::*;
 use query::Query;
 
+mod container;
 pub mod database;
 pub mod index;
 pub mod page;
 pub mod query;
 pub mod system;
-mod container;
 
 /// Blazingly fast hello
 #[pyfunction]
