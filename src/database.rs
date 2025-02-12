@@ -83,7 +83,8 @@ pub struct RTable {
 
     // TODO: Fix this to be the correct usage
     pub page_directory: HashMap<i64, i64>,
-    // TODO: Add index
+
+    #[pyo3(get)]
     pub num_columns: i64,
 }
 
