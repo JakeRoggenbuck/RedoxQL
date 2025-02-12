@@ -1,4 +1,4 @@
-# ecs-165a-database
+# RedoxQL - ecs-165a-database
 🦀 RedoxQL written in Rust and Python 🚀
 
 ![Rust](https://img.shields.io/badge/Rust-1A5D8A?style=for-the-badge&logo=rust&logoColor=white)
