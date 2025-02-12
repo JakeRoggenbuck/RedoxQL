@@ -26,8 +26,8 @@ impl Query {
         search_key: i64,
         _search_key_index: i64,
         projected_columns_index: Vec<i64>,
-    ) -> Vec<i64> {
-        vec![]
+    ) -> Vec<u64> {
+        self.table.read(search_key as u64).unwrap()
     }
 
     fn select_version(&mut self) {}
