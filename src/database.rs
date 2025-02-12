@@ -112,7 +112,10 @@ impl RTable {
 
     pub fn sum(&mut self, start: u64, end: u64, col_index: u64) -> i64 {
         let mut agg = 0i64;
-        for rid in start..end {
+
+        // Make sum range inclusive
+        // TODO: Validate this assumption if it should actually be inclusive
+        for rid in start..end + 1 {
             if let Some(v) = self.read(rid) {
                 agg += v[col_index as usize] as i64;
             }
