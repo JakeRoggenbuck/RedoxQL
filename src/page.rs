@@ -4,16 +4,16 @@ use std::sync::atomic::{AtomicUsize, Ordering}; // lock mechanism
 static MAX_SIZE_RECORD: usize = 512;
 
 #[pyclass]
-pub struct Page {
+pub struct PhysicalPage {
     num_records: usize,
-    data: [u8; 4096], // 4 KB page bytearray
+    data: [u8; 4096],
     locked: AtomicUsize,
 }
 
-impl Page {
+impl PhysicalPage {
     // Init
     pub fn new() -> Self {
-        Page {
+        PhysicalPage {
             num_records: 0,
             data: [0; 4096],
             locked: AtomicUsize::new(0),
@@ -70,7 +70,7 @@ mod tests {
 
     #[test]
     fn test_write_and_read() {
-        let mut page = Page::new();
+        let mut page = PhysicalPage::new();
 
         // Write a value to page
         assert!(page.write(42).is_ok());
@@ -85,7 +85,7 @@ mod tests {
 
     #[test]
     fn test_capacity_limit() {
-        let mut page = Page::new();
+        let mut page = PhysicalPage::new();
 
         // Write 512 records to the page
         for i in 0..512 {
@@ -101,7 +101,7 @@ mod tests {
 
     #[test]
     fn test_thread_safety() {
-        let page = Arc::new(Mutex::new(Page::new()));
+        let page = Arc::new(Mutex::new(PhysicalPage::new()));
 
         let mut handles = vec![];
         for i in 0..10 {
