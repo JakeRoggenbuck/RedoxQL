@@ -35,9 +35,9 @@ impl PageRange {
         // self.base_container.insert(new_rid, values);
     }
 
-    fn read(&self, rid: u64) -> Option<u64> {
+    fn read(&self, rid: u64) -> Option<Vec<u64>> {
         // self.base_container.read(rid);
-        Some(0)
+        Some(vec![])
     }
 
     fn has_capacity(&self) -> bool {
@@ -81,7 +81,7 @@ impl RTable {
         self.num_records += 1;
     }
 
-    pub fn read(&self, rid: u64) -> Option<u64> {
+    pub fn read(&self, rid: u64) -> Option<Vec<u64>> {
         self.page_range.read(rid)
     }
 
