@@ -33,7 +33,7 @@ class Query:
     """
 
     def insert(self, *columns):
-        self.rquery.insert(columns)
+        return self.rquery.insert(columns)
 
     """
     # Read matching record with specified search key
@@ -48,7 +48,7 @@ class Query:
     def select(
         self, search_key: Any, search_key_index: int, projected_columns_index: int
     ):
-        self.rquery.select(search_key, search_key_index, projected_columns_index)
+        return self.rquery.select(search_key, search_key_index, projected_columns_index)
 
     """
     # Read matching record with specified search key
