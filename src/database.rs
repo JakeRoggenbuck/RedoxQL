@@ -64,10 +64,12 @@ pub struct RTable {
 
 impl RTable {
     pub fn write(&mut self, values: Vec<u64>) -> Record {
+        // Use the first value as the given key
+        let given_key = values[0];
         let rec = self.page_range.write(self.num_records, values);
 
         // Save the RID -> Record so it can later be read
-        self.page_directory.insert(self.num_records, rec.clone());
+        self.page_directory.insert(given_key, rec.clone());
 
         self.num_records += 1;
         return rec;
