@@ -88,8 +88,8 @@ class Query:
     # Returns False if no record exists in the given range
     """
 
-    def sum(self, start_range, end_range, aggregate_column_index):
-        pass
+    def sum(self, start_range, end_range, aggregate_column_index) -> int:
+        return self.table.sum(start_range, end_range, aggregate_column_index)
 
     """
     :param start_range: int         # Start of the key range to aggregate

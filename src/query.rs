@@ -34,6 +34,10 @@ impl RQuery {
 
     fn update(&mut self) {}
 
+    fn sum(&self, start: u64, end: u64, col_index: u64) -> i64 {
+        self.table.sum(start, end, col_index)
+    }
+
     fn sum_version(&mut self) {}
 
     fn increment(&mut self) {}
