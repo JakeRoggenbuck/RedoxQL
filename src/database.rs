@@ -31,11 +31,12 @@ impl PageRange {
         }
     }
 
-    fn write(&mut self, value: i64) {
-        // self.base_container.insert(value);
+    fn write(&mut self, new_rid: u64, values: Vec<u64>) {
+        // self.base_container.insert(new_rid, values);
     }
 
-    fn read(&self, index: usize) -> Option<i64> {
+    fn read(&self, rid: u64) -> Option<u64> {
+        // self.base_container.read(rid);
         Some(0)
     }
 
