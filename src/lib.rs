@@ -7,6 +7,7 @@ pub mod index;
 pub mod page;
 pub mod query;
 pub mod system;
+mod container;
 
 /// Blazingly fast hello
 #[pyfunction]
