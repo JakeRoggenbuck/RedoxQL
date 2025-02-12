@@ -1,6 +1,6 @@
-use database::{RDatabase, RTable};
+use database::{RDatabase, RTable, Record};
 use pyo3::prelude::*;
-use query::Query;
+use query::RQuery;
 
 pub mod container;
 pub mod database;
@@ -19,8 +19,9 @@ fn hello_from_rust() -> PyResult<String> {
 #[pymodule]
 fn lstore(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<RDatabase>()?;
-    m.add_class::<Query>()?;
+    m.add_class::<RQuery>()?;
     m.add_class::<RTable>()?;
+    m.add_class::<Record>()?;
     m.add_function(wrap_pyfunction!(hello_from_rust, m)?)?;
     Ok(())
 }

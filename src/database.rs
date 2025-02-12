@@ -31,8 +31,8 @@ impl PageRange {
         }
     }
 
-    fn write(&mut self, new_rid: u64, values: Vec<u64>) {
-        // self.base_container.insert(new_rid, values);
+    fn write(&mut self, new_rid: u64, values: Vec<u64>) -> Record {
+        self.base_container.insert_record(new_rid, values)
     }
 
     fn read(&self, rid: u64) -> Option<Vec<u64>> {
@@ -50,6 +50,7 @@ pub struct RecordAddress {
     pub offset: u64,
 }
 
+#[pyclass]
 pub struct Record {
     pub rid: u64,
     pub addresses: Arc<Mutex<Vec<RecordAddress>>>,
@@ -76,9 +77,10 @@ pub struct RTable {
 }
 
 impl RTable {
-    pub fn write(&mut self, values: Vec<u64>) {
-        self.page_range.write(self.num_records, values);
+    pub fn write(&mut self, values: Vec<u64>) -> Record {
+        let rec = self.page_range.write(self.num_records, values);
         self.num_records += 1;
+        return rec;
     }
 
     pub fn read(&self, rid: u64) -> Option<Vec<u64>> {
