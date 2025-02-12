@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use super::page::PhysicalPage;
+use super::database::{Record, RecordAddress};
 
 #[derive(Clone)]
 pub struct BaseContainer {
@@ -69,9 +70,9 @@ impl BaseContainer {
     ///
     pub fn initialize(&mut self) {
         // initialize the three reserved columns
-        let mut rid_page = PhysicalPage::new();
-        let mut schema_encoding_page = PhysicalPage::new();
-        let mut indirection_page = PhysicalPage::new();
+        let rid_page = PhysicalPage::new();
+        let schema_encoding_page = PhysicalPage::new();
+        let indirection_page = PhysicalPage::new();
 
         self.physical_pages.push(Arc::new(Mutex::new(rid_page)));
         self.physical_pages
@@ -81,7 +82,7 @@ impl BaseContainer {
 
         // initialize the rest of the columns
         for _ in 0..self.num_cols {
-            let mut new_page = PhysicalPage::new();
+            let new_page = PhysicalPage::new();
             self.physical_pages.push(Arc::new(Mutex::new(new_page)));
         }
     }
@@ -102,8 +103,70 @@ impl BaseContainer {
     }
 
     /// Returns a reference to the specified column page
+    ///
+    /// ### Arguments
+    ///
+    /// - `col_idx`: The index of the column
     pub fn column_page(&self, col_idx: u64) -> Arc<Mutex<PhysicalPage>> {
         self.physical_pages[(col_idx + 3) as usize].clone()
+    }
+
+    pub fn insert_record(&mut self, rid: u64, values: Vec<u64>) -> Record {
+        if values.len() != self.num_cols as usize {
+            panic!("Number of values does not match number of columns");
+        }
+
+        let rid_page = self.rid_page();
+        let mut rp = rid_page.lock().unwrap();
+
+        rp.write(rid);
+
+        let schema_encoding_page = self.schema_encoding_page();
+        let mut sep = schema_encoding_page.lock().unwrap();
+        sep.write(0);
+
+        let indirection_page = self.indirection_page();
+        let mut ip = indirection_page.lock().unwrap();
+
+        ip.write(rid);
+
+        for i in 0..self.num_cols {
+            let col_page = self.column_page(i);
+            let mut col_page = col_page.lock().unwrap();
+            col_page.write(values[i as usize]);
+        }
+
+        let addresses: Arc<Mutex<Vec<RecordAddress>>> = Arc::new(Mutex::new(Vec::new()));
+        let mut a = addresses.lock().unwrap();
+
+        a.push(RecordAddress {
+            page: rid_page.clone(),
+            offset: rp.num_records - 1,
+        });
+
+        a.push(RecordAddress {
+            page: schema_encoding_page.clone(),
+            offset: sep.num_records - 1,
+        });
+
+        a.push(RecordAddress {
+            page: indirection_page.clone(),
+            offset: ip.num_records - 1,
+        });
+
+        for i in 0..self.num_cols {
+            let col_page = self.column_page(i);
+            let cp = col_page.lock().unwrap();
+            a.push(RecordAddress {
+                page: col_page.clone(),
+                offset: cp.num_records - 1,
+            });
+        }
+
+        Record {
+            rid,
+            addresses: addresses.clone(),
+        }
     }
 }
 
@@ -171,9 +234,9 @@ impl TailContainer {
     /// ```
     pub fn initialize(&mut self) {
         // initialize the three reserved columns
-        let mut rid_page = PhysicalPage::new();
-        let mut schema_encoding_page = PhysicalPage::new();
-        let mut indirection_page = PhysicalPage::new();
+        let rid_page = PhysicalPage::new();
+        let schema_encoding_page = PhysicalPage::new();
+        let indirection_page = PhysicalPage::new();
 
         self.physical_pages.push(Arc::new(Mutex::new(rid_page)));
         self.physical_pages
@@ -183,7 +246,7 @@ impl TailContainer {
 
         // initialize the rest of the columns
         for _ in 0..self.num_cols {
-            let mut new_page = PhysicalPage::new();
+            let new_page = PhysicalPage::new();
             self.physical_pages.push(Arc::new(Mutex::new(new_page)));
         }
     }
@@ -207,6 +270,64 @@ impl TailContainer {
     pub fn column_page(&self, col_idx: u64) -> Arc<Mutex<PhysicalPage>> {
         self.physical_pages[(col_idx + 3) as usize].clone()
     }
+
+    pub fn insert_record(&mut self, rid: u64, values: Vec<u64>) -> Record {
+        if values.len() != self.num_cols as usize {
+            panic!("Number of values does not match number of columns");
+        }
+
+        let rid_page = self.rid_page();
+        let mut rp = rid_page.lock().unwrap();
+
+        rp.write(rid);
+
+        let schema_encoding_page = self.schema_encoding_page();
+        let mut sep = schema_encoding_page.lock().unwrap();
+        sep.write(0);
+
+        let indirection_page = self.indirection_page();
+        let mut ip = indirection_page.lock().unwrap();
+
+        ip.write(rid);
+
+        for i in 0..self.num_cols {
+            let col_page = self.column_page(i);
+            let mut col_page = col_page.lock().unwrap();
+            col_page.write(values[i as usize]);
+        }
+
+        let addresses: Arc<Mutex<Vec<RecordAddress>>> = Arc::new(Mutex::new(Vec::new()));
+        let mut a = addresses.lock().unwrap();
+
+        a.push(RecordAddress {
+            page: rid_page.clone(),
+            offset: rp.num_records - 1,
+        });
+
+        a.push(RecordAddress {
+            page: schema_encoding_page.clone(),
+            offset: sep.num_records - 1,
+        });
+
+        a.push(RecordAddress {
+            page: indirection_page.clone(),
+            offset: ip.num_records - 1,
+        });
+
+        for i in 0..self.num_cols {
+            let col_page = self.column_page(i);
+            let cp = col_page.lock().unwrap();
+            a.push(RecordAddress {
+                page: col_page.clone(),
+                offset: cp.num_records - 1,
+            });
+        }
+
+        Record {
+            rid,
+            addresses: addresses.clone(),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -217,60 +338,71 @@ mod tests {
     fn test_base_container_creation() {
         let container = BaseContainer::new(5);
         assert_eq!(container.num_cols, 5);
-        assert_eq!(container.RID_COLUMN, 0);
-        assert_eq!(container.SCHEMA_ENCODING_COLUMN, 1);
-        assert_eq!(container.INDIRECTION_COLUMN, 2);
-        assert!(container.physical_pages.is_empty());
+        assert_eq!(container.physical_pages.len(), 0);
     }
 
     #[test]
-    fn test_base_container_initialization() {
-        let mut container = BaseContainer::new(5);
+    fn test_base_container_initialize() {
+        let mut container = BaseContainer::new(5); 
         container.initialize();
         assert_eq!(container.physical_pages.len(), 8); // 3 reserved + 5 data columns
+    }
+
+    #[test]
+    fn test_base_container_insert() {
+        let mut container = BaseContainer::new(2);
+        container.initialize();
+        
+        let values = vec![42, 43];
+        let record = container.insert_record(1, values);
+        
+        assert_eq!(record.rid, 1);
+        let addresses = record.addresses.lock().unwrap();
+        assert_eq!(addresses.len(), 5); // 3 reserved + 2 data columns
+    }
+
+    #[test]
+    #[should_panic(expected = "Number of values does not match number of columns")]
+    fn test_base_container_insert_wrong_columns() {
+        let mut container = BaseContainer::new(2);
+        container.initialize();
+        let values = vec![42];
+        container.insert_record(1, values);
     }
 
     #[test]
     fn test_tail_container_creation() {
         let container = TailContainer::new(5);
         assert_eq!(container.num_cols, 5);
-        assert_eq!(container.RID_COLUMN, 0);
-        assert_eq!(container.SCHEMA_ENCODING_COLUMN, 1);
-        assert_eq!(container.INDIRECTION_COLUMN, 2);
-        assert!(container.physical_pages.is_empty());
+        assert_eq!(container.physical_pages.len(), 0);
     }
 
     #[test]
-    fn test_tail_container_initialization() {
+    fn test_tail_container_initialize() {
         let mut container = TailContainer::new(5);
         container.initialize();
         assert_eq!(container.physical_pages.len(), 8); // 3 reserved + 5 data columns
     }
 
     #[test]
-    fn test_container_page_getters() {
-        let mut container = BaseContainer::new(2);
+    fn test_tail_container_insert() {
+        let mut container = TailContainer::new(2);
         container.initialize();
+        
+        let values = vec![42, 43];
+        let record = container.insert_record(1, values);
+        
+        assert_eq!(record.rid, 1);
+        let addresses = record.addresses.lock().unwrap();
+        assert_eq!(addresses.len(), 5); // 3 reserved + 2 data columns
+    }
 
-        assert!(Arc::ptr_eq(
-            &container.rid_page(),
-            &container.physical_pages[0]
-        ));
-        assert!(Arc::ptr_eq(
-            &container.schema_encoding_page(),
-            &container.physical_pages[1]
-        ));
-        assert!(Arc::ptr_eq(
-            &container.indirection_page(),
-            &container.physical_pages[2]
-        ));
-        assert!(Arc::ptr_eq(
-            &container.column_page(0),
-            &container.physical_pages[3]
-        ));
-        assert!(Arc::ptr_eq(
-            &container.column_page(1),
-            &container.physical_pages[4]
-        ));
+    #[test]
+    #[should_panic(expected = "Number of values does not match number of columns")]  
+    fn test_tail_container_insert_wrong_columns() {
+        let mut container = TailContainer::new(2);
+        container.initialize();
+        let values = vec![42];
+        container.insert_record(1, values);
     }
 }

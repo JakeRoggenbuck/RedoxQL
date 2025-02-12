@@ -2,7 +2,7 @@ use database::{RDatabase, RTable};
 use pyo3::prelude::*;
 use query::Query;
 
-mod container;
+pub mod container;
 pub mod database;
 pub mod index;
 pub mod page;
