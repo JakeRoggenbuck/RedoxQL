@@ -3,7 +3,7 @@ use pyo3::prelude::*;
 static MAX_SIZE_RECORD: u64 = 512;
 
 #[pyclass]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PhysicalPage {
     pub data: [u64; 512],
     pub num_records: u64,

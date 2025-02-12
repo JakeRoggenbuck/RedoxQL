@@ -1,7 +1,7 @@
 from lstore.table import Table, Record
 from lstore.index import Index
 from typing import Any
-from .lstore import hello_from_rust, RDatabase, Query
+from .lstore import hello_from_rust, RDatabase, RQuery
 
 
 class Query:
@@ -14,6 +14,7 @@ class Query:
 
     def __init__(self, table: Table):
         self.table = table
+        self.rquery = RQuery(table)
 
     """
     # internal Method
@@ -23,7 +24,7 @@ class Query:
     """
 
     def delete(self, primary_key: int):
-        pass
+        self.rquery.delete(primary_key)
 
     """
     # Insert a record with specified columns
@@ -32,8 +33,7 @@ class Query:
     """
 
     def insert(self, *columns):
-        schema_encoding = "0" * self.table.num_columns
-        pass
+        self.rquery.insert(columns)
 
     """
     # Read matching record with specified search key
@@ -48,7 +48,7 @@ class Query:
     def select(
         self, search_key: Any, search_key_index: int, projected_columns_index: int
     ):
-        pass
+        self.rquery.select(search_key, search_key_index, projected_columns_index)
 
     """
     # Read matching record with specified search key

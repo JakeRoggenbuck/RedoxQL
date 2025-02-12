@@ -1,15 +1,17 @@
-use super::database::RTable;
+use super::database::{RTable, Record};
 use pyo3::prelude::*;
 use std::iter::zip;
 
 #[pyclass]
-pub struct Query {
+pub struct RQuery {
     pub table: RTable,
 }
 
-impl Query {
+#[pymethods]
+impl RQuery {
+    #[new]
     fn new(table: RTable) -> Self {
-        Query { table }
+        RQuery { table }
     }
 
     fn delete(&mut self, primary_key: i64) {
@@ -17,8 +19,8 @@ impl Query {
         // i.e. delete the whole record
     }
 
-    fn insert(&mut self, values: Vec<u64>) {
-        self.table.write(values);
+    fn insert(&mut self, values: Vec<u64>) -> Record {
+        self.table.write(values)
     }
 
     fn select(
