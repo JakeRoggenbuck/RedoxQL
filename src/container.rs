@@ -9,12 +9,12 @@ pub struct BaseContainer {
     pub physical_pages: Vec<Arc<Mutex<PhysicalPage>>>,
 
     // number of additional columns
-    pub num_cols: u64,
+    pub num_cols: i64,
 
     // reserved columns
-    pub rid_column: u64,
-    pub schema_encoding_column: u64,
-    pub indirection_column: u64,
+    pub rid_column: i64,
+    pub schema_encoding_column: i64,
+    pub indirection_column: i64,
 }
 
 /// A container that manages physical pages for storing data in columns
@@ -43,7 +43,7 @@ impl BaseContainer {
     /// # Returns
     ///
     /// A new `BaseContainer` instance
-    pub fn new(num_cols: u64) -> Self {
+    pub fn new(num_cols: i64) -> Self {
         BaseContainer {
             physical_pages: Vec::new(),
             num_cols,
@@ -105,11 +105,11 @@ impl BaseContainer {
     /// ### Arguments
     ///
     /// - `col_idx`: The index of the column
-    pub fn column_page(&self, col_idx: u64) -> Arc<Mutex<PhysicalPage>> {
+    pub fn column_page(&self, col_idx: i64) -> Arc<Mutex<PhysicalPage>> {
         self.physical_pages[(col_idx + 3) as usize].clone()
     }
 
-    pub fn insert_record(&mut self, rid: u64, values: Vec<u64>) -> Record {
+    pub fn insert_record(&mut self, rid: i64, values: Vec<i64>) -> Record {
         if values.len() != self.num_cols as usize {
             panic!("Number of values does not match number of columns");
         }
@@ -167,8 +167,8 @@ impl BaseContainer {
         }
     }
 
-    pub fn read_record(&self, record: Record) -> Vec<u64> {
-        let mut values = Vec::<u64>::new();
+    pub fn read_record(&self, record: Record) -> Vec<i64> {
+        let mut values = Vec::<i64>::new();
 
         let addrs = record.addresses.lock().unwrap();
         let addrs_clone = addrs.clone();
@@ -188,12 +188,12 @@ pub struct TailContainer {
     pub physical_pages: Vec<Arc<Mutex<PhysicalPage>>>,
 
     // number of additional columns
-    pub num_cols: u64,
+    pub num_cols: i64,
 
     // reserved columns
-    pub rid_column: u64,
-    pub schema_encoding_column: u64,
-    pub indirection_column: u64,
+    pub rid_column: i64,
+    pub schema_encoding_column: i64,
+    pub indirection_column: i64,
 }
 
 /// A container that manages physical pages for storing data in columns
@@ -222,7 +222,7 @@ impl TailContainer {
     /// # Returns
     ///
     /// A new `TailContainer` instance
-    pub fn new(num_cols: u64) -> Self {
+    pub fn new(num_cols: i64) -> Self {
         TailContainer {
             physical_pages: Vec::new(),
             num_cols,
@@ -279,11 +279,11 @@ impl TailContainer {
     }
 
     /// Returns a reference to the specified column page
-    pub fn column_page(&self, col_idx: u64) -> Arc<Mutex<PhysicalPage>> {
+    pub fn column_page(&self, col_idx: i64) -> Arc<Mutex<PhysicalPage>> {
         self.physical_pages[(col_idx + 3) as usize].clone()
     }
 
-    pub fn insert_record(&mut self, rid: u64, indirection_rid: u64, values: Vec<u64>) -> Record {
+    pub fn insert_record(&mut self, rid: i64, indirection_rid: i64, values: Vec<i64>) -> Record {
         if values.len() != self.num_cols as usize {
             panic!("Number of values does not match number of columns");
         }
@@ -300,12 +300,12 @@ impl TailContainer {
         let indirection_page = self.indirection_page();
         let mut ip = indirection_page.lock().unwrap();
 
-        ip.write(indirection_rid);
+        ip.write(indirection_rid as i64);
 
         for i in 0..self.num_cols {
             let col_page = self.column_page(i);
             let mut col_page = col_page.lock().unwrap();
-            col_page.write(values[i as usize]);
+            col_page.write(values[i as usize] as i64);
         }
 
         let addresses: Arc<Mutex<Vec<RecordAddress>>> = Arc::new(Mutex::new(Vec::new()));
@@ -341,8 +341,8 @@ impl TailContainer {
         }
     }
 
-    pub fn read_record(&self, record: Record) -> Vec<u64> {
-        let mut values = Vec::<u64>::new();
+    pub fn read_record(&self, record: Record) -> Vec<i64> {
+        let mut values = Vec::<i64>::new();
 
         let addrs = record.addresses.lock().unwrap();
         let addrs_clone = addrs.clone();

@@ -13,11 +13,11 @@ impl RQuery {
         RQuery { table }
     }
 
-    fn delete(&mut self, primary_key: u64) {
+    fn delete(&mut self, primary_key: i64) {
         self.table.delete(primary_key)
     }
 
-    fn insert(&mut self, values: Vec<u64>) -> Record {
+    fn insert(&mut self, values: Vec<i64>) -> Record {
         self.table.write(values)
     }
 
@@ -26,8 +26,8 @@ impl RQuery {
         primary_key: i64,
         _search_key_index: i64,
         _projected_columns_index: Vec<i64>,
-    ) -> Option<Vec<u64>> {
-        let Some(result) = self.table.read(primary_key as u64) else {
+    ) -> Option<Vec<i64>> {
+        let Some(result) = self.table.read(primary_key as i64) else {
             return None;
         };
 
@@ -55,8 +55,8 @@ impl RQuery {
         _search_key_index: i64,
         _projected_columns_index: Vec<i64>,
         relative_version: i64,
-    ) -> Option<Vec<u64>> {
-        let Some(result) = self.table.read(primary_key as u64) else {
+    ) -> Option<Vec<i64>> {
+        let Some(result) = self.table.read(primary_key as i64) else {
             return None;
         };
 
@@ -73,7 +73,7 @@ impl RQuery {
         // start from the most recent tail record
         let mut current_rid = base_indirection_column;
         let mut versions_back = 0;
-        let target_version = relative_version.abs() as u64; // Convert to positive and unsigned
+        let target_version = relative_version.abs() as i64; // Convert to positive and unsigned
 
         while versions_back < target_version {
             let Some(current_record) = self.table.page_directory.get(&current_rid) else {
@@ -106,14 +106,14 @@ impl RQuery {
         return self.table.page_range.read(final_record.clone());
     }
 
-    fn update(&mut self, primary_key: i64, columns: Vec<u64>) -> bool {
+    fn update(&mut self, primary_key: i64, columns: Vec<i64>) -> bool {
         if columns.len() != self.table.num_columns {
             panic!("Columns length does not match table columns length");
         }
-        if columns[self.table.primary_key_column as usize] != primary_key as u64 {
+        if columns[self.table.primary_key_column as usize] != primary_key as i64 {
             panic!("Primary key cannot be changed");
         }
-        let Some(rid) = self.table.index.get(primary_key as u64) else {
+        let Some(rid) = self.table.index.get(primary_key as i64) else {
             return false;
         };
 
@@ -167,7 +167,7 @@ impl RQuery {
         let new_rec = self.table
             .page_range
             .tail_container
-            .insert_record(new_rid, base_indirection_column, columns);
+            .insert_record(new_rid, base_indirection_column, columns,);
 
         self.table.page_directory.insert(new_rid, new_rec.clone());
 
@@ -184,7 +184,7 @@ impl RQuery {
         return true;
     }
 
-    fn sum(&mut self, start_primary_key: u64, end_primary_key: u64, col_index: u64) -> i64 {
+    fn sum(&mut self, start_primary_key: i64, end_primary_key: i64, col_index: u64) -> i64 {
         self.table
             .sum(start_primary_key, end_primary_key, col_index)
     }

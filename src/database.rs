@@ -11,7 +11,7 @@ pub struct RIndex {
     /// Map a primary_key to a RID
     /// RIDs are used internally and are auto incremented
     /// The primary_key are given to the Python Query by the user of the library
-    index: BTreeMap<u64, u64>,
+    index: BTreeMap<i64, i64>,
 }
 
 impl RIndex {
@@ -22,12 +22,12 @@ impl RIndex {
     }
 
     /// Create a mapping from primary_key to RID
-    pub fn add(&mut self, primary_key: u64, rid: u64) {
+    pub fn add(&mut self, primary_key: i64, rid: i64) {
         self.index.insert(primary_key, rid);
     }
 
     /// Return the RID that we get from the primary_key
-    pub fn get(&self, primary_key: u64) -> Option<&u64> {
+    pub fn get(&self, primary_key: i64) -> Option<&i64> {
         self.index.get(&primary_key)
     }
 }
@@ -39,7 +39,7 @@ pub struct PageRange {
 }
 
 impl PageRange {
-    fn new(num_cols: u64) -> Self {
+    fn new(num_cols: i64) -> Self {
         let mut base = BaseContainer::new(num_cols);
         base.initialize();
 
@@ -53,11 +53,11 @@ impl PageRange {
     }
 
     /// Write an entire record of values
-    fn write(&mut self, new_rid: u64, values: Vec<u64>) -> Record {
+    fn write(&mut self, new_rid: i64, values: Vec<i64>) -> Record {
         self.base_container.insert_record(new_rid, values)
     }
 
-    pub fn read(&self, record: Record) -> Option<Vec<u64>> {
+    pub fn read(&self, record: Record) -> Option<Vec<i64>> {
         Some(self.base_container.read_record(record))
     }
 }
@@ -65,7 +65,7 @@ impl PageRange {
 #[derive(Debug, Clone)]
 pub struct RecordAddress {
     pub page: Arc<Mutex<PhysicalPage>>,
-    pub offset: u64,
+    pub offset: i64,
 }
 
 #[derive(Debug, Clone)]
@@ -73,7 +73,7 @@ pub struct RecordAddress {
 pub struct Record {
     /// Each Record has a RID and we can retrieve the Record via RTable.page_directory
     #[pyo3(get)]
-    pub rid: u64,
+    pub rid: i64,
     /// The Record keeps a Vector of the RecordAddress, which allow us to actually call
     /// RecordAddress.page.read() to get the value stored at the page using the offset
     pub addresses: Arc<Mutex<Vec<RecordAddress>>>,
@@ -111,11 +111,11 @@ pub struct RTable {
     pub page_range: PageRange,
 
     // Map RIDs to Records
-    pub page_directory: HashMap<u64, Record>,
+    pub page_directory: HashMap<i64, Record>,
 
     /// This is how we created the RID
     /// We use this value directly as the RID and increment after ever insert
-    pub num_records: u64,
+    pub num_records: i64,
 
     /// This is the count of columns in the RTable
     #[pyo3(get)]
@@ -126,7 +126,7 @@ pub struct RTable {
 }
 
 impl RTable {
-    pub fn write(&mut self, values: Vec<u64>) -> Record {
+    pub fn write(&mut self, values: Vec<i64>) -> Record {
         // Use the primary_key_column'th value as the given key
         let primary_key = values[self.primary_key_column];
 
@@ -142,7 +142,7 @@ impl RTable {
         return rec;
     }
 
-    pub fn read(&self, primary_key: u64) -> Option<Vec<u64>> {
+    pub fn read(&self, primary_key: i64) -> Option<Vec<i64>> {
         // Lookup RID from primary_key
         let rid = self.index.get(primary_key);
 
@@ -159,7 +159,7 @@ impl RTable {
         None
     }
 
-    pub fn delete(&mut self, primary_key: u64) {
+    pub fn delete(&mut self, primary_key: i64) {
         // Lookup RID from primary_key
         let rid = self.index.get(primary_key);
 
@@ -168,7 +168,7 @@ impl RTable {
         }
     }
 
-    pub fn sum(&mut self, start_primary_key: u64, end_primary_key: u64, col_index: u64) -> i64 {
+    pub fn sum(&mut self, start_primary_key: i64, end_primary_key: i64, col_index: u64) -> i64 {
         let mut agg = 0i64;
 
         // Make sum range inclusive
@@ -213,10 +213,10 @@ impl RDatabase {
         unreachable!("Not used in milestone 1");
     }
 
-    pub fn create_table(&mut self, name: String, num_columns: u64, primary_key_column: u64) -> RTable {
+    pub fn create_table(&mut self, name: String, num_columns: i64, primary_key_column: i64) -> RTable {
         let t = RTable {
             name: name.clone(),
-            page_range: PageRange::new(num_columns as u64),
+            page_range: PageRange::new(num_columns as i64),
             primary_key_column: primary_key_column as usize,
             page_directory: HashMap::new(),
             num_columns: num_columns as usize,
