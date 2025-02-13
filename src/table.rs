@@ -188,6 +188,24 @@ mod tests {
         table.write(vec![0, 10, 12]);
 
         // Read and check
+        assert_eq!(table.read(0).unwrap(), vec![0, 0, 0, 0, 10, 12]);
+
+        // Write
+        table.write(vec![1, 20, 30]);
+
+        // Read and check
+        assert_eq!(table.read(1).unwrap(), vec![1, 0, 1, 1, 20, 30]);
+    }
+
+    #[test]
+    fn read_base_and_write_test() {
+        let mut db = RDatabase::new();
+        let mut table: RTable = db.create_table("Scores".to_string(), 3, 0);
+
+        // Write
+        table.write(vec![0, 10, 12]);
+
+        // Read and check
         assert_eq!(table.read_base(0).unwrap(), vec![0, 0, 0, 0, 10, 12]);
 
         // Write
