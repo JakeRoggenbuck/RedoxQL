@@ -172,7 +172,8 @@ impl RTable {
                 return None;
             };
             let base_rid = result[self.page_range.base_container.rid_column as usize];
-            let base_indirection_column = result[self.page_range.base_container.indirection_column as usize];
+            let base_indirection_column =
+                result[self.page_range.base_container.indirection_column as usize];
 
             if base_rid == base_indirection_column {
                 return Some(result);
@@ -204,7 +205,7 @@ impl RTable {
         // TODO: Validate this assumption if it should actually be inclusive
         for primary_key in start_primary_key..end_primary_key + 1 {
             if let Some(v) = self.read(primary_key) {
-                agg += v[(col_index+3) as usize] as i64;
+                agg += v[(col_index + 3) as usize] as i64;
             }
         }
 
