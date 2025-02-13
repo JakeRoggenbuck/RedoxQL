@@ -27,26 +27,7 @@ impl RQuery {
         _search_key_index: i64,
         _projected_columns_index: Vec<i64>,
     ) -> Option<Vec<i64>> {
-        let Some(result) = self.table.read_base(primary_key as i64) else {
-            return None;
-        };
-
-        // check if indirection column is different from RID
-        let base_rid = result[self.table.page_range.base_container.rid_column as usize];
-        let base_indirection_column =
-            result[self.table.page_range.base_container.indirection_column as usize];
-
-        // if indirection column is different from RID, read the tail record
-        if base_rid != base_indirection_column {
-            let rec = self.table.page_directory.get(&base_indirection_column);
-
-            match rec {
-                Some(r) => return self.table.page_range.read(r.clone()),
-                None => return None,
-            }
-        }
-
-        return Some(result);
+        return self.table.read(primary_key);
     }
 
     fn select_version(
@@ -56,55 +37,7 @@ impl RQuery {
         _projected_columns_index: Vec<i64>,
         relative_version: i64,
     ) -> Option<Vec<i64>> {
-        let Some(result) = self.table.read_base(primary_key as i64) else {
-            return None;
-        };
-
-        // check if indirection column is different from RID
-        let base_rid = result[self.table.page_range.base_container.rid_column as usize];
-        let base_indirection_column =
-            result[self.table.page_range.base_container.indirection_column as usize];
-
-        // if base record hasn't been updated, return it
-        if base_rid == base_indirection_column {
-            return Some(result);
-        }
-
-        // start from the most recent tail record
-        let mut current_rid = base_indirection_column;
-        let mut versions_back = 0;
-        let target_version = relative_version.abs() as i64; // Convert to positive and unsigned
-
-        while versions_back < target_version {
-            let Some(current_record) = self.table.page_directory.get(&current_rid) else {
-                return None;
-            };
-
-            // read the current record
-            let Some(record_data) = self.table.page_range.read(current_record.clone()) else {
-                return None;
-            };
-
-            // get the indirection of the previous version
-            let prev_indirection =
-                record_data[self.table.page_range.tail_container.indirection_column as usize];
-
-            // if we've reached the base record, stop here
-            if prev_indirection == base_rid {
-                current_rid = base_rid;
-                break;
-            }
-
-            current_rid = prev_indirection;
-            versions_back += 1;
-        }
-
-        // read the final record we want
-        let Some(final_record) = self.table.page_directory.get(&current_rid) else {
-            return None;
-        };
-
-        return self.table.page_range.read(final_record.clone());
+        return self.table.read_relative(primary_key, relative_version);
     }
 
     fn update(&mut self, primary_key: i64, columns: Vec<Option<i64>>) -> bool {
