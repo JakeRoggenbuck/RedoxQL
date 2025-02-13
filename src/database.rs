@@ -1,8 +1,31 @@
 use super::container::{BaseContainer, TailContainer};
 use super::page::PhysicalPage;
 use pyo3::prelude::*;
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+
+#[pyclass]
+#[derive(Clone)]
+pub struct RIndex {
+    index: BTreeMap<u64, u64>,
+}
+
+impl RIndex {
+    pub fn new() -> RIndex {
+        RIndex {
+            index: BTreeMap::new(),
+        }
+    }
+
+    pub fn add(&mut self, primary_key: u64, rid: u64) {
+        self.index.insert(primary_key, rid);
+    }
+
+    pub fn get(&self, primary_key: u64) -> Option<&u64> {
+        self.index.get(&primary_key)
+    }
+}
 
 #[derive(Clone)]
 pub struct PageRange {
@@ -80,43 +103,61 @@ pub struct RTable {
     pub num_records: u64,
 
     #[pyo3(get)]
-    pub num_columns: i64,
+    pub num_columns: usize,
+
+    pub index: RIndex,
 }
 
 impl RTable {
     pub fn write(&mut self, values: Vec<u64>) -> Record {
         // Use the primary_key_column'th value as the given key
-        let given_key = values[self.primary_key_column];
-        let rec = self.page_range.write(self.num_records, values);
+        let primary_key = values[self.primary_key_column];
+
+        let rid = self.num_records;
+        self.index.add(primary_key, rid);
+
+        let rec = self.page_range.write(rid, values);
 
         // Save the RID -> Record so it can later be read
-        self.page_directory.insert(given_key, rec.clone());
+        self.page_directory.insert(rid, rec.clone());
 
         self.num_records += 1;
         return rec;
     }
 
-    pub fn read(&self, rid: u64) -> Option<Vec<u64>> {
-        let rec = self.page_directory.get(&rid);
+    pub fn read(&self, primary_key: u64) -> Option<Vec<u64>> {
+        // Lookup RID from primary_key
+        let rid = self.index.get(primary_key);
 
-        // If the rec exists in the page_directory, return the read values
-        match rec {
-            Some(r) => self.page_range.read(r.clone()),
-            None => None,
+        if let Some(r) = rid {
+            let rec = self.page_directory.get(&r);
+
+            // If the rec exists in the page_directory, return the read values
+            match rec {
+                Some(r) => return self.page_range.read(r.clone()),
+                None => return None,
+            }
+        }
+
+        None
+    }
+
+    pub fn delete(&mut self, primary_key: u64) {
+        // Lookup RID from primary_key
+        let rid = self.index.get(primary_key);
+
+        if let Some(r) = rid {
+            self.page_directory.remove(&r);
         }
     }
 
-    pub fn delete(&mut self, rid: u64) {
-        self.page_directory.remove(&rid);
-    }
-
-    pub fn sum(&mut self, start: u64, end: u64, col_index: u64) -> i64 {
+    pub fn sum(&mut self, start_primary_key: u64, end_primary_key: u64, col_index: u64) -> i64 {
         let mut agg = 0i64;
 
         // Make sum range inclusive
         // TODO: Validate this assumption if it should actually be inclusive
-        for rid in start..end + 1 {
-            if let Some(v) = self.read(rid) {
+        for primary_key in start_primary_key..end_primary_key + 1 {
+            if let Some(v) = self.read(primary_key) {
                 agg += v[col_index as usize] as i64;
             }
         }
@@ -154,19 +195,15 @@ impl RDatabase {
         unreachable!("Not used in milestone 1");
     }
 
-    fn create_table(
-        &mut self,
-        name: String,
-        num_columns: i64,
-        primary_key_column: usize,
-    ) -> RTable {
+    fn create_table(&mut self, name: String, num_columns: u64, primary_key_column: u64) -> RTable {
         let t = RTable {
             name: name.clone(),
             page_range: PageRange::new(num_columns as u64),
-            primary_key_column,
+            primary_key_column: primary_key_column as usize,
             page_directory: HashMap::new(),
-            num_columns: 1,
+            num_columns: num_columns as usize,
             num_records: 0,
+            index: RIndex::new(),
         };
 
         let i = self.tables.len();

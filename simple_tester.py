@@ -28,4 +28,4 @@ for rec in recs:
     print(vals)
 
 for x in range(0, 8):
-    print(f"query.sum(13, 17, {x})", query.sum(13, 17, x))
+    print(f"query.sum(15, 17, {x})", query.sum(15, 17, x))
