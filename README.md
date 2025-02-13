@@ -43,13 +43,13 @@ python3 __main__.py
 
 You should see this ...
 ```
-(venv) ecs-165a-database (main) λ p __main__.py
-Inserting 10k records took:  			 0.0017988820000000016
-Updating 10k records took:  			 0.008435604000000003
-Selecting 10k records took:  			 0.003455875000000004
-Aggregate 10k of 100 record batch took:	 4.326100000000277e-05
-Deleting 10k records took:  			 0.0006921710000000053
-(venv) ecs-165a-database (main) λ
+(venv) ecs-165a-database (update) λ p __main__.py
+Inserting 10k records took:  			 0.046828536000000004
+Updating 10k records took:  			 0.007613003000000007
+Selecting 10k records took:  			 0.041287341000000005
+Aggregate 10k of 100 record batch took:	 0.01435074800000001
+Deleting 10k records took:  			 0.01662430099999998
+(venv) ecs-165a-database (update) λ
 ```
 
 ## Structure
