@@ -168,7 +168,7 @@ impl RTable {
         }
     }
 
-    pub fn sum(&mut self, start_primary_key: i64, end_primary_key: i64, col_index: u64) -> i64 {
+    pub fn sum(&mut self, start_primary_key: i64, end_primary_key: i64, col_index: i64) -> i64 {
         let mut agg = 0i64;
 
         // Make sum range inclusive
@@ -213,7 +213,12 @@ impl RDatabase {
         unreachable!("Not used in milestone 1");
     }
 
-    pub fn create_table(&mut self, name: String, num_columns: i64, primary_key_column: i64) -> RTable {
+    pub fn create_table(
+        &mut self,
+        name: String,
+        num_columns: i64,
+        primary_key_column: i64,
+    ) -> RTable {
         let t = RTable {
             name: name.clone(),
             page_range: PageRange::new(num_columns as i64),

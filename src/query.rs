@@ -86,7 +86,8 @@ impl RQuery {
             };
 
             // get the indirection of the previous version
-            let prev_indirection = record_data[self.table.page_range.tail_container.indirection_column as usize];
+            let prev_indirection =
+                record_data[self.table.page_range.tail_container.indirection_column as usize];
 
             // if we've reached the base record, stop here
             if prev_indirection == base_rid {
@@ -143,7 +144,11 @@ impl RQuery {
                     .page
                     .lock()
                     .unwrap();
-                base_schema_encoding.overwrite(addrs_base[self.table.page_range.base_container.schema_encoding_column as usize].offset as usize, 1);
+                base_schema_encoding.overwrite(
+                    addrs_base[self.table.page_range.base_container.schema_encoding_column as usize]
+                        .offset as usize,
+                    1,
+                );
             }
         } else {
             // second and subsequent updates
@@ -160,7 +165,11 @@ impl RQuery {
                 .page
                 .lock()
                 .unwrap();
-            schema_encoding.overwrite(addrs_existing[self.table.page_range.tail_container.schema_encoding_column as usize].offset as usize, 1);
+            schema_encoding.overwrite(
+                addrs_existing[self.table.page_range.tail_container.schema_encoding_column as usize]
+                    .offset as usize,
+                1,
+            );
         }
 
         let new_rid = self.table.num_records;
@@ -177,14 +186,18 @@ impl RQuery {
             .page
             .lock()
             .unwrap();
-        indirection_page.overwrite(addrs_base[self.table.page_range.base_container.indirection_column as usize].offset as usize, new_rid);
+        indirection_page.overwrite(
+            addrs_base[self.table.page_range.base_container.indirection_column as usize].offset
+                as usize,
+            new_rid,
+        );
 
         self.table.num_records += 1;
 
         return true;
     }
 
-    fn sum(&mut self, start_primary_key: i64, end_primary_key: i64, col_index: u64) -> i64 {
+    fn sum(&mut self, start_primary_key: i64, end_primary_key: i64, col_index: i64) -> i64 {
         self.table
             .sum(start_primary_key, end_primary_key, col_index)
     }
@@ -237,7 +250,7 @@ mod tests {
         let mut q = RQuery::new(t);
 
         q.insert(vec![1, 2, 3]);
-        
+
         // Try to update primary key from 1 to 2
         q.update(1, vec![2, 5, 6]);
     }
@@ -249,7 +262,7 @@ mod tests {
         let mut q = RQuery::new(t);
 
         q.insert(vec![1, 2, 3]);
-        
+
         q.update(1, vec![1, 4, 5]);
         q.update(1, vec![1, 6, 7]);
         q.update(1, vec![1, 8, 9]);
@@ -278,23 +291,23 @@ mod tests {
 
         // Insert initial record
         q.insert(vec![1, 2, 3]);
-        
+
         // Make multiple updates
         q.update(1, vec![1, 4, 5]); // Version 1
-        q.update(1, vec![1, 6, 7]); // Version 2  
+        q.update(1, vec![1, 6, 7]); // Version 2
         q.update(1, vec![1, 8, 9]); // Version 3
 
         // Test different versions
-        let latest = q.select_version(1, 0, vec![1,1,1], 0);
+        let latest = q.select_version(1, 0, vec![1, 1, 1], 0);
         assert_eq!(latest.unwrap(), vec![3, 0, 2, 1, 8, 9]); // Most recent version
 
-        let one_back = q.select_version(1, 0, vec![1,1,1], 1);
+        let one_back = q.select_version(1, 0, vec![1, 1, 1], 1);
         assert_eq!(one_back.unwrap(), vec![2, 1, 1, 1, 6, 7]); // One version back
 
-        let two_back = q.select_version(1, 0, vec![1,1,1], 2);
+        let two_back = q.select_version(1, 0, vec![1, 1, 1], 2);
         assert_eq!(two_back.unwrap(), vec![1, 1, 0, 1, 4, 5]); // Two versions back
 
-        let original = q.select_version(1, 0, vec![1,1,1], 3);
+        let original = q.select_version(1, 0, vec![1, 1, 1], 3);
         assert_eq!(original.unwrap(), vec![0, 1, 3, 1, 2, 3]); // Original version
     }
 }
