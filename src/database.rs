@@ -213,7 +213,12 @@ impl RDatabase {
         unreachable!("Not used in milestone 1");
     }
 
-    pub fn create_table(&mut self, name: String, num_columns: u64, primary_key_column: u64) -> RTable {
+    pub fn create_table(
+        &mut self,
+        name: String,
+        num_columns: u64,
+        primary_key_column: u64,
+    ) -> RTable {
         let t = RTable {
             name: name.clone(),
             page_range: PageRange::new(num_columns as u64),
