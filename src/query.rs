@@ -41,7 +41,7 @@ impl RQuery {
             let rec = self.table.page_directory.get(&base_indirection_column);
 
             match rec {
-                Some(r) => return self.table.page_range.read_tail(r.clone()),
+                Some(r) => return self.table.page_range.read(r.clone()),
                 None => return None,
             }
         }
@@ -81,7 +81,7 @@ impl RQuery {
             };
 
             // read the current record
-            let Some(record_data) = self.table.page_range.read_tail(current_record.clone()) else {
+            let Some(record_data) = self.table.page_range.read(current_record.clone()) else {
                 return None;
             };
 
@@ -103,11 +103,7 @@ impl RQuery {
             return None;
         };
 
-        if final_record.is_tail {
-            return self.table.page_range.read_tail(final_record.clone());
-        } else {
-            return self.table.page_range.read_base(final_record.clone());
-        }
+        return self.table.page_range.read(final_record.clone());
     }
 
     fn update(&mut self, primary_key: i64, columns: Vec<u64>) -> bool {
@@ -126,7 +122,7 @@ impl RQuery {
             None => return false,
         };
 
-        let Some(result) = self.table.page_range.read_base(record.clone()) else {
+        let Some(result) = self.table.page_range.read(record.clone()) else {
             return false;
         };
 

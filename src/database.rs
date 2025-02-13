@@ -57,12 +57,8 @@ impl PageRange {
         self.base_container.insert_record(new_rid, values)
     }
 
-    pub fn read_base(&self, record: Record) -> Option<Vec<u64>> {
+    pub fn read(&self, record: Record) -> Option<Vec<u64>> {
         Some(self.base_container.read_record(record))
-    }
-
-    pub fn read_tail(&self, record: Record) -> Option<Vec<u64>> {
-        Some(self.tail_container.read_record(record))
     }
 }
 
@@ -78,7 +74,6 @@ pub struct Record {
     /// Each Record has a RID and we can retrieve the Record via RTable.page_directory
     #[pyo3(get)]
     pub rid: u64,
-    pub is_tail: bool,
     /// The Record keeps a Vector of the RecordAddress, which allow us to actually call
     /// RecordAddress.page.read() to get the value stored at the page using the offset
     pub addresses: Arc<Mutex<Vec<RecordAddress>>>,
@@ -156,7 +151,7 @@ impl RTable {
 
             // If the rec exists in the page_directory, return the read values
             match rec {
-                Some(r) => return self.page_range.read_base(r.clone()),
+                Some(r) => return self.page_range.read(r.clone()),
                 None => return None,
             }
         }
