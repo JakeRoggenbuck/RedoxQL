@@ -34,8 +34,8 @@ impl RIndex {
 
 #[derive(Clone)]
 pub struct PageRange {
-    base_container: BaseContainer,
-    tail_container: TailContainer,
+    pub base_container: BaseContainer,
+    pub tail_container: TailContainer,
 }
 
 impl PageRange {
@@ -57,8 +57,7 @@ impl PageRange {
         self.base_container.insert_record(new_rid, values)
     }
 
-    /// Read the values from an entire Record
-    fn read(&self, record: Record) -> Option<Vec<u64>> {
+    pub fn read(&self, record: Record) -> Option<Vec<u64>> {
         Some(self.base_container.read_record(record))
     }
 }
