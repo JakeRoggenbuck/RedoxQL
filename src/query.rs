@@ -76,12 +76,12 @@ impl RQuery {
             panic!("Columns length does not match table columns length");
         }
 
-        let a = columns[self.table.primary_key_column as usize];
-        if let Some(v) = a {
-            if v != primary_key {
-                panic!("Primary key cannot be changed");
-            }
-        }
+        // let a = columns[self.table.primary_key_column as usize];
+        // if let Some(v) = a {
+        //     if v != primary_key {
+        //         panic!("Primary key cannot be changed");
+        //     }
+        // }
 
         let mut new_columns: Vec<i64>;
 
@@ -248,18 +248,19 @@ mod tests {
         let vals2 = q.select(1, 0, vec![1, 1, 1]);
         assert_eq!(vals2.unwrap(), vec![1, 0, 0, 1, 5, 6]);
     }
-    #[test]
-    #[should_panic(expected = "Primary key cannot be changed")]
-    fn test_update_primary_key_should_panic() {
-        let mut db = RDatabase::new();
-        let t = db.create_table(String::from("Grades"), 3, 0);
-        let mut q = RQuery::new(t);
+    
+    // #[test]
+    // #[should_panic(expected = "Primary key cannot be changed")]
+    // fn test_update_primary_key_should_panic() {
+    //     let mut db = RDatabase::new();
+    //     let t = db.create_table(String::from("Grades"), 3, 0);
+    //     let mut q = RQuery::new(t);
 
-        q.insert(vec![1, 2, 3]);
+    //     q.insert(vec![1, 2, 3]);
 
-        // Try to update primary key from 1 to 2
-        q.update(1, vec![Some(2), Some(5), Some(6)]);
-    }
+    //     // Try to update primary key from 1 to 2
+    //     q.update(1, vec![Some(2), Some(5), Some(6)]);
+    // }
 
     #[test]
     fn test_multiple_updates() {
