@@ -163,6 +163,7 @@ impl BaseContainer {
 
         Record {
             rid,
+            is_tail: false,
             addresses: addresses.clone(),
         }
     }
@@ -337,6 +338,7 @@ impl TailContainer {
 
         Record {
             rid,
+            is_tail: true,
             addresses: addresses.clone(),
         }
     }

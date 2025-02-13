@@ -78,6 +78,7 @@ pub struct Record {
     /// Each Record has a RID and we can retrieve the Record via RTable.page_directory
     #[pyo3(get)]
     pub rid: u64,
+    pub is_tail: bool,
     /// The Record keeps a Vector of the RecordAddress, which allow us to actually call
     /// RecordAddress.page.read() to get the value stored at the page using the offset
     pub addresses: Arc<Mutex<Vec<RecordAddress>>>,
