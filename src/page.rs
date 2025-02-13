@@ -62,4 +62,24 @@ impl PageDirectory {
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::*;
+
+    #[test]
+    fn write_page_test() {
+        let mut phys_page = PhysicalPage::new();
+
+        phys_page.write(10);
+        assert_eq!(phys_page.read(0).unwrap(), 10);
+    }
+
+    #[test]
+    fn many_writes_page_test() {
+        let mut phys_page = PhysicalPage::new();
+
+        for x in 0..1000 {
+            phys_page.write(x * 10);
+            assert_eq!(phys_page.read(x as usize).unwrap(), x * 10);
+        }
+    }
+}
