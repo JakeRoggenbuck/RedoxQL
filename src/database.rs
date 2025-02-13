@@ -284,4 +284,17 @@ mod tests {
 
         assert_eq!(db.tables.len(), 2);
     }
+
+    #[test]
+    fn index_test() {
+        let mut index = RIndex::new();
+
+        index.add(1, 100);
+
+        assert_eq!(index.get(1).unwrap(), &100);
+
+        index.add(10, 1010101);
+
+        assert_eq!(index.get(10).unwrap(), &1010101);
+    }
 }
