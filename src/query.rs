@@ -1,5 +1,6 @@
 use super::database::{RDatabase, RTable, Record};
 use pyo3::prelude::*;
+use std::iter::zip;
 
 #[pyclass]
 pub struct RQuery {
@@ -25,19 +26,49 @@ impl RQuery {
         &mut self,
         primary_key: i64,
         _search_key_index: i64,
-        _projected_columns_index: Vec<i64>,
+        projected_columns_index: Vec<i64>,
     ) -> Option<Vec<i64>> {
-        return self.table.read(primary_key);
+        let mut new_projected_columns_index = vec![1, 1, 1];
+        new_projected_columns_index.extend(projected_columns_index);
+
+        let Some(ret) = self.table.read(primary_key) else {
+            return None;
+        };
+
+        let mut out: Vec<i64> = vec![];
+
+        for (a, b) in zip(ret, new_projected_columns_index) {
+            if b == 1 {
+                out.push(a);
+            }
+        }
+
+        return Some(out);
     }
 
     fn select_version(
         &mut self,
         primary_key: i64,
         _search_key_index: i64,
-        _projected_columns_index: Vec<i64>,
+        projected_columns_index: Vec<i64>,
         relative_version: i64,
     ) -> Option<Vec<i64>> {
-        return self.table.read_relative(primary_key, relative_version);
+        let mut new_projected_columns_index = vec![1, 1, 1];
+        new_projected_columns_index.extend(projected_columns_index);
+
+        let Some(ret) = self.table.read_relative(primary_key, relative_version) else {
+            return None;
+        };
+
+        let mut out: Vec<i64> = vec![];
+
+        for (a, b) in zip(ret, new_projected_columns_index) {
+            if b == 1 {
+                out.push(a);
+            }
+        }
+
+        return Some(out);
     }
 
     fn update(&mut self, primary_key: i64, columns: Vec<Option<i64>>) -> bool {
