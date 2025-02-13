@@ -8,6 +8,9 @@ use std::sync::{Arc, Mutex};
 #[pyclass]
 #[derive(Clone)]
 pub struct RIndex {
+    /// Map a primary_key to a RID
+    /// RIDs are used internally and are auto incremented
+    /// The primary_key are given to the Python Query by the user of the library
     index: BTreeMap<u64, u64>,
 }
 
@@ -18,10 +21,12 @@ impl RIndex {
         }
     }
 
+    /// Create a mapping from primary_key to RID
     pub fn add(&mut self, primary_key: u64, rid: u64) {
         self.index.insert(primary_key, rid);
     }
 
+    /// Return the RID that we get from the primary_key
     pub fn get(&self, primary_key: u64) -> Option<&u64> {
         self.index.get(&primary_key)
     }
@@ -47,10 +52,12 @@ impl PageRange {
         }
     }
 
+    /// Write an entire record of values
     fn write(&mut self, new_rid: u64, values: Vec<u64>) -> Record {
         self.base_container.insert_record(new_rid, values)
     }
 
+    /// Read the values from an entire Record
     fn read(&self, record: Record) -> Option<Vec<u64>> {
         Some(self.base_container.read_record(record))
     }
@@ -65,8 +72,11 @@ pub struct RecordAddress {
 #[derive(Debug, Clone)]
 #[pyclass]
 pub struct Record {
+    /// Each Record has a RID and we can retrieve the Record via RTable.page_directory
     #[pyo3(get)]
     pub rid: u64,
+    /// The Record keeps a Vector of the RecordAddress, which allow us to actually call
+    /// RecordAddress.page.read() to get the value stored at the page using the offset
     pub addresses: Arc<Mutex<Vec<RecordAddress>>>,
 }
 
@@ -76,14 +86,13 @@ impl Record {
         // Print the Addresses from RecordAddress
         let addresses = self.addresses.lock().unwrap();
         let mut addrs = Vec::<String>::new();
-        let b: Vec<RecordAddress> = addresses.clone();
+        let addr_vec: Vec<RecordAddress> = addresses.clone();
 
-        for a in b {
-            let c: RecordAddress = a;
-            let d = c.page;
+        for addr in addr_vec {
+            let page = addr.page;
             addrs.push(format!(
                 "0x{:?} + {}",
-                &d as *const Arc<Mutex<PhysicalPage>> as usize, c.offset
+                &page as *const Arc<Mutex<PhysicalPage>> as usize, addr.offset
             ));
         }
 
@@ -94,17 +103,26 @@ impl Record {
 #[derive(Clone)]
 #[pyclass]
 pub struct RTable {
+    /// The name given in RDatabase.create_table
     pub name: String,
+
+    /// The column that will act as the primary_key
     pub primary_key_column: usize,
+
     pub page_range: PageRange,
 
     // Map RIDs to Records
     pub page_directory: HashMap<u64, Record>,
+
+    /// This is how we created the RID
+    /// We use this value directly as the RID and increment after ever insert
     pub num_records: u64,
 
+    /// This is the count of columns in the RTable
     #[pyo3(get)]
     pub num_columns: usize,
 
+    /// This is how we map the given primary_key to the internal RID
     pub index: RIndex,
 }
 
@@ -172,6 +190,7 @@ impl RTable {
 
 #[pyclass]
 pub struct RDatabase {
+    /// This is where we keep all of the tables
     tables: Vec<RTable>,
     // Map table names to index on the tables: Vec<RTable>
     tables_hashmap: HashMap<String, usize>,

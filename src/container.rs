@@ -22,17 +22,17 @@ pub struct BaseContainer {
 /// The `BaseContainer` maintains a collection of physical pages where each page represents
 /// a column of data. It reserves the first three columns for special purposes:
 ///
-/// - RID_COLUMN (0): Record IDs
-/// - SCHEMA_ENCODING_COLUMN (1): Schema encoding information
-/// - INDIRECTION_COLUMN (2): Indirection records
+/// - rid_column (0): Record IDs
+/// - schema_encoding_column (1): Schema encoding information
+/// - indirection_column (2): Indirection records
 ///
 /// # Fields
 ///
 /// - `physical_pages`: A vector of physical pages
 /// - `num_cols`: The number of additional columns
-/// - `RID_COLUMN`: The index of the RID column
-/// - `SCHEMA_ENCODING_COLUMN`: The index of the schema encoding column
-/// - `INDIRECTION_COLUMN`: The index of the indirection column
+/// - `rid_column`: The index of the RID column
+/// - `schema_encoding_column`: The index of the schema encoding column
+/// - `indirection_column`: The index of the indirection column
 impl BaseContainer {
     /// Creates a new `BaseContainer` with the specified number of columns
     ///
@@ -201,17 +201,17 @@ pub struct TailContainer {
 /// The `TailContainer` maintains a collection of physical pages where each page represents
 /// a column of data. It reserves the first three columns for special purposes:
 ///
-/// - RID_COLUMN (0): Record IDs
-/// - SCHEMA_ENCODING_COLUMN (1): Schema encoding information
-/// - INDIRECTION_COLUMN (2): Indirection records
+/// - rid_column (0): Record IDs
+/// - schema_encoding_column (1): Schema encoding information
+/// - indirection_column (2): Indirection records
 ///
 /// # Fields
 ///
 /// - `physical_pages`: A vector of physical pages
 /// - `num_cols`: The number of additional columns
-/// - `RID_COLUMN`: The index of the RID column
-/// - `SCHEMA_ENCODING_COLUMN`: The index of the schema encoding column
-/// - `INDIRECTION_COLUMN`: The index of the indirection column
+/// - `rid_column`: The index of the RID column
+/// - `schema_encoding_column`: The index of the schema encoding column
+/// - `indirection_column`: The index of the indirection column
 impl TailContainer {
     /// Creates a new `TailContainer` with the specified number of columns
     ///
