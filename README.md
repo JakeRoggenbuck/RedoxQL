@@ -28,7 +28,7 @@ pip install -r requirements.txt
 ## Running
 Build the Rust code
 ```
-maturin build
+maturin build --release
 ```
 
 Install the module (Note: the version will change so check the exact filename in `target/wheels/`)
