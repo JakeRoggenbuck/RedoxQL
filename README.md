@@ -52,6 +52,13 @@ Deleting 10k records took:  			 0.01662430099999998
 (venv) ecs-165a-database (update) λ
 ```
 
+## Attribution
+- Keanu - page.rs and all the page stuff, index.rs and all of the index stuff
+- Lucas & Andrew - update
+- Lucas - select_version, sum_version, matching 
+- Abdulrasol - BaseContainer, TailContainer, PageDirectory, insert into containers, RecordAddress and Record
+- Jake - RTable, RDatabase, RQuery, new RIndex, python bindings, inserts and reads for all props
+
 ## Structure
 
 ![RedoxQL system diagram](https://github.com/user-attachments/assets/9b170cbd-1bbc-4966-870d-47a331bf2515)
