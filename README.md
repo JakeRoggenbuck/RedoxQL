@@ -66,6 +66,42 @@ Deleting 10k records took:  			 0.0006921710000000053
 
 ![image](https://github.com/user-attachments/assets/3079e4a1-5c60-4244-9cbb-57d877d35061)
 
+### File Structure
+
+```
+.
+├── Cargo.lock
+├── Cargo.toml
+├── LICENSE
+├── main_checking.py
+├── __main__.py
+├── pyproject.toml
+├── python
+│   ├── lstore
+│   │   ├── db.py
+│   │   ├── __init__.py
+│   │   ├── __pycache__
+│   │   │   └── __init__.cpython-312.pyc
+│   │   ├── query.py
+│   │   ├── transaction.py
+│   │   └── transaction_worker.py
+│   └── tests
+│       ├── __init__.py
+│       ├── __pycache__
+│       │   ├── __init__.cpython-312.pyc
+│       │   └── test_main.cpython-312-pytest-8.3.4.pyc
+│       └── test_main.py
+├── README.md
+├── requirements.txt
+└── src
+    ├── container.rs
+    ├── database.rs
+    ├── lib.rs
+    ├── page.rs
+    ├── query.rs
+    └── system.rs
+```
+
 #### lstore
 The lstore (`./lstore`) directory is where the Python code goes. This is what gets called by the tests in `__main__.py`. The lstore directory can be referred to as a Python module.
 
