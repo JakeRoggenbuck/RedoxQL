@@ -1,11 +1,9 @@
-from lstore.table import Table, Record
-from lstore.index import Index
 from typing import Any, List
-from .lstore import hello_from_rust, RDatabase, RQuery
+from .lstore import RQuery, RTable
 
 
 class Query:
-    def __init__(self, table: Table):
+    def __init__(self, table: RTable):
         """Creates a Query object that can perform different queries on the
         specified table
 
