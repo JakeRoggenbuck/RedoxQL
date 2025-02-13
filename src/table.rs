@@ -173,3 +173,63 @@ impl RTable {
         unreachable!("Not used in milestone 1")
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::database::RDatabase;
+
+    #[test]
+    fn read_and_write_test() {
+        let mut db = RDatabase::new();
+        let mut table: RTable = db.create_table("Scores".to_string(), 3, 0);
+
+        // Write
+        table.write(vec![0, 10, 12]);
+
+        // Read and check
+        assert_eq!(table.read_base(0).unwrap(), vec![0, 0, 0, 0, 10, 12]);
+
+        // Write
+        table.write(vec![1, 20, 30]);
+
+        // Read and check
+        assert_eq!(table.read_base(1).unwrap(), vec![1, 0, 1, 1, 20, 30]);
+    }
+
+    #[test]
+    fn sum_test() {
+        let mut db = RDatabase::new();
+        let mut table: RTable = db.create_table("Scores".to_string(), 2, 0);
+
+        table.write(vec![0, 10]);
+        table.write(vec![1, 20]);
+        table.write(vec![2, 5]);
+        table.write(vec![3, 100]);
+
+        // Sum the values in col 1
+        assert_eq!(table.sum(0, 3, 1), 135);
+
+        // Sum the primary keys in col 0
+        assert_eq!(table.sum(0, 3, 0), 6);
+
+        // Sum the values in col 1 from 1-2
+        assert_eq!(table.sum(1, 2, 1), 25);
+    }
+
+    #[test]
+    fn delete_test() {
+        let mut db = RDatabase::new();
+        let mut table: RTable = db.create_table("Scores".to_string(), 3, 0);
+
+        // Write
+        table.write(vec![0, 10, 12]);
+        // Read and check
+        assert_eq!(table.read_base(0).unwrap(), vec![0, 0, 0, 0, 10, 12]);
+
+        // Delete
+        table.delete(0);
+        // Read and find None
+        assert_eq!(table.read_base(0), None);
+    }
+}
