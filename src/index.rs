@@ -1,6 +1,6 @@
-use crate::database::RTable;
+use crate::database::{Record, RecordAddress, RTable};
 use pyo3::prelude::*;
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, sync::Arc};
 
 /*  A data strucutre holding indices for various columns of a table.
 Key column should be indexd by default, other columns can be indexed through this object.
@@ -12,13 +12,11 @@ pub struct RIndex {
 
        A vector of BTreeMaps, can be either Some::BTreeMap or None as its elements.
 
-       BTreeMap<i64, Vec<[usize; 3]>>:
+       BTreeMap<i64, Vec<Arc<Record>>>:
        -- BTreeMap: A balanced binary search tree (B-Tree), for maintaining sorted key-value pairs. --
        -- i64: The key type of the map (the column value being indexed). --
-
-       Vec<[usize; 3]>: Will later change it to the RID of the record.
     */
-    indices: Vec<Option<BTreeMap<i64, Vec<[usize; 3]>>>>, // change <[usize; 3]> to RID
+    indices: Vec<Option<BTreeMap<i64, Vec<Arc<Record>>>>>,
     table: RTable,
 }
 
@@ -32,8 +30,7 @@ impl RIndex {
     }
 
     /// Returns the location of all records with the given value on column "column"
-    pub fn locate(&self, column: usize, value: i64) -> Option<&Vec<[usize; 3]>> {
-        // change <[usize; 3]> to RID
+    pub fn locate(&self, column: usize, value: i64) -> Option<&Vec<Arc<Record>>> {
         if let Some(tree) = &self.indices[column] {
             return tree.get(&value);
         }
@@ -41,15 +38,14 @@ impl RIndex {
     }
 
     /// Returns the RIDs of all records with values in column "column" between "begin" and "end"
-    pub fn locate_range(&self, begin: i64, end: i64, column: usize) -> Vec<[usize; 3]> {
-        // change <[usize; 3]> to RID
+    pub fn locate_range(&self, begin: i64, end: i64, column: usize) -> Vec<Arc<Record>> {
         if let Some(tree) = &self.indices[column] {
             // Gets all entries where the key is between begin and end
             let keys = tree.range(begin..=end);
             // .flat_map() flattens the vector of vector RID's into one vector
             // _ in (_, pointers) ignores the key
             // pointers.clone().collect() extracts vectors of RIDs
-            let all_records: Vec<[usize; 3]> =
+            let all_records: Vec<Arc<Record>> =
                 keys.flat_map(|(_, pointers)| pointers.clone()).collect();
             return all_records;
         }
@@ -78,10 +74,9 @@ impl RIndex {
     pub fn update_index(
         &mut self,
         key: i64,
-        pointer: [usize; 3],
+        pointer: Arc<Record>,
         column: usize,
     ) -> Result<(), String> {
-        // change <[usize; 3]> to RID
         if column >= self.indices.len() {
             return Err(format!(
                 "Column {} does not exist in table '{}'",
@@ -98,12 +93,11 @@ impl RIndex {
         Ok(())
     }
 
-    pub fn delete_from_index(&mut self, column: usize, key: i64, pointer: [usize; 3]) {
-        // change <[usize; 3]> to RID
+    pub fn delete_from_index(&mut self, column: usize, key: i64, pointer: Arc<Record>) {
         if let Some(tree) = &mut self.indices[column] {
             if let Some(pointers) = tree.get_mut(&key) {
                 // Find the position of the RID to remove
-                if let Some(pos) = pointers.iter().position(|&p| p == pointer) {
+                if let Some(pos) = pointers.iter().position(|p| p.rid == pointer.rid) {
                     pointers.remove(pos);
                 }
                 // If no more RID's exist for this key, remove the key
