@@ -167,18 +167,21 @@ impl RQuery {
                 return false;
             };
 
-            // update schema encoding of the tail to be 1 (since record has changed)
-            let addrs_existing = existing_tail_record.addresses.lock().unwrap();
-            let mut schema_encoding = addrs_existing
-                [self.table.page_range.tail_container.schema_encoding_column as usize]
-                .page
-                .lock()
-                .unwrap();
-            schema_encoding.overwrite(
-                addrs_existing[self.table.page_range.tail_container.schema_encoding_column as usize]
-                    .offset as usize,
-                1,
-            );
+            {
+                // update schema encoding of the tail to be 1 (since record has changed)
+                let addrs_existing = existing_tail_record.addresses.lock().unwrap();
+                let mut schema_encoding = addrs_existing
+                    [self.table.page_range.tail_container.schema_encoding_column as usize]
+                    .page
+                    .lock()
+                    .unwrap();
+                schema_encoding.overwrite(
+                    addrs_existing
+                        [self.table.page_range.tail_container.schema_encoding_column as usize]
+                        .offset as usize,
+                    1,
+                );
+            }
 
             let Some(result) = self.table.page_range.read(existing_tail_record.clone()) else {
                 return false;
