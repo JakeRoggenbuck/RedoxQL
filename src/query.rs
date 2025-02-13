@@ -1,4 +1,5 @@
-use super::database::{RTable, Record};
+use super::record::Record;
+use super::table::RTable;
 use pyo3::prelude::*;
 use std::iter::zip;
 

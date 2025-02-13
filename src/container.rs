@@ -1,7 +1,6 @@
-use std::sync::{Arc, Mutex};
-
-use super::database::{Record, RecordAddress};
 use super::page::PhysicalPage;
+use super::record::{Record, RecordAddress};
+use std::sync::{Arc, Mutex};
 
 #[derive(Clone)]
 pub struct BaseContainer {
