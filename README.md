@@ -41,15 +41,16 @@ Run the database benchmark
 python3 __main__.py
 ```
 
-You should see this ...
+You should see this for milestone 1.
+
 ```
-(venv) ecs-165a-database (update) λ p __main__.py
-Inserting 10k records took:  			 0.046828536000000004
-Updating 10k records took:  			 0.007613003000000007
-Selecting 10k records took:  			 0.041287341000000005
-Aggregate 10k of 100 record batch took:	 0.01435074800000001
-Deleting 10k records took:  			 0.01662430099999998
-(venv) ecs-165a-database (update) λ
+(venv) ecs-165a-database (main) λ p __main__.py
+Inserting 10k records took:  			 0.0077650810000000035
+Updating 10k records took:  			 0.020893269
+Selecting 10k records took:  			 0.016048745000000003
+Aggregate 10k of 100 record batch took:	 0.0039221569999999956
+Deleting 10k records took:  			 0.002314741000000009
+(venv) ecs-165a-database (main) λ
 ```
 
 ## Attribution
