@@ -1,3 +1,3 @@
 all:
 	maturin build
-	pip install --force-reinstall target/wheels/lstor*
+	pip install --force-reinstall target/wheels/lstore*
