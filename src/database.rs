@@ -5,105 +5,25 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-/*  A data strucutre holding indices for various columns of a table.
-Key column should be indexd by default, other columns can be indexed through this object.
-Indices are usually B-Trees, but other data structures can be used as well. */
-
 #[pyclass]
 #[derive(Clone)]
 pub struct RIndex {
-    /*  EXPLANATION OF BTree, NOT TOO SURE ABOUT THIS.
-
-       A vector of BTreeMaps, can be either Some::BTreeMap or None as its elements.
-
-       BTreeMap<i64, Vec<[usize; 3]>>:
-       -- BTreeMap: A balanced binary search tree (B-Tree), for maintaining sorted key-value pairs. --
-
-        Map primary key to RID
-    */
-    indices: Vec<Option<BTreeMap<u64, Vec<u64>>>>,
+    index: BTreeMap<u64, u64>,
 }
 
 impl RIndex {
-    // Mandatory: One index for each table. All our empty initially.
-    pub fn new(primary_key_column: u64, num_columns: usize) -> RIndex {
-        let mut indices = vec![None; num_columns]; // table.columns.len()
-        indices[primary_key_column as usize] = Some(BTreeMap::new());
-        RIndex { indices }
-    }
-
-    /// Returns the location of all records with the given value on column "column"
-    pub fn locate(&self, column: usize, value: u64) -> Option<&Vec<u64>> {
-        if let Some(tree) = &self.indices[column] {
-            return tree.get(&value);
-        }
-        None
-    }
-
-    /// Returns the RIDs of all records with values in column "column" between "begin" and "end"
-    pub fn locate_range(&self, begin: u64, end: u64, column: usize) -> Vec<u64> {
-        if let Some(tree) = &self.indices[column] {
-            // Gets all entries where the key is between begin and end
-            let keys = tree.range(begin..=end);
-
-            let all_records: Vec<u64> = keys.flat_map(|(_, rids)| rids.clone()).collect();
-            return all_records;
-        }
-        Vec::new()
-    }
-
-    /// Create index on specific column
-    pub fn create_index(&mut self, column: usize) {
-        // Create BTree for column
-        if self.indices[column].is_none() {
-            self.indices[column] = Some(BTreeMap::new());
-            // Populate new index with existing records
-
-            // let table = self.table.lock().unwrap();
-            // for rid in table.page_directory.keys() {
-            //     let row = table.fetch_row(*rid);
-            //     let value = row[column];
-
-            //     // Add RID to index
-            //     self.update_index(value, [*rid as usize, column, 0], column).unwrap();
-            // }
+    pub fn new() -> RIndex {
+        RIndex {
+            index: BTreeMap::new(),
         }
     }
 
-    /// Insert or update index for a specific column
-    pub fn update_index(&mut self, key: u64, rid: u64, column: usize) -> Result<(), String> {
-        if column >= self.indices.len() {
-            return Err(format!("Column {} does not exist'", column));
-        }
-        // Gets column Some::BTreeMap, creates one if None
-        let tree = self.indices[column].get_or_insert_with(BTreeMap::new);
-
-        // Insert or update key
-        // Searches for the given key in the BTree, If the key exists, it returns a mutable reference to the corresponding value,
-        // If the key does not exist, it creates a new entry in the BTree for the key, If the key does not exist, this initializes an empty vector (Vec::new) as the value for the key.
-        // Appends the provided RID to the vector associated with the key
-        tree.entry(key).or_insert_with(Vec::new).push(rid);
-        Ok(())
+    pub fn add(&mut self, primary_key: u64, rid: u64) {
+        self.index.insert(primary_key, rid);
     }
 
-    pub fn delete_from_index(&mut self, column: usize, key: u64, rid: u64) {
-        if let Some(tree) = &mut self.indices[column] {
-            if let Some(rids) = tree.get_mut(&key) {
-                // Find the position of the RID to remove
-                if let Some(pos) = rids.iter().position(|&p| p == rid) {
-                    rids.remove(pos);
-                }
-                // If no more RID's exist for this key, remove the key
-                if rids.is_empty() {
-                    tree.remove(&key);
-                }
-            }
-        }
-    }
-
-    /// Drop index of specific column
-    pub fn drop_index(&mut self, column: usize) {
-        self.indices[column] = None;
+    pub fn get(&self, primary_key: u64) -> Option<&u64> {
+        self.index.get(&primary_key)
     }
 }
 
@@ -201,28 +121,45 @@ impl RTable {
         return rec;
     }
 
-    pub fn read(&self, rid: u64) -> Option<Vec<u64>> {
-        let rec = self.page_directory.get(&rid);
+    pub fn read(&self, primary_key: u64) -> Option<Vec<u64>> {
+        // Lookup RID from primary_key
+        let rid = self.index.get(primary_key);
 
-        // If the rec exists in the page_directory, return the read values
-        match rec {
-            Some(r) => self.page_range.read(r.clone()),
-            None => None,
+        if let Some(r) = rid {
+            let rec = self.page_directory.get(&r);
+
+            // If the rec exists in the page_directory, return the read values
+            match rec {
+                Some(r) => return self.page_range.read(r.clone()),
+                None => return None,
+            }
+        }
+
+        None
+    }
+
+    pub fn delete(&mut self, primary_key: u64) {
+        // Lookup RID from primary_key
+        let rid = self.index.get(primary_key);
+
+        if let Some(r) = rid {
+            self.page_directory.remove(&r);
         }
     }
 
-    pub fn delete(&mut self, rid: u64) {
-        self.page_directory.remove(&rid);
-    }
-
-    pub fn sum(&mut self, start: u64, end: u64, col_index: u64) -> i64 {
+    pub fn sum(&mut self, start_primary_key: u64, end_primary_key: u64, col_index: u64) -> i64 {
         let mut agg = 0i64;
 
         // Make sum range inclusive
         // TODO: Validate this assumption if it should actually be inclusive
-        for rid in start..end + 1 {
-            if let Some(v) = self.read(rid) {
-                agg += v[col_index as usize] as i64;
+        for primary_key in start_primary_key..end_primary_key + 1 {
+            // Lookup RID from primary_key
+            let rid = self.index.get(primary_key);
+
+            if let Some(r) = rid {
+                if let Some(v) = self.read(*r) {
+                    agg += v[col_index as usize] as i64;
+                }
             }
         }
 
@@ -267,7 +204,7 @@ impl RDatabase {
             page_directory: HashMap::new(),
             num_columns: num_columns as usize,
             num_records: 0,
-            index: RIndex::new(primary_key_column, num_columns as usize),
+            index: RIndex::new(),
         };
 
         let i = self.tables.len();
