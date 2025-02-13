@@ -27,3 +27,21 @@ impl RIndex {
         self.index.get(&primary_key)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn index_test() {
+        let mut index = RIndex::new();
+
+        index.add(1, 100);
+
+        assert_eq!(index.get(1).unwrap(), &100);
+
+        index.add(10, 1010101);
+
+        assert_eq!(index.get(10).unwrap(), &1010101);
+    }
+}
