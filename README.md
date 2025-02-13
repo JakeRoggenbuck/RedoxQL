@@ -1,5 +1,5 @@
 # RedoxQL - ecs-165a-database
-🦀 RedoxQL written in Rust and Python 🚀
+🦀 RedoxQL is an L-Store database written in Rust and Python 🚀
 
 ![Rust](https://img.shields.io/badge/Rust-1A5D8A?style=for-the-badge&logo=rust&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
@@ -81,6 +81,10 @@ The src (`./src`) directory is where the Rust code goes. This gets called by the
 ```
 cargo test
 ```
+
+Here is what the correct output should look like. You should see multiple tests passing.
+
+![image](https://github.com/user-attachments/assets/b6aee0b5-571f-4450-9381-296efc5e2f73)
 
 Rust tests are located in each Rust file and can be found in `./src`
 
