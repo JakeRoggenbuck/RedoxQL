@@ -107,14 +107,21 @@ impl RQuery {
         return self.table.page_range.read(final_record.clone());
     }
 
-    fn update(&mut self, primary_key: i64, columns: Vec<i64>) -> bool {
+    fn update(&mut self, primary_key: i64, columns: Vec<Option<i64>>) -> bool {
         if columns.len() != self.table.num_columns {
             panic!("Columns length does not match table columns length");
         }
-        if columns[self.table.primary_key_column as usize] != primary_key as i64 {
-            panic!("Primary key cannot be changed");
+
+        let a = columns[self.table.primary_key_column as usize];
+        if let Some(v) = a {
+            if v != primary_key {
+                panic!("Primary key cannot be changed");
+            }
         }
-        let Some(rid) = self.table.index.get(primary_key as i64) else {
+
+        let mut new_columns: Vec<i64>;
+
+        let Some(rid) = self.table.index.get(primary_key) else {
             return false;
         };
 
@@ -150,6 +157,8 @@ impl RQuery {
                     1,
                 );
             }
+
+            new_columns = result.clone();
         } else {
             // second and subsequent updates
             let Some(existing_tail_record) =
@@ -170,13 +179,29 @@ impl RQuery {
                     .offset as usize,
                 1,
             );
+
+            let Some(result) = self.table.page_range.read(existing_tail_record.clone()) else {
+                return false;
+            };
+
+            new_columns = result.clone();
+        }
+
+        // drop first 3 columns (rid, schema_encoding, indirection)
+        new_columns.drain(0..3);
+
+        // overwrite columns values onto new_columns values (that unwrap successfully)
+        for i in 0..new_columns.len() {
+            if let Some(value) = columns[i] {
+                new_columns[i] = value;
+            }
         }
 
         let new_rid = self.table.num_records;
         let new_rec = self.table.page_range.tail_container.insert_record(
             new_rid,
             base_indirection_column,
-            columns,
+            new_columns,
         );
 
         self.table.page_directory.insert(new_rid, new_rec.clone());
@@ -237,7 +262,7 @@ mod tests {
         let vals = q.select(1, 0, vec![1, 1, 1]);
         assert_eq!(vals.unwrap(), vec![0, 0, 0, 1, 2, 3]);
 
-        let success = q.update(1, vec![1, 5, 6]);
+        let success = q.update(1, vec![Some(1), Some(5), Some(6)]);
         assert!(success);
 
         let vals2 = q.select(1, 0, vec![1, 1, 1]);
@@ -253,7 +278,7 @@ mod tests {
         q.insert(vec![1, 2, 3]);
 
         // Try to update primary key from 1 to 2
-        q.update(1, vec![2, 5, 6]);
+        q.update(1, vec![Some(2), Some(5), Some(6)]);
     }
 
     #[test]
@@ -264,9 +289,9 @@ mod tests {
 
         q.insert(vec![1, 2, 3]);
 
-        q.update(1, vec![1, 4, 5]);
-        q.update(1, vec![1, 6, 7]);
-        q.update(1, vec![1, 8, 9]);
+        q.update(1, vec![Some(1), Some(4), Some(5)]);
+        q.update(1, vec![Some(1), Some(6), Some(7)]);
+        q.update(1, vec![Some(1), Some(8), Some(9)]);
 
         let vals = q.select(1, 0, vec![1, 1, 1]);
         assert_eq!(vals.unwrap(), vec![3, 0, 2, 1, 8, 9]);
@@ -294,9 +319,9 @@ mod tests {
         q.insert(vec![1, 2, 3]);
 
         // Make multiple updates
-        q.update(1, vec![1, 4, 5]); // Version 1
-        q.update(1, vec![1, 6, 7]); // Version 2
-        q.update(1, vec![1, 8, 9]); // Version 3
+        q.update(1, vec![Some(1), Some(4), Some(5)]); // Version 1
+        q.update(1, vec![Some(1), Some(6), Some(7)]); // Version 2
+        q.update(1, vec![Some(1), Some(8), Some(9)]); // Version 3
 
         // Test different versions
         let latest = q.select_version(1, 0, vec![1, 1, 1], 0);
