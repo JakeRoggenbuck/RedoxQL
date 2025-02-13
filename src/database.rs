@@ -111,11 +111,15 @@ pub struct RTable {
 impl RTable {
     pub fn write(&mut self, values: Vec<u64>) -> Record {
         // Use the primary_key_column'th value as the given key
-        let given_key = values[self.primary_key_column];
-        let rec = self.page_range.write(self.num_records, values);
+        let primary_key = values[self.primary_key_column];
+
+        let rid = self.num_records;
+        self.index.add(primary_key, rid);
+
+        let rec = self.page_range.write(rid, values);
 
         // Save the RID -> Record so it can later be read
-        self.page_directory.insert(given_key, rec.clone());
+        self.page_directory.insert(rid, rec.clone());
 
         self.num_records += 1;
         return rec;
@@ -153,13 +157,8 @@ impl RTable {
         // Make sum range inclusive
         // TODO: Validate this assumption if it should actually be inclusive
         for primary_key in start_primary_key..end_primary_key + 1 {
-            // Lookup RID from primary_key
-            let rid = self.index.get(primary_key);
-
-            if let Some(r) = rid {
-                if let Some(v) = self.read(*r) {
-                    agg += v[col_index as usize] as i64;
-                }
+            if let Some(v) = self.read(primary_key) {
+                agg += v[col_index as usize] as i64;
             }
         }
 
