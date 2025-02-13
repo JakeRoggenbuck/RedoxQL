@@ -34,8 +34,8 @@ impl RIndex {
 
 #[derive(Clone)]
 pub struct PageRange {
-    base_container: BaseContainer,
-    tail_container: TailContainer,
+    pub base_container: BaseContainer,
+    pub tail_container: TailContainer,
 }
 
 impl PageRange {
@@ -57,9 +57,12 @@ impl PageRange {
         self.base_container.insert_record(new_rid, values)
     }
 
-    /// Read the values from an entire Record
-    fn read(&self, record: Record) -> Option<Vec<u64>> {
+    pub fn read_base(&self, record: Record) -> Option<Vec<u64>> {
         Some(self.base_container.read_record(record))
+    }
+
+    pub fn read_tail(&self, record: Record) -> Option<Vec<u64>> {
+        Some(self.tail_container.read_record(record))
     }
 }
 
@@ -152,7 +155,7 @@ impl RTable {
 
             // If the rec exists in the page_directory, return the read values
             match rec {
-                Some(r) => return self.page_range.read(r.clone()),
+                Some(r) => return self.page_range.read_base(r.clone()),
                 None => return None,
             }
         }
@@ -199,7 +202,7 @@ pub struct RDatabase {
 #[pymethods]
 impl RDatabase {
     #[new]
-    fn new() -> Self {
+    pub fn new() -> Self {
         RDatabase {
             tables: vec![],
             tables_hashmap: HashMap::new(),
@@ -214,7 +217,7 @@ impl RDatabase {
         unreachable!("Not used in milestone 1");
     }
 
-    fn create_table(&mut self, name: String, num_columns: u64, primary_key_column: u64) -> RTable {
+    pub fn create_table(&mut self, name: String, num_columns: u64, primary_key_column: u64) -> RTable {
         let t = RTable {
             name: name.clone(),
             page_range: PageRange::new(num_columns as u64),
