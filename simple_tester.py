@@ -26,3 +26,6 @@ for rec in recs:
 for rec in recs:
     vals = query.select(rec, 0, [0])
     print(vals)
+
+for x in range(0, 8):
+    print(f"query.sum(13, 17, {x})", query.sum(13, 17, x))
