@@ -4,7 +4,6 @@ use query::RQuery;
 
 pub mod container;
 pub mod database;
-pub mod index;
 pub mod page;
 pub mod query;
 pub mod system;
