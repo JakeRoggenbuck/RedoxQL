@@ -54,6 +54,8 @@ Deleting 10k records took:  			 0.0006921710000000053
 
 ## Structure
 
+![RedoxQL system diagram](https://github.com/user-attachments/assets/9b170cbd-1bbc-4966-870d-47a331bf2515)
+
 ![image](https://github.com/user-attachments/assets/4bc1e607-9b01-4992-a853-4a7636ba6196)
 
 ![image](https://github.com/user-attachments/assets/d39b6500-13aa-4568-9d90-57811c5359f8)
