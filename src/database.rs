@@ -160,33 +160,68 @@ impl RTable {
     }
 
     pub fn read(&self, primary_key: i64) -> Option<Vec<i64>> {
-        // Lookup RID from primary_key
-        let rid = self.index.get(primary_key);
+        let Some(result) = self.read_base(primary_key as i64) else {
+            return None;
+        };
+        let base_rid = result[self.page_range.base_container.rid_column as usize];
+        let base_indirection_column =
+            result[self.page_range.base_container.indirection_column as usize];
 
-        if let Some(r) = rid {
-            let Some(rec) = self.page_directory.get(&r) else {
-                return None;
-            };
-
-            let Some(result) = self.page_range.read(rec.clone()) else {
-                return None;
-            };
-            let base_rid = result[self.page_range.base_container.rid_column as usize];
-            let base_indirection_column =
-                result[self.page_range.base_container.indirection_column as usize];
-
-            if base_rid == base_indirection_column {
-                return Some(result);
-            }
-
-            let Some(tail_record) = self.page_directory.get(&base_indirection_column) else {
-                return None;
-            };
-
-            return self.page_range.read(tail_record.clone());
+        if base_rid == base_indirection_column {
+            return Some(result);
         }
 
-        None
+        let Some(tail_record) = self.page_directory.get(&base_indirection_column) else {
+            return None;
+        };
+
+        return self.page_range.read(tail_record.clone());
+    }
+
+    pub fn read_relative(&self, primary_key: i64, relative_version: i64) -> Option<Vec<i64>> {
+        let Some(base) = self.read_base(primary_key as i64) else {
+            return None;
+        };
+        let base_rid = base[self.page_range.base_container.rid_column as usize];
+        let base_indirection_column = base[self.page_range.base_container.indirection_column as usize];
+        if base_rid == base_indirection_column {
+            return Some(base);
+        }
+
+        let mut current_rid = base_indirection_column;
+        let mut versions_back = 0;
+        let target_version = relative_version.abs() as i64; 
+
+        while versions_back < target_version {
+            let Some(current_record) = self.page_directory.get(&current_rid) else {
+                return None;
+            };
+
+            // read the current record
+            let Some(record_data) = self.page_range.read(current_record.clone()) else {
+                return None;
+            };
+
+            // get the indirection of the previous version
+            let prev_indirection: i64 =
+                record_data[self.page_range.tail_container.indirection_column as usize];
+
+            // if we've reached the base record, stop here
+            if prev_indirection == base_rid {
+                current_rid = base_rid;
+                break;
+            }
+
+            current_rid = prev_indirection;
+            versions_back += 1;
+        }
+
+        // read the final record we want
+        let Some(final_record) = self.page_directory.get(&current_rid) else {
+            return None;
+        };
+
+        return self.page_range.read(final_record.clone());
     }
 
     pub fn delete(&mut self, primary_key: i64) {
@@ -203,6 +238,24 @@ impl RTable {
 
         for primary_key in start_primary_key..end_primary_key + 1 {
             if let Some(v) = self.read(primary_key) {
+                agg += v[(col_index + 3) as usize] as i64;
+            }
+        }
+
+        return agg;
+    }
+
+    pub fn sum_version(
+        &mut self,
+        start_primary_key: i64,
+        end_primary_key: i64,
+        col_index: i64,
+        relative_version: i64,
+    ) -> i64 {
+        let mut agg = 0i64;
+
+        for primary_key in start_primary_key..end_primary_key + 1 {
+            if let Some(v) = self.read_relative(primary_key, relative_version) {
                 agg += v[(col_index + 3) as usize] as i64;
             }
         }

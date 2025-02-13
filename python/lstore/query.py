@@ -131,7 +131,7 @@ class Query:
         Returns the summation of the given range upon success
         Returns False if no record exists in the given range
         """
-        pass
+        return self.rquery.sum_version(start_range, end_range, aggregate_column_index, relative_version)
 
     def increment(self, key, column):
         """Incremenets one column of the record this implementation should work

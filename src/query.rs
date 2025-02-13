@@ -231,7 +231,20 @@ impl RQuery {
             .sum(start_primary_key, end_primary_key, col_index)
     }
 
-    fn sum_version(&mut self) {}
+    fn sum_version(
+        &mut self,
+        start_primary_key: i64,
+        end_primary_key: i64,
+        col_index: i64,
+        relative_version: i64,
+    ) -> i64 {
+        self.table.sum_version(
+            start_primary_key,
+            end_primary_key,
+            col_index,
+            relative_version,
+        )
+    }
 
     fn increment(&mut self) {}
 }
