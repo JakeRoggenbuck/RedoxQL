@@ -173,10 +173,11 @@ impl RQuery {
         }
 
         let new_rid = self.table.num_records;
-        let new_rec = self.table
-            .page_range
-            .tail_container
-            .insert_record(new_rid, base_indirection_column, columns,);
+        let new_rec = self.table.page_range.tail_container.insert_record(
+            new_rid,
+            base_indirection_column,
+            columns,
+        );
 
         self.table.page_directory.insert(new_rid, new_rec.clone());
 
