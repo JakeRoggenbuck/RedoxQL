@@ -15,10 +15,8 @@ pub struct RIndex {
        BTreeMap<i64, Vec<Arc<Record>>>:
        -- BTreeMap: A balanced binary search tree (B-Tree), for maintaining sorted key-value pairs. --
        -- i64: The key type of the map (the column value being indexed). --
-
-       Vec<[usize; 3]>: Will later change it to the RID of the record.
     */
-    indices: Vec<Option<BTreeMap<i64, Vec<Arc<Record>>>>>, // change <Arc<Record>> to RID
+    indices: Vec<Option<BTreeMap<i64, Vec<Arc<Record>>>>>,
     table: RTable,
 }
 
@@ -33,7 +31,6 @@ impl RIndex {
 
     /// Returns the location of all records with the given value on column "column"
     pub fn locate(&self, column: usize, value: i64) -> Option<&Vec<Arc<Record>>> {
-        // change <Arc<Record>> to RID
         if let Some(tree) = &self.indices[column] {
             return tree.get(&value);
         }
@@ -42,7 +39,6 @@ impl RIndex {
 
     /// Returns the RIDs of all records with values in column "column" between "begin" and "end"
     pub fn locate_range(&self, begin: i64, end: i64, column: usize) -> Vec<Arc<Record>> {
-        // change <Arc<Record>> to RID
         if let Some(tree) = &self.indices[column] {
             // Gets all entries where the key is between begin and end
             let keys = tree.range(begin..=end);
@@ -81,7 +77,6 @@ impl RIndex {
         pointer: Arc<Record>,
         column: usize,
     ) -> Result<(), String> {
-        // change <Arc<Record>> to RID
         if column >= self.indices.len() {
             return Err(format!(
                 "Column {} does not exist in table '{}'",
