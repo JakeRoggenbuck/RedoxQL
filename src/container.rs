@@ -12,9 +12,9 @@ pub struct BaseContainer {
     pub num_cols: u64,
 
     // reserved columns
-    pub RID_COLUMN: u64,
-    pub SCHEMA_ENCODING_COLUMN: u64,
-    pub INDIRECTION_COLUMN: u64,
+    pub rid_column: u64,
+    pub schema_encoding_column: u64,
+    pub indirection_column: u64,
 }
 
 /// A container that manages physical pages for storing data in columns
@@ -47,9 +47,9 @@ impl BaseContainer {
         BaseContainer {
             physical_pages: Vec::new(),
             num_cols,
-            RID_COLUMN: 0,
-            SCHEMA_ENCODING_COLUMN: 1,
-            INDIRECTION_COLUMN: 2,
+            rid_column: 0,
+            schema_encoding_column: 1,
+            indirection_column: 2,
         }
     }
 
@@ -87,17 +87,17 @@ impl BaseContainer {
 
     /// Returns a reference to the RID column page
     pub fn rid_page(&self) -> Arc<Mutex<PhysicalPage>> {
-        self.physical_pages[self.RID_COLUMN as usize].clone()
+        self.physical_pages[self.rid_column as usize].clone()
     }
 
     /// Returns a reference to the schema encoding column page
     pub fn schema_encoding_page(&self) -> Arc<Mutex<PhysicalPage>> {
-        self.physical_pages[self.SCHEMA_ENCODING_COLUMN as usize].clone()
+        self.physical_pages[self.schema_encoding_column as usize].clone()
     }
 
     /// Returns a reference to the indirection column page
     pub fn indirection_page(&self) -> Arc<Mutex<PhysicalPage>> {
-        self.physical_pages[self.INDIRECTION_COLUMN as usize].clone()
+        self.physical_pages[self.indirection_column as usize].clone()
     }
 
     /// Returns a reference to the specified column page
@@ -191,9 +191,9 @@ pub struct TailContainer {
     pub num_cols: u64,
 
     // reserved columns
-    pub RID_COLUMN: u64,
-    pub SCHEMA_ENCODING_COLUMN: u64,
-    pub INDIRECTION_COLUMN: u64,
+    pub rid_column: u64,
+    pub schema_encoding_column: u64,
+    pub indirection_column: u64,
 }
 
 /// A container that manages physical pages for storing data in columns
@@ -226,9 +226,9 @@ impl TailContainer {
         TailContainer {
             physical_pages: Vec::new(),
             num_cols,
-            RID_COLUMN: 0,
-            SCHEMA_ENCODING_COLUMN: 1,
-            INDIRECTION_COLUMN: 2,
+            rid_column: 0,
+            schema_encoding_column: 1,
+            indirection_column: 2,
         }
     }
 
@@ -265,17 +265,17 @@ impl TailContainer {
 
     /// Returns a reference to the RID column page
     pub fn rid_page(&self) -> Arc<Mutex<PhysicalPage>> {
-        self.physical_pages[self.RID_COLUMN as usize].clone()
+        self.physical_pages[self.rid_column as usize].clone()
     }
 
     /// Returns a reference to the schema encoding column page
     pub fn schema_encoding_page(&self) -> Arc<Mutex<PhysicalPage>> {
-        self.physical_pages[self.SCHEMA_ENCODING_COLUMN as usize].clone()
+        self.physical_pages[self.schema_encoding_column as usize].clone()
     }
 
     /// Returns a reference to the indirection column page
     pub fn indirection_page(&self) -> Arc<Mutex<PhysicalPage>> {
-        self.physical_pages[self.INDIRECTION_COLUMN as usize].clone()
+        self.physical_pages[self.indirection_column as usize].clone()
     }
 
     /// Returns a reference to the specified column page
@@ -392,7 +392,7 @@ mod tests {
         let mut container = BaseContainer::new(2);
         container.initialize();
 
-        for x in 0..513 {
+        for _ in 0..513 {
             let values = vec![42, 43];
             let _record = container.insert_record(1, values);
         }
