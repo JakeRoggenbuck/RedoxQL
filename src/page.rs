@@ -29,6 +29,10 @@ impl PhysicalPage {
         }
     }
 
+    pub fn overwrite(&mut self, index: usize, value: u64) {
+        self.data[index] = value;
+    }
+
     pub fn read(&self, index: usize) -> Option<u64> {
         Some(self.data[index])
     }

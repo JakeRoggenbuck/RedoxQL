@@ -283,7 +283,7 @@ impl TailContainer {
         self.physical_pages[(col_idx + 3) as usize].clone()
     }
 
-    pub fn insert_record(&mut self, rid: u64, values: Vec<u64>) -> Record {
+    pub fn insert_record(&mut self, rid: u64, indirection_rid: u64, values: Vec<u64>) -> Record {
         if values.len() != self.num_cols as usize {
             panic!("Number of values does not match number of columns");
         }
@@ -300,7 +300,7 @@ impl TailContainer {
         let indirection_page = self.indirection_page();
         let mut ip = indirection_page.lock().unwrap();
 
-        ip.write(rid);
+        ip.write(indirection_rid);
 
         for i in 0..self.num_cols {
             let col_page = self.column_page(i);
@@ -427,7 +427,8 @@ mod tests {
         container.initialize();
 
         let values = vec![42, 43];
-        let record = container.insert_record(1, values);
+        // TODO: ensure the indirection RID is set correctly (needs a base record)
+        let record = container.insert_record(1, 0, values);
 
         assert_eq!(record.rid, 1);
         let addresses = record.addresses.lock().unwrap();
@@ -440,6 +441,7 @@ mod tests {
         let mut container = TailContainer::new(2);
         container.initialize();
         let values = vec![42];
-        container.insert_record(1, values);
+        // TODO: ensure the indirection RID is set correctly (needs a base record)
+        container.insert_record(1, 0, values);
     }
 }

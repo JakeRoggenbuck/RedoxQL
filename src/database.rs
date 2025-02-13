@@ -57,8 +57,12 @@ impl PageRange {
         self.base_container.insert_record(new_rid, values)
     }
 
-    pub fn read(&self, record: Record) -> Option<Vec<u64>> {
+    pub fn read_base(&self, record: Record) -> Option<Vec<u64>> {
         Some(self.base_container.read_record(record))
+    }
+
+    pub fn read_tail(&self, record: Record) -> Option<Vec<u64>> {
+        Some(self.tail_container.read_record(record))
     }
 }
 
@@ -151,7 +155,7 @@ impl RTable {
 
             // If the rec exists in the page_directory, return the read values
             match rec {
-                Some(r) => return self.page_range.read(r.clone()),
+                Some(r) => return self.page_range.read_base(r.clone()),
                 None => return None,
             }
         }

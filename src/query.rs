@@ -27,21 +27,41 @@ impl RQuery {
         _search_key_index: i64,
         _projected_columns_index: Vec<i64>,
     ) -> Option<Vec<u64>> {
-        self.table.read(primary_key as u64)
+        let Some(result) = self.table.read(primary_key as u64) else {
+            return None;
+        };
+
+        // check if indirection column is different from RID
+        let base_rid = result[self.table.page_range.base_container.rid_column as usize];
+        let base_indirection_column =
+            result[self.table.page_range.base_container.indirection_column as usize];
+
+        // if indirection column is different from RID, read the tail record
+        if base_rid != base_indirection_column {
+            let rec = self.table.page_directory.get(&base_indirection_column);
+
+            match rec {
+                Some(r) => return self.table.page_range.read_tail(r.clone()),
+                None => return None,
+            }
+        }
+
+        return Some(result);
     }
 
     fn select_version(&mut self) {}
 
-    fn update(&mut self, primary_key: i64, columns: Vec<i64>) -> bool {
+    fn update(&mut self, primary_key: i64, columns: Vec<u64>) -> bool {
         let Some(rid) = self.table.index.get(primary_key as u64) else {
             return false;
         };
 
-        let Some(record) = self.table.page_directory.get(&rid) else {
-            return false;
+        let record = match self.table.page_directory.get(&rid).cloned() {
+            Some(r) => r,
+            None => return false,
         };
 
-        let Some(result) = self.table.page_range.read(record.clone()) else {
+        let Some(result) = self.table.page_range.read_base(record.clone()) else {
             return false;
         };
 
@@ -62,7 +82,7 @@ impl RQuery {
                     .page
                     .lock()
                     .unwrap();
-                base_schema_encoding.write(1);
+                base_schema_encoding.overwrite(addrs_base[self.table.page_range.base_container.schema_encoding_column as usize].offset as usize, 1);
             }
         } else {
             // second and subsequent updates
@@ -79,24 +99,24 @@ impl RQuery {
                 .page
                 .lock()
                 .unwrap();
-            lastest_tail_schema_encoding.write(1);
+            lastest_tail_schema_encoding.overwrite(addrs_base[self.table.page_range.base_container.schema_encoding_column as usize].offset as usize, 1);
         }
 
         let new_rid = self.table.num_records;
-        let mut values = vec![new_rid, 0, base_indirection_column];
-        values.extend(columns.iter().map(|&x| x as u64));
-        self.table
+        let new_rec = self.table
             .page_range
             .tail_container
-            .insert_record(new_rid, values);
+            .insert_record(new_rid, base_indirection_column, columns);
+
+        self.table.page_directory.insert(new_rid, new_rec.clone());
 
         // update the indirection column of the base record
-        let mut indirection_base = addrs_base
+        let mut indirection_page = addrs_base
             [self.table.page_range.base_container.indirection_column as usize]
             .page
             .lock()
             .unwrap();
-        indirection_base.write(new_rid);
+        indirection_page.overwrite(addrs_base[self.table.page_range.base_container.indirection_column as usize].offset as usize, new_rid);
 
         self.table.num_records += 1;
 
@@ -146,6 +166,6 @@ mod tests {
         assert!(success);
 
         let vals2 = q.select(1, 0, vec![1, 1, 1]);
-        assert_eq!(vals2.unwrap(), vec![0, 0, 0, 1, 5, 6]);
+        assert_eq!(vals2.unwrap(), vec![1, 0, 0, 1, 5, 6]);
     }
 }
