@@ -2,6 +2,11 @@ from typing import Any, List
 from .lstore import RQuery, RTable
 
 
+class ReturnRecord:
+    def __init__(self, columns: List[int]):
+        self.columns = columns[3:]
+
+
 class Query:
     def __init__(self, table: RTable):
         """Creates a Query object that can perform different queries on the
@@ -43,11 +48,17 @@ class Query:
         Returns False if record locked by TPL
         Assume that select will never be called on a key that doesn't exist
         """
-        return [self.rquery.select(
-            search_key,
-            search_key_index,
-            projected_columns_index,
-        )]
+        return [
+            ReturnRecord(
+                list(
+                    self.rquery.select(
+                        search_key,
+                        search_key_index,
+                        projected_columns_index,
+                    )
+                )
+            )
+        ]
 
     def select_version(
         self,
@@ -65,12 +76,18 @@ class Query:
         Returns False if record locked by TPL
         Assume that select will never be called on a key that doesn't exist
         """
-        return [self.rquery.select_version(
-            search_key,
-            search_key_index,
-            projected_columns_index,
-            relative_version,
-        )]
+        return [
+            ReturnRecord(
+                list(
+                    self.rquery.select_version(
+                        search_key,
+                        search_key_index,
+                        projected_columns_index,
+                        relative_version,
+                    )
+                )
+            )
+        ]
 
     def update(self, primary_key: int, *columns):
         """Update a record with specified key and columns
