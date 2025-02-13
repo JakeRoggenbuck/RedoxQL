@@ -153,32 +153,14 @@ impl RQuery {
                 return false;
             };
 
-            // {
-            //     // print the record values
-            //     let Some(result) = self.table.page_range.read_tail(existing_tail_record.clone()) else {
-            //         return false;
-            //     };
-            //     println!("BEFORE CHANGE: {:?}", result);
-            // }
-
-            {
-                // update schema encoding of the tail to be 1 (since record has changed)
-                let addrs_existing = existing_tail_record.addresses.lock().unwrap();
-                let mut schema_encoding = addrs_existing
-                    [self.table.page_range.tail_container.schema_encoding_column as usize]
-                    .page
-                    .lock()
-                    .unwrap();
-                schema_encoding.overwrite(addrs_existing[self.table.page_range.tail_container.schema_encoding_column as usize].offset as usize, 1);
-            }
-
-            // {
-            //     // print the record values
-            //     let Some(result) = self.table.page_range.read_tail(existing_tail_record.clone()) else {
-            //         return false;
-            //     };
-            //     println!("AFTER CHANGE: {:?}", result);
-            // }
+            // update schema encoding of the tail to be 1 (since record has changed)
+            let addrs_existing = existing_tail_record.addresses.lock().unwrap();
+            let mut schema_encoding = addrs_existing
+                [self.table.page_range.tail_container.schema_encoding_column as usize]
+                .page
+                .lock()
+                .unwrap();
+            schema_encoding.overwrite(addrs_existing[self.table.page_range.tail_container.schema_encoding_column as usize].offset as usize, 1);
         }
 
         let new_rid = self.table.num_records;
