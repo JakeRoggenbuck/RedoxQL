@@ -201,8 +201,6 @@ impl RTable {
     pub fn sum(&mut self, start_primary_key: i64, end_primary_key: i64, col_index: i64) -> i64 {
         let mut agg = 0i64;
 
-        // Make sum range inclusive
-        // TODO: Validate this assumption if it should actually be inclusive
         for primary_key in start_primary_key..end_primary_key + 1 {
             if let Some(v) = self.read(primary_key) {
                 agg += v[(col_index + 3) as usize] as i64;
