@@ -142,7 +142,7 @@ impl RTable {
         return rec;
     }
 
-    pub fn read(&self, primary_key: i64) -> Option<Vec<i64>> {
+    pub fn read_base(&self, primary_key: i64) -> Option<Vec<i64>> {
         // Lookup RID from primary_key
         let rid = self.index.get(primary_key);
 
@@ -154,6 +154,35 @@ impl RTable {
                 Some(r) => return self.page_range.read(r.clone()),
                 None => return None,
             }
+        }
+
+        None
+    }
+
+    pub fn read(&self, primary_key: i64) -> Option<Vec<i64>> {
+        // Lookup RID from primary_key
+        let rid = self.index.get(primary_key);
+
+        if let Some(r) = rid {
+            let Some(rec) = self.page_directory.get(&r) else {
+                return None;
+            };
+
+            let Some(result) = self.page_range.read(rec.clone()) else {
+                return None;
+            };
+            let base_rid = result[self.page_range.base_container.rid_column as usize];
+            let base_indirection_column = result[self.page_range.base_container.indirection_column as usize];
+
+            if base_rid == base_indirection_column {
+                return Some(result);
+            }
+
+            let Some(tail_record) = self.page_directory.get(&base_indirection_column) else {
+                return None;
+            };
+
+            return self.page_range.read(tail_record.clone());
         }
 
         None
@@ -175,7 +204,7 @@ impl RTable {
         // TODO: Validate this assumption if it should actually be inclusive
         for primary_key in start_primary_key..end_primary_key + 1 {
             if let Some(v) = self.read(primary_key) {
-                agg += v[col_index as usize] as i64;
+                agg += v[(col_index+3) as usize] as i64;
             }
         }
 

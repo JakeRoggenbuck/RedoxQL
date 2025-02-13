@@ -27,7 +27,7 @@ impl RQuery {
         _search_key_index: i64,
         _projected_columns_index: Vec<i64>,
     ) -> Option<Vec<i64>> {
-        let Some(result) = self.table.read(primary_key as i64) else {
+        let Some(result) = self.table.read_base(primary_key as i64) else {
             return None;
         };
 
@@ -56,7 +56,7 @@ impl RQuery {
         _projected_columns_index: Vec<i64>,
         relative_version: i64,
     ) -> Option<Vec<i64>> {
-        let Some(result) = self.table.read(primary_key as i64) else {
+        let Some(result) = self.table.read_base(primary_key as i64) else {
             return None;
         };
 
