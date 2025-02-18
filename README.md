@@ -190,3 +190,5 @@ real    0m0.268s
 user    0m0.254s
 sys     0m0.014s
 ```
+
+#### Scaling of Insert Operation
