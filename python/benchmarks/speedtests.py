@@ -1,5 +1,8 @@
 import matplotlib.pyplot as plt
+from matplotlib import colors
+import seaborn as sns
 import numpy as np
+import pandas as pd
 
 """
 Release mode:
@@ -77,64 +80,67 @@ debug_times = [
 debug_tests = [0.508, 1.649]
 release_tests = [0.112, 0.268]
 
-x = np.arange(len(operations))
-width = 0.35
+df_operations = pd.DataFrame({
+    "Operation": operations * 2,
+    "Time (s)": release_times + debug_times,
+    "Mode": ["Release Mode"] * len(release_times) + ["Debug Mode"] * len(debug_times)
+})
 
+df_tests = pd.DataFrame({
+    "Test": tests * 2,
+    "Time (s)": release_tests + debug_tests,
+    "Mode": ["Release Mode"] * len(release_tests) + ["Debug Mode"] * len(debug_tests)
+})
+
+sns.set_theme(style="darkgrid")
+
+bar_colors = {"Release Mode": "mediumseagreen", "Debug Mode": "deepskyblue"}
+edge_colors = {"mediumseagreen": "lightgreen", "deepskyblue": "lightskyblue"}
+
+# Operations Graph
 fig, ax = plt.subplots(figsize=(10, 5))
+bars = sns.barplot(data=df_operations, x="Operation", y="Time (s)", hue="Mode", palette=bar_colors)
 
-bars1 = ax.bar(
-    x - width / 2,
-    release_times,
-    width,
-    label='Release Mode',
-    color='royalblue',
-)
+for bar in bars.patches:
+    face_color = bar.get_facecolor()[:3]
+    for fill, edge in edge_colors.items():
+        if tuple(colors.to_rgb(fill)) == face_color:
+            bar.set_edgecolor(edge)
+            break
+    bar.set_linewidth(1.5)
 
-bars2 = ax.bar(
-    x + width / 2,
-    debug_times,
-    width,
-    label='Debug Mode',
-    color='tomato',
-)
+ax.set_xlabel("Operation", color="#DDD")
+ax.set_ylabel("Time (seconds)", color="#DDD")
+ax.set_title("Performance Comparison: Release Mode vs Debug Mode", color="#DDD")
+ax.set_xticklabels(operations, rotation=30, ha="right", color="#DDD")
+ax.legend(title="Mode")
 
-ax.set_xlabel("Operation")
-ax.set_ylabel("Time (seconds)")
-ax.set_title("Performance Comparison: Release Mode vs Debug Mode")
-ax.set_xticks(x)
-ax.set_xticklabels(operations, rotation=30, ha="right")
-ax.legend()
+ax.set_facecolor("#222222")
+fig.patch.set_facecolor("#222222")
 
 plt.tight_layout()
 plt.show()
 
-x = np.arange(len(tests))
-width = 0.35
-
+# Tests Graph
 fig, ax = plt.subplots(figsize=(10, 5))
+bars = sns.barplot(data=df_tests, x="Test", y="Time (s)", hue="Mode", palette=bar_colors)
 
-bars1 = ax.bar(
-    x - width / 2,
-    release_tests,
-    width,
-    label='Release Mode',
-    color='royalblue',
-)
+for bar in bars.patches:
+    face_color = bar.get_facecolor()[:3]
+    for fill, edge in edge_colors.items():
+        if tuple(colors.to_rgb(fill)) == face_color:
+            bar.set_edgecolor(edge)
+            break
+    bar.set_linewidth(1.5)
 
-bars2 = ax.bar(
-    x + width / 2,
-    debug_tests,
-    width,
-    label='Debug Mode',
-    color='tomato',
-)
+ax.set_xlabel("Tests", color="#DDD")
+ax.set_ylabel("Time (seconds)", color="#DDD")
+ax.set_title("Performance Comparison: Release Mode vs Debug Mode", color="#DDD")
+ax.set_xticklabels(tests, rotation=30, ha="right", color="#DDD")
+ax.legend(title="Mode")
 
-ax.set_xlabel("Tests")
-ax.set_ylabel("Time (seconds)")
-ax.set_title("Performance Comparison: Release Mode vs Debug Mode")
-ax.set_xticks(x)
-ax.set_xticklabels(tests, rotation=30, ha="right")
-ax.legend()
+ax.set_facecolor("#222222")
+fig.patch.set_facecolor("#222222")
 
 plt.tight_layout()
 plt.show()
