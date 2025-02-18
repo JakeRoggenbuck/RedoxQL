@@ -136,3 +136,55 @@ Rust has a way of making docs from the source code. Run `cargo doc` and view the
 ## Speed Analysis
 
 #### Using maturin in release mode
+
+![perf_chart](https://github.com/user-attachments/assets/31b18374-11b6-42fd-8405-5f32a751804f)
+![tests_chart](https://github.com/user-attachments/assets/8e638ec0-12f7-461f-b1e6-7823d98004cf)
+
+#### Using release build settings
+
+With compiler options 
+```
+(venv) redoxql (main) λ p __main__.py
+Inserting 10k records took:                      0.006803145
+Updating 10k records took:                       0.018702902999999996
+Selecting 10k records took:                      0.016315803000000004
+Aggregate 10k of 100 record batch took:  0.005981531999999998
+Deleting 10k records took:                       0.002332115999999995
+(venv) redoxql (main) λ time p m1_tester.py
+Insert finished
+
+real    0m0.117s
+user    0m0.106s
+sys     0m0.010s
+user    0m0.106s
+sys     0m0.010s
+(venv) redoxql (main) λ time p exam_tester_m1.py
+Insert finished
+
+real    0m0.282s
+user    0m0.272s
+sys     0m0.010s
+(venv) redoxql (main) λ
+```
+
+Without compiler options
+```
+(venv) redoxql (main) λ p __main__.py
+Inserting 10k records took:                      0.007401888000000002
+Updating 10k records took:                       0.018957811999999997
+Selecting 10k records took:                      0.015054888999999995
+Aggregate 10k of 100 record batch took:  0.003300163000000002
+Deleting 10k records took:                       0.002181812999999991
+(venv) redoxql (main) λ time p m1_tester.py
+Insert finished
+
+real    0m0.112s
+user    0m0.108s
+sys     0m0.004s
+(venv) redoxql (main) λ time p exam_tester_m1.py
+Insert finished
+
+real    0m0.268s
+user    0m0.254s
+sys     0m0.014s
+```
