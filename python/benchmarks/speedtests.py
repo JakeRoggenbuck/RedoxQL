@@ -80,17 +80,21 @@ debug_times = [
 debug_tests = [0.508, 1.649]
 release_tests = [0.112, 0.268]
 
-df_operations = pd.DataFrame({
-    "Operation": operations * 2,
-    "Time (s)": release_times + debug_times,
-    "Mode": ["Release Mode"] * len(release_times) + ["Debug Mode"] * len(debug_times)
-})
+df_operations = pd.DataFrame(
+    {
+        "Operation": operations * 2,
+        "Time (s)": release_times + debug_times,
+        "Mode": ["Release Mode"] * len(release_times) + ["Debug Mode"] * len(debug_times),
+    }
+)
 
-df_tests = pd.DataFrame({
-    "Test": tests * 2,
-    "Time (s)": release_tests + debug_tests,
-    "Mode": ["Release Mode"] * len(release_tests) + ["Debug Mode"] * len(debug_tests)
-})
+df_tests = pd.DataFrame(
+    {
+        "Test": tests * 2,
+        "Time (s)": release_tests + debug_tests,
+        "Mode": ["Release Mode"] * len(release_tests) + ["Debug Mode"] * len(debug_tests),
+    }
+)
 
 sns.set_theme(style="darkgrid")
 
@@ -99,7 +103,13 @@ edge_colors = {"mediumseagreen": "lightgreen", "deepskyblue": "lightskyblue"}
 
 # Operations Graph
 fig, ax = plt.subplots(figsize=(10, 5))
-bars = sns.barplot(data=df_operations, x="Operation", y="Time (s)", hue="Mode", palette=bar_colors)
+bars = sns.barplot(
+    data=df_operations,
+    x="Operation",
+    y="Time (s)",
+    hue="Mode",
+    palette=bar_colors,
+)
 
 for bar in bars.patches:
     face_color = bar.get_facecolor()[:3]
@@ -111,19 +121,40 @@ for bar in bars.patches:
 
 ax.set_xlabel("Operation", color="#DDD")
 ax.set_ylabel("Time (seconds)", color="#DDD")
-ax.set_title("Performance Comparison: Release Mode vs Debug Mode", color="#DDD")
-ax.set_xticklabels(operations, rotation=30, ha="right", color="#DDD")
+ax.set_title(
+    "Performance Comparison: Release Mode vs Debug Mode",
+    color="#DDD",
+)
+plt.xticks(
+    range(len(operations)),
+    operations,
+    rotation=30,
+    ha="right",
+    color="#DDD",
+)
+ax.tick_params(axis='y', colors='#DDD')
 ax.legend(title="Mode")
 
 ax.set_facecolor("#222222")
 fig.patch.set_facecolor("#222222")
+
+legend = ax.get_legend()
+legend.get_title().set_color("#222")
+for text in legend.get_texts():
+    text.set_color("#222")
 
 plt.tight_layout()
 plt.show()
 
 # Tests Graph
 fig, ax = plt.subplots(figsize=(10, 5))
-bars = sns.barplot(data=df_tests, x="Test", y="Time (s)", hue="Mode", palette=bar_colors)
+bars = sns.barplot(
+    data=df_tests,
+    x="Test",
+    y="Time (s)",
+    hue="Mode",
+    palette=bar_colors,
+)
 
 for bar in bars.patches:
     face_color = bar.get_facecolor()[:3]
@@ -135,12 +166,21 @@ for bar in bars.patches:
 
 ax.set_xlabel("Tests", color="#DDD")
 ax.set_ylabel("Time (seconds)", color="#DDD")
-ax.set_title("Performance Comparison: Release Mode vs Debug Mode", color="#DDD")
-ax.set_xticklabels(tests, rotation=30, ha="right", color="#DDD")
+ax.set_title(
+    "Performance Comparison: Release Mode vs Debug Mode",
+    color="#DDD",
+)
+plt.xticks(range(len(tests)), tests, rotation=30, ha="right", color="#DDD")
+ax.tick_params(axis='y', colors='#DDD')
 ax.legend(title="Mode")
 
 ax.set_facecolor("#222222")
 fig.patch.set_facecolor("#222222")
+
+legend = ax.get_legend()
+legend.get_title().set_color("#222")
+for text in legend.get_texts():
+    text.set_color("#222")
 
 plt.tight_layout()
 plt.show()
