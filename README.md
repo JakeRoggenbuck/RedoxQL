@@ -137,8 +137,7 @@ Rust has a way of making docs from the source code. Run `cargo doc` and view the
 
 #### Using maturin in release mode
 
-![release_vs_debug](https://github.com/user-attachments/assets/ab75af63-d778-45a5-8793-654d934cb92a)
-
-![release_debug_tests](https://github.com/user-attachments/assets/11c91504-617e-4426-9481-6f24c878866c)
+![ops_over_time](https://github.com/user-attachments/assets/e87a1a90-3897-4a2a-bfb3-410a80f243b1)
+![tests_time](https://github.com/user-attachments/assets/71c69713-0f9d-4c3f-9bfe-702137f57a56)
 
 
