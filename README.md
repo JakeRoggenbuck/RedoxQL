@@ -4,6 +4,8 @@
 ![Rust](https://img.shields.io/badge/Rust-1A5D8A?style=for-the-badge&logo=rust&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
 
+![image](https://github.com/user-attachments/assets/bb1f9c7e-0d9a-4c52-8630-73990e0a7eea)
+
 > [!IMPORTANT]
 > Read the Structure section — We use both Rust and Python and they go in different places
 
