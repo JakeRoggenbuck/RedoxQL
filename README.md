@@ -140,6 +140,8 @@ Rust has a way of making docs from the source code. Run `cargo doc` and view the
 ![perf_chart](https://github.com/user-attachments/assets/31b18374-11b6-42fd-8405-5f32a751804f)
 ![tests_chart](https://github.com/user-attachments/assets/8e638ec0-12f7-461f-b1e6-7823d98004cf)
 
+Data for both graphs can be found [here](./python/benchmarks/speedtests.py)
+
 #### Using release build settings
 
 With compiler options 
