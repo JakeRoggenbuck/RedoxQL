@@ -146,6 +146,8 @@ Data for both graphs can be found [here](./python/benchmarks/speedtests.py)
 
 ![scaling](https://github.com/user-attachments/assets/22cff07d-d7b0-4502-b559-635a22e38c77)
 
+![update_scale](https://github.com/user-attachments/assets/e65ee6c3-7256-4cf1-8432-369cd6658eaf)
+
 #### Using release build settings
 
 With compiler options 
