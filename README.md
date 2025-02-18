@@ -131,4 +131,13 @@ Python tests are located in a seperate directory called `tests` located in `./py
 
 ## Rust Docs
 
-Rust has a way of making docs from the source code. Run `cargo doc` and view the produced HTML page in your browser. Adding comments to yor code starting with `///` will be put into these docs. 
+Rust has a way of making docs from the source code. Run `cargo doc` and view the produced HTML page in your browser. Adding comments to yor code starting with `///` will be put into these docs.
+
+## Speed Analysis
+
+#### Using maturin in release mode
+
+![ops_over_time](https://github.com/user-attachments/assets/e87a1a90-3897-4a2a-bfb3-410a80f243b1)
+![tests_time](https://github.com/user-attachments/assets/71c69713-0f9d-4c3f-9bfe-702137f57a56)
+
+
