@@ -4,6 +4,7 @@ from time import process_time
 from random import choice, randrange
 from lstore import print_logo
 
+print()
 print_logo()
 
 def wrap_green(text):
@@ -87,3 +88,5 @@ for i in range(0, 10000):
     query.delete(906659671 + i)
 delete_time_1 = process_time()
 print("Deleting 10k records took:  \t\t\t", wrap_green(delete_time_1 - delete_time_0))
+
+print()
