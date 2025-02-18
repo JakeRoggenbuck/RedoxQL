@@ -142,6 +142,10 @@ Rust has a way of making docs from the source code. Run `cargo doc` and view the
 
 Data for both graphs can be found [here](./python/benchmarks/speedtests.py)
 
+#### Scaling of Insert Operation
+
+![scaling](https://github.com/user-attachments/assets/22cff07d-d7b0-4502-b559-635a22e38c77)
+
 #### Using release build settings
 
 With compiler options 
@@ -190,5 +194,3 @@ real    0m0.268s
 user    0m0.254s
 sys     0m0.014s
 ```
-
-#### Scaling of Insert Operation
