@@ -13,8 +13,6 @@ fn filter_projected(column_values: Vec<i64>, projected: Vec<i64>) -> Vec<i64> {
     let mut projected_cols = vec![1, 1, 1];
     projected_cols.extend(projected.clone());
 
-    println!("{:?}", projected_cols);
-
     let mut out: Vec<i64> = vec![];
 
     for (a, b) in zip(column_values, projected_cols) {
