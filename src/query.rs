@@ -205,7 +205,25 @@ impl RQuery {
         )
     }
 
-    fn increment(&mut self) {}
+    fn increment(&mut self, primary_key: i64, column: i64) -> bool {
+        // Select the value of the column before we increment
+        let cols = vec![1i64; self.table.num_columns];
+
+        let ret = self.select(primary_key, 0, cols);
+
+        if let Some(r) = ret {
+            // Make a vector of Nones
+            let mut to_update: Vec<Option<i64>> = vec![None; self.table.num_columns];
+
+            // Update with the incremented value
+            to_update[column as usize] = Some(r[(column + 3) as usize] + 1);
+
+            // Return bool if update succeeded
+            return self.update(primary_key, to_update);
+        }
+
+        return false;
+    }
 }
 
 #[cfg(test)]
@@ -224,6 +242,29 @@ mod tests {
         // Use primary_key of 1
         let vals = q.select(1, 0, vec![1, 1, 1]);
         assert_eq!(vals.unwrap(), vec![0, 0, 0, 1, 2, 3]);
+    }
+
+    #[test]
+    fn increment_test() {
+        let mut db = RDatabase::new();
+        let t = db.create_table(String::from("Counts"), 3, 0);
+        let mut q = RQuery::new(t);
+
+        q.insert(vec![1, 2, 3]);
+
+        // Increment the 0th value on the 0th record (args reversed)
+        q.increment(1, 0);
+
+        let vals = q.select(1, 0, vec![1, 1, 1]);
+        assert_eq!(vals.unwrap(), vec![1, 0, 0, 2, 2, 3]);
+
+        q.increment(1, 0);
+        let vals2 = q.select(1, 0, vec![1, 1, 1]);
+        assert_eq!(vals2.unwrap(), vec![2, 0, 1, 3, 2, 3]);
+
+        q.increment(1, 0);
+        let vals3 = q.select(1, 0, vec![1, 1, 1]);
+        assert_eq!(vals3.unwrap(), vec![3, 0, 2, 4, 2, 3]);
     }
 
     #[test]
