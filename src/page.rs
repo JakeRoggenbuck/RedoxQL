@@ -10,7 +10,6 @@ pub struct PhysicalPage {
 }
 
 impl PhysicalPage {
-    // Init
     pub fn new() -> Self {
         PhysicalPage {
             data: Vec::<i64>::new(),

@@ -1,10 +1,27 @@
-use super::database::{RDatabase, RTable, Record};
+use super::record::Record;
+use super::table::RTable;
 use pyo3::prelude::*;
 use std::iter::zip;
 
 #[pyclass]
 pub struct RQuery {
     pub table: RTable,
+}
+
+fn filter_projected(column_values: Vec<i64>, projected: Vec<i64>) -> Vec<i64> {
+    // Add the 3 columns used internally
+    let mut projected_cols = vec![1, 1, 1];
+    projected_cols.extend(projected.clone());
+
+    let mut out: Vec<i64> = vec![];
+
+    for (a, b) in zip(column_values, projected_cols) {
+        if b == 1 {
+            out.push(a);
+        }
+    }
+
+    return out;
 }
 
 #[pymethods]
@@ -28,22 +45,11 @@ impl RQuery {
         _search_key_index: i64,
         projected_columns_index: Vec<i64>,
     ) -> Option<Vec<i64>> {
-        let mut new_projected_columns_index = vec![1, 1, 1];
-        new_projected_columns_index.extend(projected_columns_index);
-
         let Some(ret) = self.table.read(primary_key) else {
             return None;
         };
 
-        let mut out: Vec<i64> = vec![];
-
-        for (a, b) in zip(ret, new_projected_columns_index) {
-            if b == 1 {
-                out.push(a);
-            }
-        }
-
-        return Some(out);
+        Some(filter_projected(ret, projected_columns_index))
     }
 
     fn select_version(
@@ -53,22 +59,11 @@ impl RQuery {
         projected_columns_index: Vec<i64>,
         relative_version: i64,
     ) -> Option<Vec<i64>> {
-        let mut new_projected_columns_index = vec![1, 1, 1];
-        new_projected_columns_index.extend(projected_columns_index);
-
         let Some(ret) = self.table.read_relative(primary_key, relative_version) else {
             return None;
         };
 
-        let mut out: Vec<i64> = vec![];
-
-        for (a, b) in zip(ret, new_projected_columns_index) {
-            if b == 1 {
-                out.push(a);
-            }
-        }
-
-        return Some(out);
+        Some(filter_projected(ret, projected_columns_index))
     }
 
     fn update(&mut self, primary_key: i64, columns: Vec<Option<i64>>) -> bool {
@@ -216,6 +211,7 @@ impl RQuery {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::database::RDatabase;
 
     #[test]
     fn test_insert_and_read_test() {
@@ -248,7 +244,7 @@ mod tests {
         let vals2 = q.select(1, 0, vec![1, 1, 1]);
         assert_eq!(vals2.unwrap(), vec![1, 0, 0, 1, 5, 6]);
     }
-    
+
     // #[test]
     // #[should_panic(expected = "Primary key cannot be changed")]
     // fn test_update_primary_key_should_panic() {
