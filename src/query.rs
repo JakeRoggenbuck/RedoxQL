@@ -67,8 +67,9 @@ impl RQuery {
     }
 
     fn update(&mut self, primary_key: i64, columns: Vec<Option<i64>>) -> bool {
+        // This functin expects an expact number of columns as table has
         if columns.len() != self.table.num_columns {
-            panic!("Columns length does not match table columns length");
+            return false;
         }
 
         // let a = columns[self.table.primary_key_column as usize];
@@ -80,10 +81,12 @@ impl RQuery {
 
         let mut new_columns: Vec<i64>;
 
+        // Check if the record found by primary_key exists
         let Some(rid) = self.table.index.get(primary_key) else {
             return false;
         };
 
+        // Get record by RID
         let record = match self.table.page_directory.get(&rid).cloned() {
             Some(r) => r,
             None => return false,
@@ -93,11 +96,12 @@ impl RQuery {
             return false;
         };
 
-        let base_rid = result[self.table.page_range.base_container.rid_column as usize];
-        let base_schema_encoding =
-            result[self.table.page_range.base_container.schema_encoding_column as usize];
-        let base_indirection_column =
-            result[self.table.page_range.base_container.indirection_column as usize];
+        let base_cont = &self.table.page_range.base_container;
+
+        // Get values from record for the 3 internal columns
+        let base_rid = result[base_cont.rid_column as usize];
+        let base_schema_encoding = result[base_cont.schema_encoding_column as usize];
+        let base_indirection_column = result[base_cont.indirection_column as usize];
 
         // base record addresses
         let addrs_base = record.addresses.lock().unwrap();
@@ -106,18 +110,17 @@ impl RQuery {
             // first update
             if base_schema_encoding == 0 {
                 let mut base_schema_encoding = addrs_base
-                    [self.table.page_range.base_container.schema_encoding_column as usize]
+                    [base_cont.schema_encoding_column as usize]
                     .page
                     .lock()
                     .unwrap();
                 base_schema_encoding.overwrite(
-                    addrs_base[self.table.page_range.base_container.schema_encoding_column as usize]
-                        .offset as usize,
+                    addrs_base[base_cont.schema_encoding_column as usize].offset as usize,
                     1,
                 );
             }
 
-            new_columns = result.clone();
+            new_columns = result;
         } else {
             // second and subsequent updates
             let Some(existing_tail_record) =
@@ -127,17 +130,15 @@ impl RQuery {
             };
 
             {
+                let tail_cont = &self.table.page_range.tail_container;
                 // update schema encoding of the tail to be 1 (since record has changed)
                 let addrs_existing = existing_tail_record.addresses.lock().unwrap();
-                let mut schema_encoding = addrs_existing
-                    [self.table.page_range.tail_container.schema_encoding_column as usize]
+                let mut schema_encoding = addrs_existing[tail_cont.schema_encoding_column as usize]
                     .page
                     .lock()
                     .unwrap();
                 schema_encoding.overwrite(
-                    addrs_existing
-                        [self.table.page_range.tail_container.schema_encoding_column as usize]
-                        .offset as usize,
+                    addrs_existing[tail_cont.schema_encoding_column as usize].offset as usize,
                     1,
                 );
             }
@@ -146,7 +147,7 @@ impl RQuery {
                 return false;
             };
 
-            new_columns = result.clone();
+            new_columns = result;
         }
 
         // drop first 3 columns (rid, schema_encoding, indirection)
@@ -166,17 +167,15 @@ impl RQuery {
             new_columns,
         );
 
-        self.table.page_directory.insert(new_rid, new_rec.clone());
+        self.table.page_directory.insert(new_rid, new_rec);
 
         // update the indirection column of the base record
-        let mut indirection_page = addrs_base
-            [self.table.page_range.base_container.indirection_column as usize]
+        let mut indirection_page = addrs_base[base_cont.indirection_column as usize]
             .page
             .lock()
             .unwrap();
         indirection_page.overwrite(
-            addrs_base[self.table.page_range.base_container.indirection_column as usize].offset
-                as usize,
+            addrs_base[base_cont.indirection_column as usize].offset as usize,
             new_rid,
         );
 
