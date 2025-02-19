@@ -27,19 +27,19 @@ fn filter_projected(column_values: Vec<i64>, projected: Vec<i64>) -> Vec<i64> {
 #[pymethods]
 impl RQuery {
     #[new]
-    fn new(table: RTable) -> Self {
+    pub fn new(table: RTable) -> Self {
         RQuery { table }
     }
 
-    fn delete(&mut self, primary_key: i64) {
+    pub fn delete(&mut self, primary_key: i64) {
         self.table.delete(primary_key)
     }
 
-    fn insert(&mut self, values: Vec<i64>) -> Record {
+    pub fn insert(&mut self, values: Vec<i64>) -> Record {
         self.table.write(values)
     }
 
-    fn select(
+    pub fn select(
         &mut self,
         primary_key: i64,
         _search_key_index: i64,
@@ -52,7 +52,7 @@ impl RQuery {
         Some(filter_projected(ret, projected_columns_index))
     }
 
-    fn select_version(
+    pub fn select_version(
         &mut self,
         primary_key: i64,
         _search_key_index: i64,
@@ -66,7 +66,7 @@ impl RQuery {
         Some(filter_projected(ret, projected_columns_index))
     }
 
-    fn update(&mut self, primary_key: i64, columns: Vec<Option<i64>>) -> bool {
+    pub fn update(&mut self, primary_key: i64, columns: Vec<Option<i64>>) -> bool {
         // This functin expects an expact number of columns as table has
         if columns.len() != self.table.num_columns {
             return false;
@@ -184,7 +184,7 @@ impl RQuery {
         return true;
     }
 
-    fn sum(&mut self, start_primary_key: i64, end_primary_key: i64, col_index: i64) -> i64 {
+    pub fn sum(&mut self, start_primary_key: i64, end_primary_key: i64, col_index: i64) -> i64 {
         self.table
             .sum(start_primary_key, end_primary_key, col_index)
     }
@@ -204,7 +204,7 @@ impl RQuery {
         )
     }
 
-    fn increment(&mut self, primary_key: i64, column: i64) -> bool {
+    pub fn increment(&mut self, primary_key: i64, column: i64) -> bool {
         // Select the value of the column before we increment
         let cols = vec![1i64; self.table.num_columns];
 
