@@ -11,6 +11,14 @@ crate-type = ["cdylib"]
 [dependencies]
 pyo3 = "0.22.0"
 
+[dev-dependencies]
+criterion = { version = "0.4", features = ["html_reports"] }
+lstore = { path = "." }
+
+[[bench]]
+name = "db_benchmark"
+harness = false
+
 # Speed improvements
 [profile.release]
 lto = "fat"
