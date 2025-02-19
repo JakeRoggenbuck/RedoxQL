@@ -121,7 +121,8 @@ The src (`./src`) directory is where the Rust code goes. This gets called by the
 
 ## Testing
 
-#### Rust testing
+### Rust testing
+
 ```
 cargo test
 ```
@@ -130,14 +131,20 @@ Here is what the correct output should look like. You should see multiple tests 
 
 ![image](https://github.com/user-attachments/assets/b6aee0b5-571f-4450-9381-296efc5e2f73)
 
-Rust tests are located in each Rust file and can be found in `./src`
+#### Unit Tests
 
-#### Python testing
+Rust unit tests are located in each Rust file and can be found in `./src`
+
+#### Integration Tests
+
+The integration tests are located at `./tests` and are also run with `cargo test`
+
+### Python testing
 ```
 pytest
 ```
 
-Python tests are located in a seperate directory called `tests` located in `./python`
+Python tests are located in a separate directory called `tests` located in `./python`
 
 ## Rust Docs
 
@@ -145,20 +152,52 @@ Rust has a way of making docs from the source code. Run `cargo doc` and view the
 
 ## Speed Analysis
 
-#### Using maturin in release mode
+### Using flamegraph to benchmark
+
+You may need to install flamegraph with `cargo install flamegraph`
+
+```sh
+cargo flamegraph --test update_tests
+```
+
+```sh
+# Open the svg (It's nice to view in a browser)
+firefox flamegraph.svg
+```
+
+Preview:
+
+![image](https://github.com/user-attachments/assets/ac866062-79f2-45e0-84ae-c81dceef68cc)
+
+### Running cargo benchmarks
+
+This will take a long time but you can run benchmarks separately.
+
+```sh
+cargo bench
+```
+
+You can use `cargo bench` to see if your changes significantly affect performance.
+
+![image](https://github.com/user-attachments/assets/367e1f7a-dd85-46ed-998a-939f95a1b561)
+
+Often small changes can happen randomly. Like this has no change in the code.
+Try to run the bench as the only thing running on the system.
+
+### Using maturin in release mode
 
 ![perf_chart](https://github.com/user-attachments/assets/31b18374-11b6-42fd-8405-5f32a751804f)
 ![tests_chart](https://github.com/user-attachments/assets/8e638ec0-12f7-461f-b1e6-7823d98004cf)
 
 Data for both graphs can be found [here](./python/benchmarks/speedtests.py)
 
-#### Scaling of Insert Operation
+### Scaling of Insert Operation
 
 ![scaling](https://github.com/user-attachments/assets/22cff07d-d7b0-4502-b559-635a22e38c77)
 
 ![update_scale](https://github.com/user-attachments/assets/e65ee6c3-7256-4cf1-8432-369cd6658eaf)
 
-#### Using release build settings
+### Using release build settings
 
 With compiler options 
 ```
