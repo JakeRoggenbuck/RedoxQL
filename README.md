@@ -145,6 +145,29 @@ Rust has a way of making docs from the source code. Run `cargo doc` and view the
 
 ## Speed Analysis
 
+#### Using flamegraph to benchmark
+
+You may need to install flamegraph with `cargo install flamegraph`
+
+```sh
+cargo flamegraph --test update_tests
+```
+
+```sh
+# Open the svg (It's nice to view in a browser)
+firefox flamegraph.svg
+```
+
+#### Running cargo benchmarks
+
+This will take a long time but you can run benchmarks separately.
+
+```sh
+cargo bench
+```
+
+You can use `cargo bench` to see if your changes significantly affect performance.
+
 #### Using maturin in release mode
 
 ![perf_chart](https://github.com/user-attachments/assets/31b18374-11b6-42fd-8405-5f32a751804f)
