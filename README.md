@@ -68,36 +68,46 @@ Deleting 10k records took:  			 0.002314741000000009
 
 ```
 .
+├── benches
+│   └── db_benchmark.rs
 ├── Cargo.lock
 ├── Cargo.toml
+├── docs
+│   └── old-system-diagrams.md
 ├── LICENSE
 ├── main_checking.py
 ├── __main__.py
+├── Makefile
 ├── pyproject.toml
 ├── python
+│   ├── benchmarks
+│   │   ├── graph_scale.py
+│   │   ├── scaling_tester.py
+│   │   ├── simple_example.py
+│   │   ├── simple_tester.py
+│   │   └── speedtests.py
 │   ├── lstore
 │   │   ├── db.py
 │   │   ├── __init__.py
-│   │   ├── __pycache__
-│   │   │   └── __init__.cpython-312.pyc
 │   │   ├── query.py
 │   │   ├── transaction.py
 │   │   └── transaction_worker.py
 │   └── tests
 │       ├── __init__.py
-│       ├── __pycache__
-│       │   ├── __init__.cpython-312.pyc
-│       │   └── test_main.cpython-312-pytest-8.3.4.pyc
 │       └── test_main.py
 ├── README.md
 ├── requirements.txt
 └── src
     ├── container.rs
     ├── database.rs
+    ├── index.rs
     ├── lib.rs
+    ├── pagerange.rs
     ├── page.rs
     ├── query.rs
-    └── system.rs
+    ├── record.rs
+    ├── system.rs
+    └── table.rs
 ```
 
 #### lstore

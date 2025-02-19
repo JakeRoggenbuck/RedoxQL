@@ -61,6 +61,8 @@ impl BaseContainer {
     /// # Example
     ///
     /// ```
+    /// use redoxql::container::BaseContainer;
+    ///
     /// let mut container = BaseContainer::new(5);
     /// container.initialize();
     /// ```
@@ -240,6 +242,8 @@ impl TailContainer {
     /// # Example
     ///
     /// ```
+    /// use redoxql::container::TailContainer;
+    ///
     /// let mut container = TailContainer::new(5);
     /// container.initialize();
     /// ```
