@@ -145,7 +145,7 @@ Rust has a way of making docs from the source code. Run `cargo doc` and view the
 
 ## Speed Analysis
 
-#### Using flamegraph to benchmark
+### Using flamegraph to benchmark
 
 You may need to install flamegraph with `cargo install flamegraph`
 
@@ -158,7 +158,11 @@ cargo flamegraph --test update_tests
 firefox flamegraph.svg
 ```
 
-#### Running cargo benchmarks
+Preview:
+
+![image](https://github.com/user-attachments/assets/ac866062-79f2-45e0-84ae-c81dceef68cc)
+
+### Running cargo benchmarks
 
 This will take a long time but you can run benchmarks separately.
 
@@ -168,20 +172,25 @@ cargo bench
 
 You can use `cargo bench` to see if your changes significantly affect performance.
 
-#### Using maturin in release mode
+![image](https://github.com/user-attachments/assets/367e1f7a-dd85-46ed-998a-939f95a1b561)
+
+Often small changes can happen randomly. Like this has no change in the code.
+Try to run the bench as the only thing running on the system.
+
+### Using maturin in release mode
 
 ![perf_chart](https://github.com/user-attachments/assets/31b18374-11b6-42fd-8405-5f32a751804f)
 ![tests_chart](https://github.com/user-attachments/assets/8e638ec0-12f7-461f-b1e6-7823d98004cf)
 
 Data for both graphs can be found [here](./python/benchmarks/speedtests.py)
 
-#### Scaling of Insert Operation
+### Scaling of Insert Operation
 
 ![scaling](https://github.com/user-attachments/assets/22cff07d-d7b0-4502-b559-635a22e38c77)
 
 ![update_scale](https://github.com/user-attachments/assets/e65ee6c3-7256-4cf1-8432-369cd6658eaf)
 
-#### Using release build settings
+### Using release build settings
 
 With compiler options 
 ```
