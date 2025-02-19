@@ -121,7 +121,8 @@ The src (`./src`) directory is where the Rust code goes. This gets called by the
 
 ## Testing
 
-#### Rust testing
+### Rust testing
+
 ```
 cargo test
 ```
@@ -130,14 +131,20 @@ Here is what the correct output should look like. You should see multiple tests 
 
 ![image](https://github.com/user-attachments/assets/b6aee0b5-571f-4450-9381-296efc5e2f73)
 
-Rust tests are located in each Rust file and can be found in `./src`
+#### Unit Tests
 
-#### Python testing
+Rust unit tests are located in each Rust file and can be found in `./src`
+
+#### Integration Tests
+
+The integration tests are located at `./tests` and are also run with `cargo test`
+
+### Python testing
 ```
 pytest
 ```
 
-Python tests are located in a seperate directory called `tests` located in `./python`
+Python tests are located in a separate directory called `tests` located in `./python`
 
 ## Rust Docs
 
