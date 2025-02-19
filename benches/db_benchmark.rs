@@ -1,5 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use lstore::page::PhysicalPage;
+use redoxql::page::PhysicalPage;
 
 fn bench_new_page(c: &mut Criterion) {
     c.bench_function("new page", |b| b.iter(|| PhysicalPage::new()));
@@ -41,7 +41,7 @@ fn bench_sequential_writes(c: &mut Criterion) {
                 || PhysicalPage::new(),
                 |mut page| {
                     for i in 0..size {
-                        page.write(black_box(i as u64));
+                        page.write(black_box(i));
                     }
                 },
             )
@@ -60,13 +60,13 @@ fn bench_sequential_reads(c: &mut Criterion) {
                 || {
                     let mut page = PhysicalPage::new();
                     for i in 0..size {
-                        page.write(i as u64);
+                        page.write(i);
                     }
                     page
                 },
                 |page| {
                     for i in 0..size {
-                        black_box(page.read(black_box(i)));
+                        black_box(page.read(black_box(i as usize)));
                     }
                 },
             )
@@ -86,7 +86,7 @@ fn bench_mixed_workload(c: &mut Criterion) {
                 |mut page| {
                     for i in 0..size {
                         if i % 2 == 0 {
-                            page.write(black_box(i as u64));
+                            page.write(black_box(i));
                         } else {
                             black_box(page.read(black_box((i / 2) as usize)));
                         }
