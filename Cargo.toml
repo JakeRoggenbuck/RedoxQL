@@ -23,6 +23,9 @@ harness = false
 name = "query_benchmarks"
 harness = false
 
+[profile.bench]
+debug = true
+
 # Speed improvements
 [profile.release]
 lto = "fat"
