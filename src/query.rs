@@ -36,8 +36,13 @@ impl RQuery {
         self.table.delete(primary_key)
     }
 
-    pub fn insert(&mut self, values: Vec<i64>) -> Record {
-        self.table.write(values)
+    pub fn insert(&mut self, values: Vec<i64>) -> Option<Record> {
+        // check if primary key already exists
+        if self.table.index.get(values[self.table.primary_key_column]) != None {
+            return None;
+        }
+
+        Some(self.table.write(values))
     }
 
     pub fn select(
@@ -86,6 +91,13 @@ impl RQuery {
         let Some(rid) = self.table.index.get(primary_key) else {
             return false;
         };
+
+        // do not allow primary key to be changed to an existing primary key
+        if let Some(new_primary_key) = columns[self.table.primary_key_column as usize] {
+            if primary_key != new_primary_key && self.table.index.get(new_primary_key) != None {
+                return false;
+            }
+        }
 
         // Get record by RID
         let record = match self.table.page_directory.get(&rid).cloned() {
@@ -353,5 +365,43 @@ mod tests {
 
         let original = q.select_version(1, 0, vec![1, 1, 1], 3);
         assert_eq!(original.unwrap(), vec![Some(0), Some(1), Some(3), Some(1), Some(2), Some(3)]); // Original version
+    }
+
+    #[test]
+    fn test_insert_existing_primary_key() {
+        let mut db = RDatabase::new();
+        let t = db.create_table(String::from("Grades"), 3, 0);
+        let mut q = RQuery::new(t);
+
+        q.insert(vec![1, 2, 3]);
+
+        // Attempt to insert a record with an existing primary key
+        let result = q.insert(vec![1, 4, 5]);
+        assert!(result.is_none());
+
+        // Verify that the original record is still intact
+        let vals = q.select(1, 0, vec![1, 1, 1]);
+        assert_eq!(vals.unwrap(), vec![Some(0), Some(0), Some(0), Some(1), Some(2), Some(3)]);
+    }
+
+    #[test]
+    fn test_update_existing_primary_key() {
+        let mut db = RDatabase::new();
+        let t = db.create_table(String::from("Grades"), 3, 0);
+        let mut q = RQuery::new(t);
+
+        q.insert(vec![1, 2, 3]);
+        q.insert(vec![4, 5, 6]);
+
+        // Attempt to update the primary key of the first record to an existing primary key
+        let result = q.update(1, vec![Some(4), Some(7), Some(8)]);
+        assert!(!result);
+
+        // Verify that the original records are still intact
+        let vals1 = q.select(1, 0, vec![1, 1, 1]);
+        assert_eq!(vals1.unwrap(), vec![Some(0), Some(0), Some(0), Some(1), Some(2), Some(3)]);
+
+        let vals2 = q.select(4, 0, vec![1, 1, 1]);
+        assert_eq!(vals2.unwrap(), vec![Some(1), Some(0), Some(1), Some(4), Some(5), Some(6)]);
     }
 }
