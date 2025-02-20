@@ -24,11 +24,11 @@ impl RDatabase {
     }
 
     fn open(&self, _path: String) {
-        unreachable!("Not used in milestone 1");
+        // unreachable!("Not used in milestone 1");
     }
 
     fn close(&self) {
-        unreachable!("Not used in milestone 1");
+        // unreachable!("Not used in milestone 1");
     }
 
     pub fn create_table(

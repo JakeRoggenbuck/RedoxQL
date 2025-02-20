@@ -8,17 +8,18 @@ pub struct RQuery {
     pub table: RTable,
 }
 
-fn filter_projected(column_values: Vec<i64>, projected: Vec<i64>) -> Vec<i64> {
+fn filter_projected(column_values: Vec<i64>, projected: Vec<i64>) -> Vec<Option<i64>> {
     // Add the 3 columns used internally
-    let mut projected_cols = vec![1, 1, 1];
+    let mut projected_cols: Vec<i64> = vec![1, 1, 1];
     projected_cols.extend(projected.clone());
 
-    let mut out: Vec<i64> = vec![];
+    let mut out: Vec<Option<i64>> = vec![];
 
     for (a, b) in zip(column_values, projected_cols) {
-        if b == 1 {
-            out.push(a);
-        }
+        out.push(match b {
+            1 => Some(a),
+            _ => None,
+        });
     }
 
     return out;
@@ -44,7 +45,7 @@ impl RQuery {
         primary_key: i64,
         _search_key_index: i64,
         projected_columns_index: Vec<i64>,
-    ) -> Option<Vec<i64>> {
+    ) -> Option<Vec<Option<i64>>> {
         let Some(ret) = self.table.read(primary_key) else {
             return None;
         };
@@ -58,7 +59,7 @@ impl RQuery {
         _search_key_index: i64,
         projected_columns_index: Vec<i64>,
         relative_version: i64,
-    ) -> Option<Vec<i64>> {
+    ) -> Option<Vec<Option<i64>>> {
         let Some(ret) = self.table.read_relative(primary_key, relative_version) else {
             return None;
         };
@@ -215,7 +216,7 @@ impl RQuery {
             let mut to_update: Vec<Option<i64>> = vec![None; self.table.num_columns];
 
             // Update with the incremented value
-            to_update[column as usize] = Some(r[(column + 3) as usize] + 1);
+            to_update[column as usize] = Some(r[(column + 3) as usize].unwrap() + 1);
 
             // Return bool if update succeeded
             return self.update(primary_key, to_update);
@@ -240,7 +241,7 @@ mod tests {
 
         // Use primary_key of 1
         let vals = q.select(1, 0, vec![1, 1, 1]);
-        assert_eq!(vals.unwrap(), vec![0, 0, 0, 1, 2, 3]);
+        assert_eq!(vals.unwrap(), vec![Some(0), Some(0), Some(0), Some(1), Some(2), Some(3)]);
     }
 
     #[test]
@@ -255,15 +256,15 @@ mod tests {
         q.increment(1, 0);
 
         let vals = q.select(1, 0, vec![1, 1, 1]);
-        assert_eq!(vals.unwrap(), vec![1, 0, 0, 2, 2, 3]);
+        assert_eq!(vals.unwrap(), vec![Some(1), Some(0), Some(0), Some(2), Some(2), Some(3)]);
 
         q.increment(1, 0);
         let vals2 = q.select(1, 0, vec![1, 1, 1]);
-        assert_eq!(vals2.unwrap(), vec![2, 0, 1, 3, 2, 3]);
+        assert_eq!(vals2.unwrap(), vec![Some(2), Some(0), Some(1), Some(3), Some(2), Some(3)]);
 
         q.increment(1, 0);
         let vals3 = q.select(1, 0, vec![1, 1, 1]);
-        assert_eq!(vals3.unwrap(), vec![3, 0, 2, 4, 2, 3]);
+        assert_eq!(vals3.unwrap(), vec![Some(3), Some(0), Some(2), Some(4), Some(2), Some(3)]);
     }
 
     #[test]
@@ -276,13 +277,13 @@ mod tests {
 
         // Use primary_key of 1
         let vals = q.select(1, 0, vec![1, 1, 1]);
-        assert_eq!(vals.unwrap(), vec![0, 0, 0, 1, 2, 3]);
+        assert_eq!(vals.unwrap(), vec![Some(0), Some(0), Some(0), Some(1), Some(2), Some(3)]);
 
         let success = q.update(1, vec![Some(1), Some(5), Some(6)]);
         assert!(success);
 
         let vals2 = q.select(1, 0, vec![1, 1, 1]);
-        assert_eq!(vals2.unwrap(), vec![1, 0, 0, 1, 5, 6]);
+        assert_eq!(vals2.unwrap(), vec![Some(1), Some(0), Some(0), Some(1), Some(5), Some(6)]);
     }
 
     // #[test]
@@ -311,7 +312,7 @@ mod tests {
         q.update(1, vec![Some(1), Some(8), Some(9)]);
 
         let vals = q.select(1, 0, vec![1, 1, 1]);
-        assert_eq!(vals.unwrap(), vec![3, 0, 2, 1, 8, 9]);
+        assert_eq!(vals.unwrap(), vec![Some(3), Some(0), Some(2), Some(1), Some(8), Some(9)]);
     }
 
     #[test]
@@ -342,15 +343,15 @@ mod tests {
 
         // Test different versions
         let latest = q.select_version(1, 0, vec![1, 1, 1], 0);
-        assert_eq!(latest.unwrap(), vec![3, 0, 2, 1, 8, 9]); // Most recent version
+        assert_eq!(latest.unwrap(), vec![Some(3), Some(0), Some(2), Some(1), Some(8), Some(9)]); // Most recent version
 
         let one_back = q.select_version(1, 0, vec![1, 1, 1], 1);
-        assert_eq!(one_back.unwrap(), vec![2, 1, 1, 1, 6, 7]); // One version back
+        assert_eq!(one_back.unwrap(), vec![Some(2), Some(1), Some(1), Some(1), Some(6), Some(7)]); // One version back
 
         let two_back = q.select_version(1, 0, vec![1, 1, 1], 2);
-        assert_eq!(two_back.unwrap(), vec![1, 1, 0, 1, 4, 5]); // Two versions back
+        assert_eq!(two_back.unwrap(), vec![Some(1), Some(1), Some(0), Some(1), Some(4), Some(5)]); // Two versions back
 
         let original = q.select_version(1, 0, vec![1, 1, 1], 3);
-        assert_eq!(original.unwrap(), vec![0, 1, 3, 1, 2, 3]); // Original version
+        assert_eq!(original.unwrap(), vec![Some(0), Some(1), Some(3), Some(1), Some(2), Some(3)]); // Original version
     }
 }
