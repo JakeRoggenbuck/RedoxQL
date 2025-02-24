@@ -2,7 +2,18 @@ use super::index::RIndex;
 use super::pagerange::PageRange;
 use super::record::Record;
 use pyo3::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::{Write};
+
+#[derive(Serialize, Deserialize, Debug)]
+struct RTableMetadata {
+    name: String,
+    primary_key_column: usize,
+    num_records: i64,
+    num_columns: usize,
+}
 
 #[derive(Clone)]
 #[pyclass]
@@ -170,12 +181,40 @@ impl RTable {
     }
 
     /// Save the state of RTable in a file
-    fn save_state(&self) {
-        todo!("Save the state of table!");
+    pub fn save_state(&self) {
+        let hardcoded_filename = "./table.data";
+
+        let table_meta = RTableMetadata {
+            name: self.name.clone(),
+            num_columns: self.num_columns,
+            num_records: self.num_records,
+            primary_key_column: self.primary_key_column,
+        };
+
+        let table_string: String = serde_json::to_string(&table_meta).expect("Should deserialize.");
+        let mut file = File::create(hardcoded_filename).expect("File to open.");
+        write!(file, "{}", table_string).expect("File to write.");
     }
 
-    fn load_state(&self) -> RTable {
-        todo!("Load the state of table!");
+    pub fn load_state(&self) -> RTable {
+        let hardcoded_filename = "./table.data";
+
+        let table_string = std::fs::read_to_string(hardcoded_filename).expect("Should read.");
+        let table_meta: RTableMetadata =
+            serde_json::from_str(&table_string).expect("Should serialize.");
+
+        RTable {
+            name: table_meta.name.clone(),
+            primary_key_column: table_meta.primary_key_column,
+            num_columns: table_meta.num_columns,
+            num_records: table_meta.num_records,
+
+            // TODO: Should we load these up too or create new ones?
+            // I think load them up to, so we need to do that as well
+            page_range: PageRange::new(table_meta.num_columns as i64),
+            page_directory: HashMap::new(),
+            index: RIndex::new(),
+        }
     }
 
     fn _merge() {
