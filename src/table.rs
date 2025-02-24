@@ -169,6 +169,15 @@ impl RTable {
         return agg;
     }
 
+    /// Save the state of RTable in a file
+    fn save_state(&self) {
+        todo!("Save the state of table!");
+    }
+
+    fn load_state(&self) -> RTable {
+        todo!("Load the state of table!");
+    }
+
     fn _merge() {
         unreachable!("Not used in milestone 1")
     }
@@ -178,6 +187,23 @@ impl RTable {
 mod tests {
     use super::*;
     use crate::database::RDatabase;
+
+    #[test]
+    fn load_and_save_test() {
+        let mut db = RDatabase::new();
+        let mut table: RTable = db.create_table("Scores".to_string(), 3, 0);
+
+        table.write(vec![0, 10, 12]);
+
+        table.save_state();
+
+        let new_table: RTable = table.load_state();
+
+        assert_eq!(table.name, new_table.name);
+        assert_eq!(table.primary_key_column, new_table.primary_key_column);
+        assert_eq!(table.num_records, new_table.num_records);
+        assert_eq!(table.num_columns, new_table.num_columns);
+    }
 
     #[test]
     fn read_and_write_test() {
