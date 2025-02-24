@@ -24,3 +24,10 @@ jobs:
       run: |
         pip install -r requirements.txt
         maturin build
+    - name: Install Miri
+      run: |
+        rustup toolchain install nightly --component miri
+        rustup override set nightly
+        cargo miri setup
+    - name: Test with Miri
+      run: MIRIFLAGS=-Zmiri-disable-isolation cargo miri test
