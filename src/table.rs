@@ -1,11 +1,12 @@
 use super::index::RIndex;
 use super::pagerange::PageRange;
 use super::record::Record;
+use bincode;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{Write};
+use std::io::{BufReader, BufWriter, Write};
 
 #[derive(Serialize, Deserialize, Debug)]
 struct RTableMetadata {
@@ -191,17 +192,18 @@ impl RTable {
             primary_key_column: self.primary_key_column,
         };
 
-        let table_string: String = serde_json::to_string(&table_meta).expect("Should deserialize.");
-        let mut file = File::create(hardcoded_filename).expect("File to open.");
-        write!(file, "{}", table_string).expect("File to write.");
+        let table_bytes: Vec<u8> = bincode::serialize(&table_meta).expect("Should serialize.");
+
+        let mut file = BufWriter::new(File::create(hardcoded_filename).expect("Should open file."));
+        file.write_all(&table_bytes).expect("Should serialize.");
     }
 
     pub fn load_state(&self) -> RTable {
         let hardcoded_filename = "./table.data";
 
-        let table_string = std::fs::read_to_string(hardcoded_filename).expect("Should read.");
+        let file = BufReader::new(File::open(hardcoded_filename).expect("Should open file."));
         let table_meta: RTableMetadata =
-            serde_json::from_str(&table_string).expect("Should serialize.");
+            bincode::deserialize_from(file).expect("Should deserialize.");
 
         RTable {
             name: table_meta.name.clone(),
@@ -233,6 +235,9 @@ mod tests {
         let mut table: RTable = db.create_table("Scores".to_string(), 3, 0);
 
         table.write(vec![0, 10, 12]);
+        table.write(vec![0, 10, 12]);
+        table.write(vec![0, 10, 12]);
+        table.write(vec![0, 10, 12]);
 
         table.save_state();
 
@@ -242,6 +247,8 @@ mod tests {
         assert_eq!(table.primary_key_column, new_table.primary_key_column);
         assert_eq!(table.num_records, new_table.num_records);
         assert_eq!(table.num_columns, new_table.num_columns);
+
+        assert_eq!(new_table.num_records, 4);
     }
 
     #[test]
