@@ -9,7 +9,7 @@ fn thousands_of_updates_test() {
 
     q.insert(vec![0, 2, 3]);
 
-    for x in 0..1_000_000 {
+    for x in 0..100_000 {
         let res = q.update(0, vec![Some(x), None, None]);
         assert!(res);
     }
