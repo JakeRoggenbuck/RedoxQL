@@ -1,8 +1,20 @@
 use super::index::RIndex;
 use super::pagerange::PageRange;
 use super::record::Record;
+use bincode;
 use pyo3::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::{BufReader, BufWriter, Write};
+
+#[derive(Serialize, Deserialize, Debug)]
+struct RTableMetadata {
+    name: String,
+    primary_key_column: usize,
+    num_records: i64,
+    num_columns: usize,
+}
 
 #[derive(Clone)]
 #[pyclass]
@@ -169,6 +181,44 @@ impl RTable {
         return agg;
     }
 
+    /// Save the state of RTable in a file
+    pub fn save_state(&self) {
+        let hardcoded_filename = "./table.data";
+
+        let table_meta = RTableMetadata {
+            name: self.name.clone(),
+            num_columns: self.num_columns,
+            num_records: self.num_records,
+            primary_key_column: self.primary_key_column,
+        };
+
+        let table_bytes: Vec<u8> = bincode::serialize(&table_meta).expect("Should serialize.");
+
+        let mut file = BufWriter::new(File::create(hardcoded_filename).expect("Should open file."));
+        file.write_all(&table_bytes).expect("Should serialize.");
+    }
+
+    pub fn load_state(&self) -> RTable {
+        let hardcoded_filename = "./table.data";
+
+        let file = BufReader::new(File::open(hardcoded_filename).expect("Should open file."));
+        let table_meta: RTableMetadata =
+            bincode::deserialize_from(file).expect("Should deserialize.");
+
+        RTable {
+            name: table_meta.name.clone(),
+            primary_key_column: table_meta.primary_key_column,
+            num_columns: table_meta.num_columns,
+            num_records: table_meta.num_records,
+
+            // TODO: Should we load these up too or create new ones?
+            // I think load them up to, so we need to do that as well
+            page_range: PageRange::new(table_meta.num_columns as i64),
+            page_directory: HashMap::new(),
+            index: RIndex::new(),
+        }
+    }
+
     fn _merge() {
         unreachable!("Not used in milestone 1")
     }
@@ -178,6 +228,28 @@ impl RTable {
 mod tests {
     use super::*;
     use crate::database::RDatabase;
+
+    #[test]
+    fn load_and_save_test() {
+        let mut db = RDatabase::new();
+        let mut table: RTable = db.create_table("Scores".to_string(), 3, 0);
+
+        table.write(vec![0, 10, 12]);
+        table.write(vec![0, 10, 12]);
+        table.write(vec![0, 10, 12]);
+        table.write(vec![0, 10, 12]);
+
+        table.save_state();
+
+        let new_table: RTable = table.load_state();
+
+        assert_eq!(table.name, new_table.name);
+        assert_eq!(table.primary_key_column, new_table.primary_key_column);
+        assert_eq!(table.num_records, new_table.num_records);
+        assert_eq!(table.num_columns, new_table.num_columns);
+
+        assert_eq!(new_table.num_records, 4);
+    }
 
     #[test]
     fn read_and_write_test() {
