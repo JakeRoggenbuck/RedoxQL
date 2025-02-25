@@ -1,9 +1,10 @@
 use pyo3::prelude::*;
+use serde::{Deserialize, Serialize};
 
 static MAX_SIZE_RECORD: i64 = i64::MAX;
 
 #[pyclass]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct PhysicalPage {
     pub data: Vec<i64>,
     pub num_records: i64,

@@ -1,17 +1,49 @@
 use pyo3::prelude::*;
 use super::table::RTable;
-use super::record::Record;
-use super::pagerange::PageRange;
 use std::collections::{BTreeMap, HashMap};
 
 #[pyclass]
 #[derive(Clone, Default)]
 pub struct RIndex {
-    /// Map a primary_key to a RID
-    /// RIDs are used internally and are auto incremented
-    /// The primary_key are given to the Python Query by the user of the library
     pub index: BTreeMap<i64, i64>,
     pub secondary_indices: HashMap<i64, BTreeMap<i64, Vec<i64>>>,
+    owner: Option<usize>, // RTable owner's pointer
+}
+
+#[pymethods]
+impl RIndex {
+    #[new]
+    pub fn new_py() -> Self {
+        Self::new()
+    }
+
+    /// When called from Python, create the secondary index for a given column
+    pub fn create_index(&mut self, col_index: i64) {
+        if let Some(ptr) = self.owner {
+            // SAFETY: We assume the owner lives as long as the index
+            let table: &crate::table::RTable = unsafe { &*(ptr as *const crate::table::RTable) };
+            self.create_index_internal(col_index, table);
+        } else {
+            panic!("Owner not set for RIndex");
+        }
+    }
+    /// When called from Python, drop the secondary index for a given column
+    pub fn drop_index(&mut self, col_index: i64) {
+        self.drop_index_internal(col_index);
+    }
+    
+    // Debugging purposes
+    pub fn get_secondary_indices(&self) -> HashMap<i64, Vec<(i64, Vec<i64>)>> {
+        let mut out = HashMap::new();
+        for (&col, tree) in self.secondary_indices.iter() {
+            let mut vec = Vec::new();
+            for (&val, rids) in tree.iter() {
+                vec.push((val, rids.clone()));
+            }
+            out.insert(col, vec);
+        }
+        out
+    }
 }
 
 impl RIndex {
@@ -19,7 +51,14 @@ impl RIndex {
         RIndex {
             index: BTreeMap::new(),
             secondary_indices: HashMap::new(),
+            owner: None,
         }
+    }
+
+    /// Set the owner (the table that “owns” this index)
+    pub fn set_owner(&mut self, owner: *const RTable) {
+        // Must cast the owner reference to a raw pointer
+        self.owner = Some(owner as usize);
     }
 
     /// Create a mapping from primary_key to RID
@@ -33,10 +72,10 @@ impl RIndex {
     }
 
     // Build a secondary index on a non-primary column. This is called by RTable.create_index
-    pub fn create_index_internal(&mut self, col_index: i64, page_directory: &HashMap<i64, Record>, page_range: &PageRange) {
+    pub fn create_index_internal(&mut self, col_index: i64, table: &RTable) {
         let mut sec_index: BTreeMap<i64, Vec<i64>> = BTreeMap::new();
-        for (&rid, record) in page_directory.iter() {
-            if let Some(record_data) = page_range.read(record.clone()) {
+        for (&rid, record) in table.page_directory.iter() {
+            if let Some(record_data) = table.page_range.read(record.clone()) {
                 if record_data.len() <= (col_index + 3) as usize {
                     // Skip if the record data is unexpectedly short.
                     continue;
@@ -44,6 +83,10 @@ impl RIndex {
                 // user columns start at offset 3
                 let val = record_data[(col_index + 3) as usize];
                 sec_index.entry(val).or_insert_with(Vec::new).push(rid);
+            }
+            // For each key in the secondary index, sort the vector so that tests compare in order.
+            for vec in sec_index.values_mut() {
+                vec.sort();
             }
         }
         self.secondary_indices.insert(col_index, sec_index);
@@ -54,7 +97,7 @@ impl RIndex {
         self.secondary_indices.remove(&col_index);
     }
 
-    // Update secondary indices when a record is inserted/updated/deleted.
+    // Update secondary indices when a record is inserted/updated/deleted
     pub fn secondary_index_insert(&mut self, col_index: i64, rid: i64, value: i64) {
         if let Some(sec_index) = self.secondary_indices.get_mut(&col_index) {
             sec_index.entry(value).or_insert(Vec::new()).push(rid);
@@ -76,17 +119,6 @@ impl RIndex {
                 vec_rids.retain(|&r| r != rid);
             }
         }
-    }
-    pub fn get_secondary_indices(&self) -> HashMap<i64, Vec<(i64, Vec<i64>)>> {
-        let mut out = HashMap::new();
-        for (&col, tree) in self.secondary_indices.iter() {
-            let mut vec = Vec::new();
-            for (&val, rids) in tree.iter() {
-                vec.push((val, rids.clone()));
-            }
-            out.insert(col, vec);
-        }
-        out
     }
 }
 
@@ -139,7 +171,7 @@ mod tests {
             // Build a secondary index on user column 1.
             // That accesses record_data[(1+3)] i.e. index 4.
             let mut index = RIndex::new();
-            index.create_index_internal(1, &table.page_directory, &table.page_range);
+            index.create_index_internal(1, &table);
             {
                 let sec = index.secondary_indices.get(&1).expect("Index on col 1 not created");
                 // Both record 1 and record 2 have user column1 value 10.
@@ -175,7 +207,7 @@ mod tests {
             // Build a secondary index on user column 2.
             // That accesses record_data[(2+3)] = record_data[5].
             let mut index = RIndex::new();
-            index.create_index_internal(2, &table.page_directory, &table.page_range);
+            index.create_index_internal(2, &table);
             {
                 let sec = index.secondary_indices.get(&2).expect("Index on col 2 not created");
                 // Both records have value 20 in column 2.

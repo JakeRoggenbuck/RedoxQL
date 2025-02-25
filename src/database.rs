@@ -31,12 +31,7 @@ impl RDatabase {
         // unreachable!("Not used in milestone 1");
     }
 
-    pub fn create_table(
-        &mut self,
-        name: String,
-        num_columns: i64,
-        primary_key_column: i64,
-    ) -> RTable {
+    pub fn create_table(&mut self, name: String, num_columns: i64, primary_key_column: i64) -> RTable {
         let t = RTable {
             name: name.clone(),
             page_range: PageRange::new(num_columns as i64),
@@ -47,16 +42,28 @@ impl RDatabase {
             index: RIndex::new(),
         };
 
-        let i = self.tables.len();
+        // PREVIOUS IMPLEMENTATION
+        // let i = self.tables.len();
 
         // Map a name of a table to it's index on the self.tables field
+        // self.tables_hashmap.insert(name, i);
+
+        // self.tables.push(t);
+
+
+        // Push t into the tables vector so its address becomes stable.
+        self.tables.push(t);
+        let i = self.tables.len() - 1;
+        // Get a raw pointer to the table in the vector.
+        let table_ptr = &self.tables[i] as *const RTable;
+        // Set the owner pointer in the index.
+        self.tables[i].index.set_owner(table_ptr);
+        // Map a name of a table to it's index
         self.tables_hashmap.insert(name, i);
 
-        self.tables.push(t);
-
         // Should it really be cloning here?
-        // I guess since it has just an Arc Mutex, the underlying data should persist
-        return self.tables[i].clone();
+        // I guess since it has just an Arc Mutex, the underlying data should persi
+        return self.tables[i].clone()
     }
 
     fn get_table(&self, name: String) -> RTable {

@@ -19,26 +19,15 @@ struct RTableMetadata {
 #[derive(Clone, Default)]
 #[pyclass]
 pub struct RTable {
-    /// The name given in RDatabase.create_table
     pub name: String,
-
-    /// The column that will act as the primary_key
     pub primary_key_column: usize,
-
     pub page_range: PageRange,
-
-    // Map RIDs to Records
-    pub page_directory: HashMap<i64, Record>,
-
-    /// This is how we created the RID
-    /// We use this value directly as the RID and increment after ever insert
+    pub page_directory: HashMap<i64, Record>, // Map RIDs to Records
     pub num_records: i64,
 
-    /// This is the count of columns in the RTable
     #[pyo3(get)]
     pub num_columns: usize,
 
-    /// This is how we map the given primary_key to the internal RID
     #[pyo3(get)]
     pub index: RIndex,
 }
@@ -96,6 +85,7 @@ impl RTable {
 
         return self.page_range.read(tail_record.clone());
     }
+
     // Given a RID, get the record's values
     pub fn read_by_rid(&self, rid: i64) -> Option<Vec<i64>> {
         if let Some(record) = self.page_directory.get(&rid) {
@@ -190,21 +180,7 @@ impl RTable {
         return agg;
     }
 
-    pub fn create_index(&mut self, col_index: i64) {
-        
-        // Temporarily extract self.index to avoid borrowing self immutably while it's mutably borrowed.
-        // let mut temp_index = std::mem::take(&mut self.index);
-        // temp_index.create_index_internal(col_index, self);
-        // self.index = temp_index;
-         
-        self.index.create_index_internal(col_index, &self.page_directory, &self.page_range);
-   }
-
-    pub fn drop_index(&mut self, col_index: i64) {
-         self.index.drop_index_internal(col_index);
-    }
-
-
+    
     /// Save the state of RTable in a file
     pub fn save_state(&self) {
         let hardcoded_filename = "./table.data";

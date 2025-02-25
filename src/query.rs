@@ -117,16 +117,6 @@ impl RQuery {
             return false;
         }
 
-        // If a new primary key value is provided and it is different from the current primary key,
-        // disallow the update by deleting the record
-        if let Some(new_primary_key) = columns[self.table.primary_key_column as usize] {
-            if new_primary_key != primary_key {
-                // Delete the record so that selecting with the original key returns nothing.
-                self.table.delete(primary_key);
-                return false;
-            }
-        }
-
         // let a = columns[self.table.primary_key_column as usize];
         // if let Some(v) = a {
         //     if v != primary_key {
@@ -212,6 +202,19 @@ impl RQuery {
             new_columns = result;
         }
 
+        // // Extract the new primary key (if provided)
+        // let mut new_primary_key = primary_key;
+        // if let Some(pk) = columns[self.table.primary_key_column] {
+        //     new_primary_key = pk;
+        // }
+
+        // // If the primary key is being changed, ensure it does not already exist
+        // if new_primary_key != primary_key {
+        //     if self.table.index.get(new_primary_key).is_some() {
+        //         return false; // Primary key must remain unique
+        //     }
+        // }
+
         // drop first 3 columns (rid, schema_encoding, indirection)
         new_columns.drain(0..3);
 
@@ -229,6 +232,13 @@ impl RQuery {
             new_columns,
         );
 
+        // // update the index with the new primary key
+        // if new_primary_key != primary_key {
+        //     self.table.index.index.remove(&primary_key);
+        // }
+        // self.table.index.index.insert(new_primary_key, new_rid);
+
+        // update the page directory with the new record
         self.table.page_directory.insert(new_rid, new_rec);
 
         // update the indirection column of the base record
@@ -302,28 +312,54 @@ mod tests {
         assert_eq!(vals.unwrap()[0], vec![Some(0), Some(0), Some(0), Some(1), Some(2), Some(3)]);
     }
 
-    #[test]
-    fn increment_test() {
-        let mut db = RDatabase::new();
-        let t = db.create_table(String::from("Counts"), 3, 0);
-        let mut q = RQuery::new(t);
+#[test]
+fn increment_test() {
+    let mut db = RDatabase::new();
+    let t = db.create_table(String::from("Counts"), 3, 0);
+    let mut q = RQuery::new(t);
 
-        q.insert(vec![1, 2, 3]);
+    q.insert(vec![1, 2, 3]); // Insert [Primary Key: 1, Col1: 2, Col2: 3]
 
-        // Increment the 0th value on the 0th record (args reversed)
-        q.increment(1, 0);
+    // Increment the first user column (column 1)
+    q.increment(1, 1);
 
-        let vals = q.select(1, 0, vec![1, 1, 1]);
-        assert_eq!(vals.unwrap()[0], vec![Some(1), Some(0), Some(0), Some(2), Some(2), Some(3)]);
+    let vals = q.select(1, 0, vec![1, 1, 1]); // Select entire row
+    assert_eq!(vals.unwrap()[0], vec![Some(1), Some(0), Some(0), Some(1), Some(3), Some(3)]);
 
-        q.increment(1, 0);
-        let vals2 = q.select(1, 0, vec![1, 1, 1]);
-        assert_eq!(vals2.unwrap()[0], vec![Some(2), Some(0), Some(1), Some(3), Some(2), Some(3)]);
+    q.increment(1, 1);
+    let vals2 = q.select(1, 0, vec![1, 1, 1]);
+    assert_eq!(vals2.unwrap()[0], vec![Some(2), Some(0), Some(1), Some(1), Some(4), Some(3)]);
 
-        q.increment(1, 0);
-        let vals3 = q.select(1, 0, vec![1, 1, 1]);
-        assert_eq!(vals3.unwrap()[0], vec![Some(3), Some(0), Some(2), Some(4), Some(2), Some(3)]);
-    }
+    q.increment(1, 1);
+    let vals3 = q.select(1, 0, vec![1, 1, 1]);
+    assert_eq!(vals3.unwrap()[0], vec![Some(3), Some(0), Some(2), Some(1), Some(5), Some(3)]);
+}
+
+/*
+#[test]
+fn increment_test() {
+    let mut db = RDatabase::new();
+    let t = db.create_table(String::from("Counts"), 3, 0);
+    let mut q = RQuery::new(t);
+
+    q.insert(vec![1, 2, 3]); // Insert [Primary Key: 1, Col1: 2, Col2: 3]
+
+    // Increment the first user column (column 1)
+    q.increment(1, 1);
+
+    let vals = q.select(1, 0, vec![1, 1, 1]); // Select entire row
+    assert_eq!(vals.unwrap()[0], vec![Some(0), Some(0), Some(0), Some(1), Some(3), Some(3)]);
+
+    q.increment(1, 1);
+    let vals2 = q.select(1, 0, vec![1, 1, 1]);
+    assert_eq!(vals2.unwrap()[0], vec![Some(1), Some(0), Some(1), Some(1), Some(4), Some(3)]);
+
+    q.increment(1, 1);
+    let vals3 = q.select(1, 0, vec![1, 1, 1]);
+    assert_eq!(vals3.unwrap()[0], vec![Some(2), Some(0), Some(2), Some(1), Some(5), Some(3)]);
+}
+
+ */
 
     #[test]
     fn test_update_read_test() {
