@@ -50,7 +50,7 @@ impl RIndex {
     }
 
     // Remove the secondary index on the given column. This is called by RTable.drop_index
-    pub fn drop_index(&mut self, col_index: i64) {
+    pub fn drop_index_internal(&mut self, col_index: i64) {
         self.secondary_indices.remove(&col_index);
     }
 
@@ -149,7 +149,7 @@ mod tests {
             }
     
             // Now drop the secondary index on column 1.
-            index.drop_index(1);
+            index.drop_index_internal(1);
             assert!(index.secondary_indices.get(&1).is_none());
         }
     
@@ -183,7 +183,7 @@ mod tests {
             }
     
             // Drop the index.
-            index.drop_index(2);
+            index.drop_index_internal(2);
             assert!(index.secondary_indices.get(&2).is_none());
         }
     }

@@ -44,6 +44,7 @@ pub struct RTable {
 }
 
 impl RTable {
+
     pub fn write(&mut self, values: Vec<i64>) -> Record {
         // Use the primary_key_column'th value as the given key
         let primary_key = values[self.primary_key_column];
@@ -200,7 +201,7 @@ impl RTable {
    }
 
     pub fn drop_index(&mut self, col_index: i64) {
-         self.index.drop_index(col_index);
+         self.index.drop_index_internal(col_index);
     }
 
 
