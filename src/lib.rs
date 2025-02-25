@@ -4,6 +4,7 @@ use query::RQuery;
 use record::Record;
 use table::RTable;
 
+pub mod bufferpool;
 pub mod container;
 pub mod database;
 pub mod index;
