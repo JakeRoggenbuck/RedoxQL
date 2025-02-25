@@ -39,8 +39,6 @@ def correctness_tester1():
         # select on columns with index
         test_table.index.create_index(2)
 
-        # print DEBUG data
-        print("DEBUG: Secondary index for col 2:", test_table.index.get_secondary_indices())
     except Exception as e:
         print("DEBUG: Error creating secondary index:", e)
     try:
@@ -60,8 +58,6 @@ def correctness_tester1():
     try:
         # select on columns without index and return 1 record
         test_table.index.drop_index(2)
-        # print DEBUG data
-        print("DEBUG: After dropping, secondary indices =", test_table.index.get_secondary_indices())
         result = reorganize_result(query.select(3, 2, [1,1,1,1,1]))
         # print DEBUG data
         print("DEBUG: Result of select(3, 2, [1,1,1,1,1]) =", result)

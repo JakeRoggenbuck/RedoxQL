@@ -9,8 +9,9 @@ fn thousands_of_updates_test() {
 
     q.insert(vec![0, 2, 3]);
 
+    // Instead of constantly updating primary_key_column, update the second column
     for x in 0..100_000 {
-        let res = q.update(0, vec![Some(x), None, None]);
+        let res = q.update(0, vec![None, Some(x), None]);
         assert!(res);
     }
 }

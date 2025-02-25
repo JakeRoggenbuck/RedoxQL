@@ -44,22 +44,9 @@ impl RQuery {
 
         Some(self.table.write(values))
     }
-    /* 
-    pub fn select(
-        &mut self,
-        primary_key: i64,
-        _search_key_index: i64,
-        projected_columns_index: Vec<i64>,
-    ) -> Option<Vec<Option<i64>>> {
-        let Some(ret) = self.table.read(primary_key) else {
-            return None;
-        };
 
-        Some(filter_projected(ret, projected_columns_index))
-    }
-    */
     pub fn select(&mut self, search_key: i64, search_key_index: i64, projected_columns_index: Vec<i64>) -> Option<Vec<Vec<Option<i64>>>> {
-        // Case 1: Searching on the primary key column.
+        // Case 1: Searching on the primary key column
         if search_key_index == self.table.primary_key_column as i64 {
             if let Some(ret) = self.table.read(search_key) {
                 return Some(vec![filter_projected(ret, projected_columns_index)]);
@@ -67,9 +54,9 @@ impl RQuery {
                 return None;
             }
         }
-        // Case 2: Searching on a non-primary column.
+        // Case 2: Searching on a non-primary column
         else {
-            // If a secondary index exists, use it.
+            // If a secondary index exists, use it
             if let Some(sec_index) = self.table.index.secondary_indices.get(&search_key_index) {
                 if let Some(rids) = sec_index.get(&search_key) {
                     let mut results = Vec::new();
@@ -80,10 +67,10 @@ impl RQuery {
                     }
                     return Some(results);
                 } else {
-                    return Some(vec![]);  // No records match.
+                    return Some(vec![]);  // No records match
                 }
             }
-            // Otherwise, do a full scan.
+            // Otherwise, do a full scan
             else {
                 let mut results = Vec::new();
                 for (_rid, record) in self.table.page_directory.iter() {
@@ -116,13 +103,6 @@ impl RQuery {
         if columns.len() != self.table.num_columns {
             return false;
         }
-
-        // let a = columns[self.table.primary_key_column as usize];
-        // if let Some(v) = a {
-        //     if v != primary_key {
-        //         panic!("Primary key cannot be changed");
-        //     }
-        // }
 
         let mut new_columns: Vec<i64>;
 
@@ -202,18 +182,11 @@ impl RQuery {
             new_columns = result;
         }
 
-        // // Extract the new primary key (if provided)
-        // let mut new_primary_key = primary_key;
-        // if let Some(pk) = columns[self.table.primary_key_column] {
-        //     new_primary_key = pk;
-        // }
-
-        // // If the primary key is being changed, ensure it does not already exist
-        // if new_primary_key != primary_key {
-        //     if self.table.index.get(new_primary_key).is_some() {
-        //         return false; // Primary key must remain unique
-        //     }
-        // }
+        // Extract the new primary key (if provided)
+        let mut new_primary_key = primary_key;
+        if let Some(pk) = columns[self.table.primary_key_column] {
+            new_primary_key = pk;
+        }
 
         // drop first 3 columns (rid, schema_encoding, indirection)
         new_columns.drain(0..3);
@@ -232,14 +205,14 @@ impl RQuery {
             new_columns,
         );
 
-        // // update the index with the new primary key
-        // if new_primary_key != primary_key {
-        //     self.table.index.index.remove(&primary_key);
-        // }
-        // self.table.index.index.insert(new_primary_key, new_rid);
-
         // update the page directory with the new record
         self.table.page_directory.insert(new_rid, new_rec);
+
+        // update the index with the new primary key
+        if new_primary_key != primary_key {
+            self.table.index.index.remove(&primary_key);
+            self.table.index.index.insert(new_primary_key, new_rid);
+        }
 
         // update the indirection column of the base record
         let mut indirection_page = addrs_base[base_cont.indirection_column as usize]
