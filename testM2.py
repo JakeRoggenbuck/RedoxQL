@@ -38,7 +38,13 @@ def correctness_tester1():
     try:
         # select on columns with index
         test_table.index.create_index(2)
+
+    except Exception as e:
+        print("DEBUG: Error creating secondary index:", e)
+    try:
         result = reorganize_result(query.select(1, 2, [1,1,1,1,1]))
+        # print DEBUG data
+        print("DEBUG: Result of select(1, 2, [1,1,1,1,1]) =", result)
         if len(result) == 4:
             if records[0] in result and records[1] in result and records[5] in result and records[7] in result:
                 print("PASS[0]")
@@ -47,18 +53,20 @@ def correctness_tester1():
         else:
             print("Error[0]")
     except Exception as e:
-        print("Wrong[0]")
+        print("Wrong[0]: Exception:", e)
 
     try:
         # select on columns without index and return 1 record
         test_table.index.drop_index(2)
         result = reorganize_result(query.select(3, 2, [1,1,1,1,1]))
+        # print DEBUG data
+        print("DEBUG: Result of select(3, 2, [1,1,1,1,1]) =", result)
         if len(result) == 1 and records[2] in result:
             print("PASS[1]")
         else:
             print("Error[1]")
     except Exception as e:
-        print("Wrong[1]")
+        print("Wrong[1]: Exception:", e)
 
     try:
     # select on columns without index and return multiple records

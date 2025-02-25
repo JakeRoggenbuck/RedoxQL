@@ -2,7 +2,7 @@ use super::page::PhysicalPage;
 use super::record::{Record, RecordAddress};
 use std::sync::{Arc, Mutex};
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct BaseContainer {
     // pages
     pub physical_pages: Vec<Arc<Mutex<PhysicalPage>>>,
@@ -183,7 +183,7 @@ impl BaseContainer {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct TailContainer {
     // pages
     pub physical_pages: Vec<Arc<Mutex<PhysicalPage>>>,

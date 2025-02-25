@@ -1,7 +1,7 @@
 use super::container::{BaseContainer, TailContainer};
 use super::record::Record;
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct PageRange {
     pub base_container: BaseContainer,
     pub tail_container: TailContainer,
