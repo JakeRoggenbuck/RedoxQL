@@ -48,7 +48,7 @@ class Query:
         Returns a list of Record objects upon success
         Returns False if record locked by TPL
         Assume that select will never be called on a key that doesn't exist
-        """
+        
         return [
             ReturnRecord(
                 list(
@@ -60,6 +60,10 @@ class Query:
                 )
             )
         ]
+        """
+        res = self.rquery.select(search_key, search_key_index, projected_columns_index)
+        # If res is not None, it should be a list of records.
+        return [ReturnRecord(r) for r in res] if res is not None else []
 
     def select_version(
         self,

@@ -16,7 +16,7 @@ struct RTableMetadata {
     num_columns: usize,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 #[pyclass]
 pub struct RTable {
     /// The name given in RDatabase.create_table
@@ -39,6 +39,7 @@ pub struct RTable {
     pub num_columns: usize,
 
     /// This is how we map the given primary_key to the internal RID
+    #[pyo3(get)]
     pub index: RIndex,
 }
 
@@ -93,6 +94,13 @@ impl RTable {
         };
 
         return self.page_range.read(tail_record.clone());
+    }
+    // Given a RID, get the record's values
+    pub fn read_by_rid(&self, rid: i64) -> Option<Vec<i64>> {
+        if let Some(record) = self.page_directory.get(&rid) {
+            return self.page_range.read(record.clone());
+        }
+        None
     }
 
     pub fn read_relative(&self, primary_key: i64, relative_version: i64) -> Option<Vec<i64>> {
@@ -180,6 +188,21 @@ impl RTable {
 
         return agg;
     }
+
+    pub fn create_index(&mut self, col_index: i64) {
+        
+        // Temporarily extract self.index to avoid borrowing self immutably while it's mutably borrowed.
+        // let mut temp_index = std::mem::take(&mut self.index);
+        // temp_index.create_index_internal(col_index, self);
+        // self.index = temp_index;
+         
+        self.index.create_index_internal(col_index, &self.page_directory, &self.page_range);
+   }
+
+    pub fn drop_index(&mut self, col_index: i64) {
+         self.index.drop_index(col_index);
+    }
+
 
     /// Save the state of RTable in a file
     pub fn save_state(&self) {
