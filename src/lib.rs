@@ -2,7 +2,7 @@ use database::RDatabase;
 use pyo3::prelude::*;
 use query::RQuery;
 use record::Record;
-use table::RTable;
+use table::{RTable, RTableHandle};
 
 pub mod bufferpool;
 pub mod container;
@@ -28,6 +28,7 @@ fn lstore(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<RQuery>()?;
     m.add_class::<RTable>()?;
     m.add_class::<Record>()?;
+    m.add_class::<RTableHandle>()?;
     m.add_function(wrap_pyfunction!(hello_from_rust, m)?)?;
     Ok(())
 }

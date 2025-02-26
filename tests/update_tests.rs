@@ -4,8 +4,9 @@ use redoxql::query::RQuery;
 #[test]
 fn thousands_of_updates_test() {
     let mut db = RDatabase::new();
-    let t = db.create_table(String::from("Grades"), 3, 0);
-    let mut q = RQuery::new(t);
+    let table_ref = db.create_table("Grades".to_string(), 3, 0).unwrap();
+    let t = table_ref.table.write().unwrap();
+    let mut q = RQuery::new(t.clone());
 
     q.insert(vec![0, 2, 3]);
 

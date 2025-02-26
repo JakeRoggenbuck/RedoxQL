@@ -286,8 +286,9 @@ mod tests {
     #[test]
     fn test_insert_and_read_test() {
         let mut db = RDatabase::new();
-        let t = db.create_table(String::from("Grades"), 3, 0);
-        let mut q = RQuery::new(t);
+        let table_ref = db.create_table(String::from("Grades"), 3, 0).unwrap();
+        let t = table_ref.table.read().unwrap();
+        let mut q = RQuery::new(t.to_owned());
 
         q.insert(vec![1, 2, 3]);
 
@@ -302,8 +303,9 @@ mod tests {
     #[test]
     fn increment_test() {
         let mut db = RDatabase::new();
-        let t = db.create_table(String::from("Counts"), 3, 0);
-        let mut q = RQuery::new(t);
+        let table_ref = db.create_table(String::from("Counts"), 3, 0).unwrap();
+        let t = table_ref.table.read().unwrap();
+        let mut q = RQuery::new(t.to_owned());
 
         q.insert(vec![1, 2, 3]); // Insert [Primary Key: 1, Col1: 2, Col2: 3]
 
@@ -360,8 +362,9 @@ mod tests {
     #[test]
     fn test_update_read_test() {
         let mut db = RDatabase::new();
-        let t = db.create_table(String::from("Grades"), 3, 0);
-        let mut q = RQuery::new(t);
+        let table_ref = db.create_table(String::from("Grades"), 3, 0).unwrap();
+        let t = table_ref.table.read().unwrap();
+        let mut q = RQuery::new(t.to_owned());
 
         q.insert(vec![1, 2, 3]);
 
@@ -398,8 +401,9 @@ mod tests {
     #[test]
     fn test_multiple_updates() {
         let mut db = RDatabase::new();
-        let t = db.create_table(String::from("Grades"), 3, 0);
-        let mut q = RQuery::new(t);
+        let table_ref = db.create_table(String::from("Grades"), 3, 0).unwrap();
+        let t = table_ref.table.read().unwrap();
+        let mut q = RQuery::new(t.to_owned());
 
         q.insert(vec![1, 2, 3]);
 
@@ -417,8 +421,9 @@ mod tests {
     #[test]
     fn test_delete_and_select() {
         let mut db = RDatabase::new();
-        let t = db.create_table(String::from("Grades"), 3, 0);
-        let mut q = RQuery::new(t);
+        let table_ref = db.create_table(String::from("Grades"), 3, 0).unwrap();
+        let t = table_ref.table.read().unwrap();
+        let mut q = RQuery::new(t.to_owned());
 
         q.insert(vec![1, 2, 3]);
         q.delete(1);
@@ -429,8 +434,9 @@ mod tests {
     #[test]
     fn test_select_version() {
         let mut db = RDatabase::new();
-        let t = db.create_table(String::from("Grades"), 3, 0);
-        let mut q = RQuery::new(t);
+        let table_ref = db.create_table(String::from("Grades"), 3, 0).unwrap();
+        let t = table_ref.table.read().unwrap();
+        let mut q = RQuery::new(t.to_owned());
 
         // Insert initial record
         q.insert(vec![1, 2, 3]);
@@ -469,8 +475,9 @@ mod tests {
     #[test]
     fn test_insert_existing_primary_key() {
         let mut db = RDatabase::new();
-        let t = db.create_table(String::from("Grades"), 3, 0);
-        let mut q = RQuery::new(t);
+        let table_ref = db.create_table("Grades".to_string(), 3, 0).unwrap();
+        let t = table_ref.table.write().unwrap();
+        let mut q = RQuery::new(t.to_owned());
 
         q.insert(vec![1, 2, 3]);
 

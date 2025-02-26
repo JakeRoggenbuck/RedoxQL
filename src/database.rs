@@ -1,3 +1,5 @@
+use crate::table::RTableHandle;
+
 use super::index::RIndex;
 use super::pagerange::PageRange;
 use super::table::{RTable, RTableMetadata, StatePersistence};
@@ -7,7 +9,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Write};
 use std::path::Path;
-use std::sync::{Arc, Weak};
+use std::sync::{Arc, RwLock, Weak};
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct RDatabaseMetadata {
@@ -19,7 +21,7 @@ pub struct RDatabaseMetadata {
 #[pyclass]
 pub struct RDatabase {
     /// This is where we keep all of the tables
-    tables: Vec<RTable>,
+    tables: Vec<Arc<RwLock<RTable>>>,
     // Map table names to index on the tables: Vec<RTable>
     tables_hashmap: HashMap<String, usize>,
 
@@ -60,7 +62,7 @@ impl RDatabase {
         // Load each table metadata into this current databases' tables
         let mut index = 0;
         for table in &db_meta.tables {
-            self.tables.push(table.load_state());
+            self.tables.push(Arc::new(RwLock::new(table.load_state())));
             self.tables_hashmap.insert(table.name.clone(), index);
             index += 1;
         }
@@ -74,13 +76,15 @@ impl RDatabase {
         };
 
         for table in &self.tables {
-            // Get the metadata for each table
-            let tm: RTableMetadata = table.get_metadata();
-            // Push it to database_meta.tables
-            database_meta.tables.push(tm);
+            {
+                // Get the metadata for each table
+                let tm: RTableMetadata = table.read().unwrap().get_metadata();
+                // Push it to database_meta.tables
+                database_meta.tables.push(tm);
+            }
 
             // Save the table to disk
-            table.save_state();
+            table.read().unwrap().save_state();
         }
 
         let table_bytes: Vec<u8> = bincode::serialize(&database_meta).expect("Should serialize.");
@@ -101,8 +105,8 @@ impl RDatabase {
         name: String,
         num_columns: i64,
         primary_key_column: i64,
-    ) -> RTable {
-        let t = RTable {
+    ) -> PyResult<RTableHandle> {
+        let table = RTable {
             name: name.clone(),
             page_range: PageRange::new(num_columns as i64),
             primary_key_column: primary_key_column as usize,
@@ -111,6 +115,14 @@ impl RDatabase {
             num_records: 0,
             index: RIndex::new(),
         };
+
+        let arc_table = Arc::new(RwLock::new(table));
+
+        // Set the owner on the index inside the table
+        {
+            let mut table_guard = arc_table.write().unwrap();
+            table_guard.index.set_owner(Arc::downgrade(&arc_table));
+        }
 
         // PREVIOUS IMPLEMENTATION
         // let i = self.tables.len();
@@ -121,30 +133,26 @@ impl RDatabase {
         // self.tables.push(t);
 
         // Push t into the tables vector so its address becomes stable.
-        self.tables.push(t);
+        self.tables.push(arc_table.clone());
         let i = self.tables.len() - 1;
         // Map a name of a table to its index
         self.tables_hashmap.insert(name, i);
 
-        {
-            // Now create an Arc<RwLock<>> with the table reference
-            let arc_table = std::sync::Arc::new(std::sync::RwLock::new(self.tables[i].clone()));
-
-            // Set the owner on the actual table in our vector
-            self.tables[i].index.set_owner(arc_table);
-        }
-
-        return self.tables[i].clone();
+        Ok(RTableHandle { table: arc_table })
     }
 
-    fn get_table(&self, name: String) -> RTable {
+    fn get_table(&self, name: String) -> PyResult<RTableHandle> {
         let i = self.tables_hashmap.get(&name).expect("Should exist");
-        // Should it really be cloning here?
-        return self.tables[*i].clone();
+
+        Ok(RTableHandle {
+            table: self.tables[*i].clone(),
+        })
     }
 
-    fn get_table_from_index(&self, i: i64) -> RTable {
-        return self.tables[i as usize].clone();
+    fn get_table_from_index(&self, i: i64) -> PyResult<RTableHandle> {
+        Ok(RTableHandle {
+            table: self.tables[i as usize].clone(),
+        })
     }
 
     fn drop_table(&mut self, name: String) {
@@ -217,8 +225,10 @@ mod tests {
         assert_eq!(*db.tables_hashmap.get("users").unwrap(), 0);
 
         // Verify owner is set correctly for the index
-        assert!(table.index.owner.is_some());
-        if let Some(owner_weak) = &table.index.owner {
+        let binding = table.unwrap();
+        let table_ = binding.table.read().unwrap();
+        assert!(table_.index.owner.is_some());
+        if let Some(owner_weak) = &table_.index.owner {
             // Verify owner can be upgraded (reference is valid)
             assert!(owner_weak.upgrade().is_some());
 
@@ -237,22 +247,27 @@ mod tests {
 
         // Create a table
         let table = db.create_table(String::from("users_to_drop"), 3, 0);
+        let tablebinding = table.unwrap();
 
-        // Save a weak reference to the table's owner
-        let weak_ref = if let Some(owner) = &table.index.owner {
-            owner.clone()
-        } else {
-            panic!("Owner not set properly");
-        };
-
+        let weak_ref: Option<Weak<RwLock<RTable>>>;
+        {
+            // Save a weak reference to the table's owner
+            let table_ = tablebinding.table.read().unwrap();
+            weak_ref = if let Some(owner) = &table_.index.owner {
+                Some(owner.clone())
+            } else {
+                panic!("Owner not set properly");
+            };
+        }
         // drop the table (so we aren't holding onto it manually when checking later)
-        drop(table);
+        drop(tablebinding);
 
+        let weakrefb = weak_ref.as_ref().unwrap().clone();
         // Verify the weak reference can be upgraded before dropping
-        assert!(weak_ref.upgrade().is_some());
+        assert!(weakrefb.upgrade().is_some());
 
         // Verify the table's properties before dropping
-        if let Some(owner_arc) = weak_ref.upgrade() {
+        if let Some(owner_arc) = weakrefb.upgrade() {
             let referenced_table = owner_arc.read().unwrap();
             assert_eq!(referenced_table.name, "users_to_drop");
             assert_eq!(referenced_table.num_columns, 3);
@@ -268,8 +283,67 @@ mod tests {
 
         // Verify the reference is no longer valid (table is fully dropped)
         assert!(
-            weak_ref.upgrade().is_none(),
+            weakrefb.upgrade().is_none(),
             "Table wasn't properly dropped - Arc reference still exists"
         );
+    }
+
+    #[test]
+    fn test_create_table_index_owner_is_same_table() {
+        let mut db = RDatabase::new();
+
+        // Create a table
+        let table1 = db.create_table(String::from("users"), 3, 0);
+        let table1binding = table1.unwrap();
+
+        {
+            table1binding.table.write().unwrap().write(vec![1, 2, 3]);
+        }
+
+        // Verify table was added to the database
+        assert_eq!(db.tables.len(), 1);
+        assert!(db.tables_hashmap.contains_key("users"));
+        assert_eq!(*db.tables_hashmap.get("users").unwrap(), 0);
+
+        // insert data into the table
+        let table2 = db.get_table("users".to_string());
+        let table2binding = table2.unwrap();
+        assert_eq!(
+            table1binding.table.read().unwrap().num_records.clone(),
+            table2binding.table.read().unwrap().num_records.clone()
+        );
+
+        {
+            table2binding.table.write().unwrap().write(vec![1, 2, 3]);
+        }
+
+        // check that the number of records is the same
+        assert_eq!(
+            table1binding.table.read().unwrap().num_records.clone(),
+            table2binding.table.read().unwrap().num_records.clone()
+        );
+
+        // Verify owner is set correctly for the index
+        let table3: std::sync::RwLockReadGuard<'_, RTable> = table1binding.table.read().unwrap();
+        assert!(table3.index.owner.is_some());
+        if let Some(owner_weak) = &table3.index.owner {
+            // Verify owner can be upgraded (reference is valid)
+            assert!(owner_weak.upgrade().is_some());
+
+            // Verify the table referenced by the index matches the original table (by value)
+            if let Some(owner_arc) = owner_weak.upgrade() {
+                // get the table through the weak reference
+                let referenced_table = owner_arc.read().unwrap();
+
+                // check the the table's contain the same values
+                assert_eq!(referenced_table.name, table3.name);
+                assert_eq!(referenced_table.num_columns, table3.num_columns);
+                assert_eq!(
+                    referenced_table.primary_key_column,
+                    table3.primary_key_column
+                );
+                assert_eq!(referenced_table.num_records, table3.num_records);
+            }
+        }
     }
 }

@@ -15,8 +15,6 @@ pub struct RIndex {
     // Using Arc<RwLock<>> pattern which is safer than raw pointers
     // these fields are not python exposed
     pub owner: Option<Weak<RwLock<RTable>>>,
-    // Keep strong reference to the table to prevent it from being dropped
-    pub table_ref: Option<Arc<RwLock<RTable>>>,
 }
 
 #[pymethods]
@@ -65,16 +63,12 @@ impl RIndex {
             index: BTreeMap::new(),
             secondary_indices: HashMap::new(),
             owner: None,
-            table_ref: None,
         }
     }
 
     // Set the owner (the table that "owns" this index)
-    pub fn set_owner(&mut self, table_arc: Arc<RwLock<RTable>>) {
-        // Store the Arc directly in table_ref
-        self.table_ref = Some(table_arc);
-        // Generate weak reference when needed
-        self.owner = Some(Arc::downgrade(self.table_ref.as_ref().unwrap()));
+    pub fn set_owner(&mut self, table_arc: std::sync::Weak<RwLock<RTable>>) {
+        self.owner = Some(table_arc);
     }
 
     /// Create a mapping from primary_key to RID
@@ -258,15 +252,13 @@ mod tests {
                 num_columns: 3,
                 index: RIndex::new(),
             };
+            let arc_table = Arc::new(RwLock::new(table));
 
             let mut index = RIndex::new();
 
             {
-                // Wrap the table in an Arc<RwLock<>>
-                let table_arc = Arc::new(RwLock::new(table));
-
-                // Create an index and set the owner
-                index.set_owner(table_arc);
+                // let mut table_guard = arc_table.write().unwrap();
+                index.set_owner(Arc::downgrade(&arc_table));
             }
 
             // Verify the owner is set by checking it can be upgraded

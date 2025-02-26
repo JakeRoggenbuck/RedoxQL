@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Write};
+use std::sync::{Arc, RwLock};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RTableMetadata {
@@ -236,6 +237,82 @@ impl RTable {
     }
 }
 
+#[pyclass]
+pub struct RTableHandle {
+    pub table: Arc<RwLock<RTable>>,
+}
+
+#[pymethods]
+impl RTableHandle {
+    #[getter]
+    pub fn table(&self) -> RTable {
+        self.table.read().unwrap().clone()
+    }
+
+    pub fn write(&self, values: Vec<i64>) -> PyResult<()> {
+        let mut table = self.table.write().map_err(|_| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>("Failed to acquire write lock")
+        })?;
+
+        table.write(values);
+        Ok(())
+    }
+
+    pub fn read(&self, primary_key: i64) -> PyResult<Option<Vec<i64>>> {
+        let table = self.table.read().map_err(|_| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>("Failed to acquire read lock")
+        })?;
+
+        Ok(table.read(primary_key))
+    }
+
+    pub fn delete(&self, primary_key: i64) -> PyResult<()> {
+        let mut table = self.table.write().map_err(|_| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>("Failed to acquire write lock")
+        })?;
+
+        table.delete(primary_key);
+        Ok(())
+    }
+
+    // Allow access to properties
+    #[getter]
+    pub fn get_num_records(&self) -> PyResult<i64> {
+        let table = self.table.read().map_err(|_| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>("Failed to acquire read lock")
+        })?;
+
+        Ok(table.num_records)
+    }
+
+    #[getter]
+    pub fn get_name(&self) -> PyResult<String> {
+        let table = self.table.read().map_err(|_| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>("Failed to acquire read lock")
+        })?;
+
+        Ok(table.name.clone())
+    }
+
+    #[getter]
+    pub fn get_num_columns(&self) -> PyResult<usize> {
+        let table = self.table.read().map_err(|_| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>("Failed to acquire read lock")
+        })?;
+
+        Ok(table.num_columns)
+    }
+
+    #[getter]
+    pub fn get_primary_key_column(&self) -> PyResult<usize> {
+        let table = self.table.read().map_err(|_| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>("Failed to acquire read lock")
+        })?;
+
+        Ok(table.primary_key_column)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -244,7 +321,8 @@ mod tests {
     #[test]
     fn load_and_save_test() {
         let mut db = RDatabase::new();
-        let mut table: RTable = db.create_table("Scores".to_string(), 3, 0);
+        let table_ref = db.create_table("Scores".to_string(), 3, 0).unwrap();
+        let mut table = table_ref.table.write().unwrap();
 
         table.write(vec![0, 10, 12]);
         table.write(vec![0, 10, 12]);
@@ -266,7 +344,8 @@ mod tests {
     #[test]
     fn read_and_write_test() {
         let mut db = RDatabase::new();
-        let mut table: RTable = db.create_table("Scores".to_string(), 3, 0);
+        let table_ref = db.create_table("Scores".to_string(), 3, 0).unwrap();
+        let mut table = table_ref.table.write().unwrap();
 
         // Write
         table.write(vec![0, 10, 12]);
@@ -284,7 +363,8 @@ mod tests {
     #[test]
     fn read_base_and_write_test() {
         let mut db = RDatabase::new();
-        let mut table: RTable = db.create_table("Scores".to_string(), 3, 0);
+        let table_ref = db.create_table("Scores".to_string(), 3, 0).unwrap();
+        let mut table = table_ref.table.write().unwrap();
 
         // Write
         table.write(vec![0, 10, 12]);
@@ -302,7 +382,8 @@ mod tests {
     #[test]
     fn sum_test() {
         let mut db = RDatabase::new();
-        let mut table: RTable = db.create_table("Scores".to_string(), 2, 0);
+        let table_ref = db.create_table("Scores".to_string(), 2, 0).unwrap();
+        let mut table = table_ref.table.write().unwrap();
 
         table.write(vec![0, 10]);
         table.write(vec![1, 20]);
@@ -322,7 +403,8 @@ mod tests {
     #[test]
     fn delete_test() {
         let mut db = RDatabase::new();
-        let mut table: RTable = db.create_table("Scores".to_string(), 3, 0);
+        let table_ref = db.create_table("Scores".to_string(), 3, 0).unwrap();
+        let mut table = table_ref.table.write().unwrap();
 
         // Write
         table.write(vec![0, 10, 12]);
