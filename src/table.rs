@@ -25,6 +25,19 @@ pub trait StatePersistence {
         let table_meta: RTableMetadata =
             bincode::deserialize_from(file).expect("Should deserialize.");
 
+        let reconstructed_page_directory = HashMap::new();
+        // TODO: Load all of the RID -> Records into here
+        // If the data was only base pages, this would be as easy as iterating
+        // from 0 to self.num_records and creating a Record containing the pointers for where it
+        // is, and the offset which is a RecordAddress, but some of that gets changed in the tail
+        // pages
+        //
+        // But actually, the tail pages maybe also get put into the page directory, so we can
+        // actually just do that?
+        //
+        // We also can dump the entire contents of the page directory to a file and then read it
+        // back, but that would need to save a few values to disk for every value in our database
+
         RTable {
             name: table_meta.name.clone(),
             primary_key_column: table_meta.primary_key_column,
@@ -32,7 +45,7 @@ pub trait StatePersistence {
             num_records: table_meta.num_records,
 
             page_range: PageRange::load_state(),
-            page_directory: HashMap::new(),
+            page_directory: reconstructed_page_directory,
             index: RIndex::new(),
         }
     }
