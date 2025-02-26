@@ -39,8 +39,8 @@ impl PhysicalPage {
         Some(self.data[index])
     }
 
-    pub fn save_state(&self) {
-        let hardcoded_filename = "./page.data";
+    pub fn save_state(&self, id: i64) {
+        let hardcoded_filename = format!("./{}-page.data", id);
 
         let table_bytes: Vec<u8> = bincode::serialize(&self).expect("Should serialize.");
 
@@ -48,8 +48,8 @@ impl PhysicalPage {
         file.write_all(&table_bytes).expect("Should serialize.");
     }
 
-    pub fn load_state(&self) -> PhysicalPage {
-        let hardcoded_filename = "./page.data";
+    pub fn load_state(id: i64) -> PhysicalPage {
+        let hardcoded_filename = format!("./{}-page.data", id);
 
         let file = BufReader::new(File::open(hardcoded_filename).expect("Should open file."));
         let page: PhysicalPage = bincode::deserialize_from(file).expect("Should deserialize.");
@@ -68,6 +68,48 @@ mod tests {
 
         phys_page.write(10);
         assert_eq!(phys_page.read(0).unwrap(), 10);
+    }
+
+    fn save_load_test() {
+        // Scope so that page_one and page_two get unallocated and leave scope
+        {
+            let mut page_one = PhysicalPage::new();
+            let mut page_two = PhysicalPage::new();
+
+            // Write to page_one
+            page_one.write(100);
+            page_one.write(200);
+            page_one.write(300);
+
+            // Write to page_two
+            page_one.write(100);
+            page_two.write(111);
+            page_two.write(222);
+            page_two.write(333);
+
+            // Save page_one and page_two
+            page_one.save_state(1);
+            page_one.save_state(2);
+        }
+
+        // Load page_one and page_two
+        let mut page_one = PhysicalPage::load_state(1);
+        let mut page_two = PhysicalPage::load_state(2);
+
+        // Write to both pages once more
+        page_one.write(400);
+        page_two.write(444);
+
+        // Check that all the data is there
+        assert_eq!(page_one.read(0), Some(100));
+        assert_eq!(page_one.read(1), Some(200));
+        assert_eq!(page_one.read(2), Some(300));
+        assert_eq!(page_one.read(3), Some(400));
+
+        assert_eq!(page_two.read(0), Some(112));
+        assert_eq!(page_two.read(1), Some(222));
+        assert_eq!(page_two.read(2), Some(333));
+        assert_eq!(page_two.read(3), Some(444));
     }
 
     #[test]
