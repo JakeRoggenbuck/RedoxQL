@@ -1,6 +1,8 @@
 use super::page::PhysicalPage;
 use super::record::{Record, RecordAddress};
 use serde::{Deserialize, Serialize};
+use std::fs::File;
+use std::io::{BufReader, BufWriter, Write};
 use std::sync::{Arc, Mutex};
 
 #[derive(Clone, Default, Deserialize, Serialize, Debug)]
@@ -219,9 +221,23 @@ impl BaseContainer {
     }
 
     pub fn save_state(&self) {
-        // TODO: Iterate over the PhysicalPages in self.physical_pages and save each one
-        // TODO: Keep a record of how many there are and save them with the id arg as the index of the
-        // page so that we can load them later
+        let base_meta = self.get_metadata();
+        let hardcoded_filename = "./base_container.data";
+
+        let mut index = 0;
+        // The Rust compiler suggested that I clone here but it's definitely way better to not copy
+        // all of the data and just use a reference
+        for p in &self.physical_pages {
+            // Save the page
+            let m = p.lock().unwrap();
+            m.save_state(index);
+            index += 1;
+        }
+
+        let base_bytes: Vec<u8> = bincode::serialize(&base_meta).expect("Should serialize.");
+
+        let mut file = BufWriter::new(File::create(hardcoded_filename).expect("Should open file."));
+        file.write_all(&base_bytes).expect("Should serialize.");
     }
 
     pub fn get_metadata(&self) -> BaseContainerMetadata {
@@ -446,9 +462,23 @@ impl TailContainer {
     }
 
     pub fn save_state(&self) {
-        // TODO: Iterate over the PhysicalPages in self.physical_pages and save each one
-        // TODO: Keep a record of how many there are and save them with the id arg as the index of the
-        // page so that we can load them later
+        let tail_meta = self.get_metadata();
+        let hardcoded_filename = "./tail_container.data";
+
+        let mut index = 0;
+        // The Rust compiler suggested that I clone here but it's definitely way better to not copy
+        // all of the data and just use a reference
+        for p in &self.physical_pages {
+            // Save the page
+            let m = p.lock().unwrap();
+            m.save_state(index);
+            index += 1;
+        }
+
+        let tail_bytes: Vec<u8> = bincode::serialize(&tail_meta).expect("Should serialize.");
+
+        let mut file = BufWriter::new(File::create(hardcoded_filename).expect("Should open file."));
+        file.write_all(&tail_bytes).expect("Should serialize.");
     }
 
     pub fn get_metadata(&self) -> TailContainerMetadata {
