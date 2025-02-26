@@ -4,7 +4,6 @@ use super::table::RTable;
 use pyo3::prelude::*;
 use std::collections::HashMap;
 
-
 #[pyclass]
 pub struct RDatabase {
     /// This is where we keep all of the tables
@@ -31,7 +30,12 @@ impl RDatabase {
         // unreachable!("Not used in milestone 1");
     }
 
-    pub fn create_table(&mut self, name: String, num_columns: i64, primary_key_column: i64) -> RTable {
+    pub fn create_table(
+        &mut self,
+        name: String,
+        num_columns: i64,
+        primary_key_column: i64,
+    ) -> RTable {
         let t = RTable {
             name: name.clone(),
             page_range: PageRange::new(num_columns as i64),
@@ -50,7 +54,6 @@ impl RDatabase {
 
         // self.tables.push(t);
 
-
         // Push t into the tables vector so its address becomes stable.
         self.tables.push(t);
         let i = self.tables.len() - 1;
@@ -63,7 +66,7 @@ impl RDatabase {
 
         // Should it really be cloning here?
         // I guess since it has just an Arc Mutex, the underlying data should persi
-        return self.tables[i].clone()
+        return self.tables[i].clone();
     }
 
     fn get_table(&self, name: String) -> RTable {

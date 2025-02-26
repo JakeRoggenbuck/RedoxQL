@@ -1,5 +1,5 @@
-use pyo3::prelude::*;
 use super::table::RTable;
+use pyo3::prelude::*;
 use std::collections::{BTreeMap, HashMap};
 
 #[pyclass]
@@ -31,7 +31,7 @@ impl RIndex {
     pub fn drop_index(&mut self, col_index: i64) {
         self.drop_index_internal(col_index);
     }
-    
+
     // Debugging purposes
     pub fn get_secondary_indices(&self) -> HashMap<i64, Vec<(i64, Vec<i64>)>> {
         let mut out = HashMap::new();
@@ -103,8 +103,14 @@ impl RIndex {
             sec_index.entry(value).or_insert(Vec::new()).push(rid);
         }
     }
-    
-    pub fn secondary_index_update(&mut self, col_index: i64, rid: i64, old_value: i64, new_value: i64) {
+
+    pub fn secondary_index_update(
+        &mut self,
+        col_index: i64,
+        rid: i64,
+        old_value: i64,
+        new_value: i64,
+    ) {
         if let Some(sec_index) = self.secondary_indices.get_mut(&col_index) {
             if let Some(vec_rids) = sec_index.get_mut(&old_value) {
                 vec_rids.retain(|&r| r != rid);
@@ -112,7 +118,7 @@ impl RIndex {
             sec_index.entry(new_value).or_insert(Vec::new()).push(rid);
         }
     }
-    
+
     pub fn secondary_index_delete(&mut self, col_index: i64, rid: i64, value: i64) {
         if let Some(sec_index) = self.secondary_indices.get_mut(&col_index) {
             if let Some(vec_rids) = sec_index.get_mut(&value) {
@@ -141,10 +147,10 @@ mod tests {
 
     mod secondary_index_tests {
         use super::*;
-        use crate::table::RTable;
         use crate::pagerange::PageRange;
+        use crate::table::RTable;
         use std::collections::HashMap;
-    
+
         #[test]
         fn test_create_and_drop_secondary_index_on_col1() {
             // Create a dummy table with 3 columns.
@@ -157,7 +163,7 @@ mod tests {
                 num_columns: 3,
                 index: RIndex::new(),
             };
-    
+
             // Insert three records:
             // Record 1: [1, 10, 20]
             // Record 2: [2, 10, 30]
@@ -167,24 +173,27 @@ mod tests {
             table.write(vec![3, 20, 40]);
             // Each stored record becomes [rid, 0, rid, user0, user1, user2].
             // Thus, for a record inserted as [1,10,20], read_record returns [0,0,0,1,10,20].
-    
+
             // Build a secondary index on user column 1.
             // That accesses record_data[(1+3)] i.e. index 4.
             let mut index = RIndex::new();
             index.create_index_internal(1, &table);
             {
-                let sec = index.secondary_indices.get(&1).expect("Index on col 1 not created");
+                let sec = index
+                    .secondary_indices
+                    .get(&1)
+                    .expect("Index on col 1 not created");
                 // Both record 1 and record 2 have user column1 value 10.
                 assert_eq!(sec.get(&10).unwrap(), &vec![0, 1]);
                 // Record 3 has user column1 value 20.
                 assert_eq!(sec.get(&20).unwrap(), &vec![2]);
             }
-    
+
             // Now drop the secondary index on column 1.
             index.drop_index_internal(1);
             assert!(index.secondary_indices.get(&1).is_none());
         }
-    
+
         #[test]
         fn test_create_and_drop_secondary_index_on_col2() {
             // Create a dummy table with 3 user columns.
@@ -197,27 +206,29 @@ mod tests {
                 num_columns: 3,
                 index: RIndex::new(),
             };
-    
+
             // Insert two records:
             // Record 1: [1, 10, 20]
             // Record 2: [2, 15, 20]
             table.write(vec![1, 10, 20]);
             table.write(vec![2, 15, 20]);
-    
+
             // Build a secondary index on user column 2.
             // That accesses record_data[(2+3)] = record_data[5].
             let mut index = RIndex::new();
             index.create_index_internal(2, &table);
             {
-                let sec = index.secondary_indices.get(&2).expect("Index on col 2 not created");
+                let sec = index
+                    .secondary_indices
+                    .get(&2)
+                    .expect("Index on col 2 not created");
                 // Both records have value 20 in column 2.
                 assert_eq!(sec.get(&20).unwrap(), &vec![0, 1]);
             }
-    
+
             // Drop the index.
             index.drop_index_internal(2);
             assert!(index.secondary_indices.get(&2).is_none());
         }
     }
-    
 }

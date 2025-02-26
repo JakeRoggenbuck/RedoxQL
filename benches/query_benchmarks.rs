@@ -45,10 +45,7 @@ fn bench_update(c: &mut Criterion) {
                 query
             },
             |mut query| {
-                query.update(
-                    black_box(1),
-                    black_box(vec![Some(1), Some(5), Some(6)]),
-                );
+                query.update(black_box(1), black_box(vec![Some(1), Some(5), Some(6)]));
             },
         )
     });
@@ -196,7 +193,11 @@ fn bench_bulk_select(c: &mut Criterion) {
                 },
                 |mut query| {
                     for i in 0..size {
-                        black_box(query.select(black_box(i as i64), black_box(0), black_box(vec![1, 1, 1])));
+                        black_box(query.select(
+                            black_box(i as i64),
+                            black_box(0),
+                            black_box(vec![1, 1, 1]),
+                        ));
                     }
                 },
             )
@@ -270,7 +271,7 @@ fn bench_mixed_workload(c: &mut Criterion) {
                     let table = db.create_table(String::from("Grades"), 3, 0);
                     let mut query = RQuery::new(table);
 
-                    for i in 0..size/2 {
+                    for i in 0..size / 2 {
                         query.insert(vec![i as i64, i as i64 * 2, i as i64 * 3]);
                     }
                     query
@@ -278,11 +279,34 @@ fn bench_mixed_workload(c: &mut Criterion) {
                 |mut query| {
                     for i in 0..size {
                         match i % 4 {
-                            0 => { let _ = query.insert(black_box(vec![i as i64, i as i64 * 2, i as i64 * 3])); },
-                            1 => { let _ = query.select(black_box(i as i64 / 2), black_box(0), black_box(vec![1, 1, 1])); },
-                            2 => { let _ = query.update(black_box(i as i64 / 2), black_box(vec![Some(i as i64), Some(i as i64 * 5), Some(i as i64 * 6)])); },
-                            3 => { let _ = query.delete(black_box(i as i64 / 2)); },
-                            _ => unreachable!()
+                            0 => {
+                                let _ = query.insert(black_box(vec![
+                                    i as i64,
+                                    i as i64 * 2,
+                                    i as i64 * 3,
+                                ]));
+                            }
+                            1 => {
+                                let _ = query.select(
+                                    black_box(i as i64 / 2),
+                                    black_box(0),
+                                    black_box(vec![1, 1, 1]),
+                                );
+                            }
+                            2 => {
+                                let _ = query.update(
+                                    black_box(i as i64 / 2),
+                                    black_box(vec![
+                                        Some(i as i64),
+                                        Some(i as i64 * 5),
+                                        Some(i as i64 * 6),
+                                    ]),
+                                );
+                            }
+                            3 => {
+                                let _ = query.delete(black_box(i as i64 / 2));
+                            }
+                            _ => unreachable!(),
                         }
                     }
                 },
@@ -295,37 +319,39 @@ fn bench_mixed_workload(c: &mut Criterion) {
 fn bench_version_history(c: &mut Criterion) {
     let mut group = c.benchmark_group("version history");
     for updates in [5, 10, 50, 100].iter() {
-        group.bench_with_input(format!("{} version history", updates), updates, |b, &updates| {
-            b.iter_with_setup(
-                || {
-                    let mut db = RDatabase::new();
-                    let table = db.create_table(String::from("Grades"), 3, 0);
-                    let mut query = RQuery::new(table);
+        group.bench_with_input(
+            format!("{} version history", updates),
+            updates,
+            |b, &updates| {
+                b.iter_with_setup(
+                    || {
+                        let mut db = RDatabase::new();
+                        let table = db.create_table(String::from("Grades"), 3, 0);
+                        let mut query = RQuery::new(table);
 
-                    query.insert(vec![1, 2, 3]);
+                        query.insert(vec![1, 2, 3]);
 
-                    for i in 0..updates {
-                        query.update(1, vec![Some(1), Some(i), Some(i + 1)]);
-                    }
-                    query
-                },
-                |mut query| {
-
-                    for version in 0..updates {
-                        black_box(query.select_version(
-                            black_box(1),
-                            black_box(0),
-                            black_box(vec![1, 1, 1]),
-                            black_box(version),
-                        ));
-                    }
-                },
-            )
-        });
+                        for i in 0..updates {
+                            query.update(1, vec![Some(1), Some(i), Some(i + 1)]);
+                        }
+                        query
+                    },
+                    |mut query| {
+                        for version in 0..updates {
+                            black_box(query.select_version(
+                                black_box(1),
+                                black_box(0),
+                                black_box(vec![1, 1, 1]),
+                                black_box(version),
+                            ));
+                        }
+                    },
+                )
+            },
+        );
     }
     group.finish();
 }
-
 
 criterion_group!(
     benches,

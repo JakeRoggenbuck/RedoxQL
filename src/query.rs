@@ -45,7 +45,12 @@ impl RQuery {
         Some(self.table.write(values))
     }
 
-    pub fn select(&mut self, search_key: i64, search_key_index: i64, projected_columns_index: Vec<i64>) -> Option<Vec<Vec<Option<i64>>>> {
+    pub fn select(
+        &mut self,
+        search_key: i64,
+        search_key_index: i64,
+        projected_columns_index: Vec<i64>,
+    ) -> Option<Vec<Vec<Option<i64>>>> {
         // Case 1: Searching on the primary key column
         if search_key_index == self.table.primary_key_column as i64 {
             if let Some(ret) = self.table.read(search_key) {
@@ -62,12 +67,15 @@ impl RQuery {
                     let mut results = Vec::new();
                     for &rid in rids {
                         if let Some(record_data) = self.table.read_by_rid(rid) {
-                            results.push(filter_projected(record_data, projected_columns_index.clone()));
+                            results.push(filter_projected(
+                                record_data,
+                                projected_columns_index.clone(),
+                            ));
                         }
                     }
                     return Some(results);
                 } else {
-                    return Some(vec![]);  // No records match
+                    return Some(vec![]); // No records match
                 }
             }
             // Otherwise, do a full scan
@@ -76,7 +84,10 @@ impl RQuery {
                 for (_rid, record) in self.table.page_directory.iter() {
                     if let Some(record_data) = self.table.page_range.read(record.clone()) {
                         if record_data[(search_key_index + 3) as usize] == search_key {
-                            results.push(filter_projected(record_data, projected_columns_index.clone()));
+                            results.push(filter_projected(
+                                record_data,
+                                projected_columns_index.clone(),
+                            ));
                         }
                     }
                 }
@@ -282,57 +293,69 @@ mod tests {
 
         // Use primary_key of 1
         let vals = q.select(1, 0, vec![1, 1, 1]);
-        assert_eq!(vals.unwrap()[0], vec![Some(0), Some(0), Some(0), Some(1), Some(2), Some(3)]);
+        assert_eq!(
+            vals.unwrap()[0],
+            vec![Some(0), Some(0), Some(0), Some(1), Some(2), Some(3)]
+        );
     }
 
-#[test]
-fn increment_test() {
-    let mut db = RDatabase::new();
-    let t = db.create_table(String::from("Counts"), 3, 0);
-    let mut q = RQuery::new(t);
+    #[test]
+    fn increment_test() {
+        let mut db = RDatabase::new();
+        let t = db.create_table(String::from("Counts"), 3, 0);
+        let mut q = RQuery::new(t);
 
-    q.insert(vec![1, 2, 3]); // Insert [Primary Key: 1, Col1: 2, Col2: 3]
+        q.insert(vec![1, 2, 3]); // Insert [Primary Key: 1, Col1: 2, Col2: 3]
 
-    // Increment the first user column (column 1)
-    q.increment(1, 1);
+        // Increment the first user column (column 1)
+        q.increment(1, 1);
 
-    let vals = q.select(1, 0, vec![1, 1, 1]); // Select entire row
-    assert_eq!(vals.unwrap()[0], vec![Some(1), Some(0), Some(0), Some(1), Some(3), Some(3)]);
+        let vals = q.select(1, 0, vec![1, 1, 1]); // Select entire row
+        assert_eq!(
+            vals.unwrap()[0],
+            vec![Some(1), Some(0), Some(0), Some(1), Some(3), Some(3)]
+        );
 
-    q.increment(1, 1);
-    let vals2 = q.select(1, 0, vec![1, 1, 1]);
-    assert_eq!(vals2.unwrap()[0], vec![Some(2), Some(0), Some(1), Some(1), Some(4), Some(3)]);
+        q.increment(1, 1);
+        let vals2 = q.select(1, 0, vec![1, 1, 1]);
+        assert_eq!(
+            vals2.unwrap()[0],
+            vec![Some(2), Some(0), Some(1), Some(1), Some(4), Some(3)]
+        );
 
-    q.increment(1, 1);
-    let vals3 = q.select(1, 0, vec![1, 1, 1]);
-    assert_eq!(vals3.unwrap()[0], vec![Some(3), Some(0), Some(2), Some(1), Some(5), Some(3)]);
-}
+        q.increment(1, 1);
+        let vals3 = q.select(1, 0, vec![1, 1, 1]);
+        assert_eq!(
+            vals3.unwrap()[0],
+            vec![Some(3), Some(0), Some(2), Some(1), Some(5), Some(3)]
+        );
+    }
 
-/*
-#[test]
-fn increment_test() {
-    let mut db = RDatabase::new();
-    let t = db.create_table(String::from("Counts"), 3, 0);
-    let mut q = RQuery::new(t);
+    /*
+    #[test]
+    fn increment_test() {
+        let mut db = RDatabase::new();
+        let t = db.create_table(String::from("Counts"), 3, 0);
+        let mut q = RQuery::new(t);
 
-    q.insert(vec![1, 2, 3]); // Insert [Primary Key: 1, Col1: 2, Col2: 3]
+        q.insert(vec![1, 2, 3]); // Insert [Primary Key: 1, Col1: 2, Col2: 3]
 
-    // Increment the first user column (column 1)
-    q.increment(1, 1);
+        // Increment the first user column (column 1)
+        q.increment(1, 1);
 
-    let vals = q.select(1, 0, vec![1, 1, 1]); // Select entire row
-    assert_eq!(vals.unwrap()[0], vec![Some(0), Some(0), Some(0), Some(1), Some(3), Some(3)]);
+        let vals = q.select(1, 0, vec![1, 1, 1]); // Select entire row
+        assert_eq!(vals.unwrap()[0], vec![Some(0), Some(0), Some(0), Some(1), Some(3), Some(3)]);
 
-    q.increment(1, 1);
-    let vals2 = q.select(1, 0, vec![1, 1, 1]);
-    assert_eq!(vals2.unwrap()[0], vec![Some(1), Some(0), Some(1), Some(1), Some(4), Some(3)]);
+        q.increment(1, 1);
+        let vals2 = q.select(1, 0, vec![1, 1, 1]);
+        assert_eq!(vals2.unwrap()[0], vec![Some(1), Some(0), Some(1), Some(1), Some(4), Some(3)]);
 
-    q.increment(1, 1);
-    let vals3 = q.select(1, 0, vec![1, 1, 1]);
-    assert_eq!(vals3.unwrap()[0], vec![Some(2), Some(0), Some(2), Some(1), Some(5), Some(3)]);
-}
+        q.increment(1, 1);
+        let vals3 = q.select(1, 0, vec![1, 1, 1]);
+        assert_eq!(vals3.unwrap()[0], vec![Some(2), Some(0), Some(2), Some(1), Some(5), Some(3)]);
+    }
 
- */
+     */
 
     #[test]
     fn test_update_read_test() {
@@ -344,13 +367,19 @@ fn increment_test() {
 
         // Use primary_key of 1
         let vals = q.select(1, 0, vec![1, 1, 1]);
-        assert_eq!(vals.unwrap()[0], vec![Some(0), Some(0), Some(0), Some(1), Some(2), Some(3)]);
+        assert_eq!(
+            vals.unwrap()[0],
+            vec![Some(0), Some(0), Some(0), Some(1), Some(2), Some(3)]
+        );
 
         let success = q.update(1, vec![Some(1), Some(5), Some(6)]);
         assert!(success);
 
         let vals2 = q.select(1, 0, vec![1, 1, 1]);
-        assert_eq!(vals2.unwrap()[0], vec![Some(1), Some(0), Some(0), Some(1), Some(5), Some(6)]);
+        assert_eq!(
+            vals2.unwrap()[0],
+            vec![Some(1), Some(0), Some(0), Some(1), Some(5), Some(6)]
+        );
     }
 
     // #[test]
@@ -379,7 +408,10 @@ fn increment_test() {
         q.update(1, vec![Some(1), Some(8), Some(9)]);
 
         let vals = q.select(1, 0, vec![1, 1, 1]);
-        assert_eq!(vals.unwrap()[0], vec![Some(3), Some(0), Some(2), Some(1), Some(8), Some(9)]);
+        assert_eq!(
+            vals.unwrap()[0],
+            vec![Some(3), Some(0), Some(2), Some(1), Some(8), Some(9)]
+        );
     }
 
     #[test]
@@ -410,16 +442,28 @@ fn increment_test() {
 
         // Test different versions
         let latest = q.select_version(1, 0, vec![1, 1, 1], 0);
-        assert_eq!(latest.unwrap(), vec![Some(3), Some(0), Some(2), Some(1), Some(8), Some(9)]); // Most recent version
+        assert_eq!(
+            latest.unwrap(),
+            vec![Some(3), Some(0), Some(2), Some(1), Some(8), Some(9)]
+        ); // Most recent version
 
         let one_back = q.select_version(1, 0, vec![1, 1, 1], 1);
-        assert_eq!(one_back.unwrap(), vec![Some(2), Some(1), Some(1), Some(1), Some(6), Some(7)]); // One version back
+        assert_eq!(
+            one_back.unwrap(),
+            vec![Some(2), Some(1), Some(1), Some(1), Some(6), Some(7)]
+        ); // One version back
 
         let two_back = q.select_version(1, 0, vec![1, 1, 1], 2);
-        assert_eq!(two_back.unwrap(), vec![Some(1), Some(1), Some(0), Some(1), Some(4), Some(5)]); // Two versions back
+        assert_eq!(
+            two_back.unwrap(),
+            vec![Some(1), Some(1), Some(0), Some(1), Some(4), Some(5)]
+        ); // Two versions back
 
         let original = q.select_version(1, 0, vec![1, 1, 1], 3);
-        assert_eq!(original.unwrap(), vec![Some(0), Some(1), Some(3), Some(1), Some(2), Some(3)]); // Original version
+        assert_eq!(
+            original.unwrap(),
+            vec![Some(0), Some(1), Some(3), Some(1), Some(2), Some(3)]
+        ); // Original version
     }
 
     #[test]
@@ -436,9 +480,11 @@ fn increment_test() {
 
         // Verify that the original record is still intact
         let vals = q.select(1, 0, vec![1, 1, 1]);
-        assert_eq!(vals.unwrap()[0], vec![Some(0), Some(0), Some(0), Some(1), Some(2), Some(3)]);
+        assert_eq!(
+            vals.unwrap()[0],
+            vec![Some(0), Some(0), Some(0), Some(1), Some(2), Some(3)]
+        );
     }
-
 
     /* Seems like M2 test wants us to delete the record if primary key is changed
 
