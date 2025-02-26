@@ -1,5 +1,5 @@
 use super::index::RIndex;
-use super::pagerange::PageRange;
+use super::pagerange::{PageRange, PageRangeMetadata};
 use super::record::Record;
 use bincode;
 use pyo3::prelude::*;
@@ -9,17 +9,38 @@ use std::fs::File;
 use std::io::{BufReader, BufWriter, Write};
 use std::sync::{Arc, RwLock};
 
+#[derive(Default, Clone)]
+pub struct PageDirectory {
+    pub directory: HashMap<i64, Record>,
+}
+
+impl PageDirectory {
+    pub fn new() -> Self {
+        PageDirectory {
+            directory: HashMap::new(),
+        }
+    }
+
+    fn load_state() -> PageDirectory {
+        PageDirectory::default()
+    }
+
+    fn save_state(&self) {
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RTableMetadata {
     pub name: String,
     pub primary_key_column: usize,
     pub num_records: i64,
     pub num_columns: usize,
+    pub page_range: PageRangeMetadata,
 }
 
 pub trait StatePersistence {
     fn load_state(&self) -> RTable {
-        let hardcoded_filename = "./table.data";
+        let hardcoded_filename = "./redoxdata/table.data";
 
         let file = BufReader::new(File::open(hardcoded_filename).expect("Should open file."));
         let table_meta: RTableMetadata =
@@ -31,10 +52,8 @@ pub trait StatePersistence {
             num_columns: table_meta.num_columns,
             num_records: table_meta.num_records,
 
-            // TODO: Should we load these up too or create new ones?
-            // I think load them up to, so we need to do that as well
-            page_range: PageRange::new(table_meta.num_columns as i64),
-            page_directory: HashMap::new(),
+            page_range: PageRange::load_state(),
+            page_directory: PageDirectory::load_state(),
             index: RIndex::new(),
         }
     }
@@ -53,7 +72,7 @@ pub struct RTable {
     pub page_range: PageRange,
 
     // Map RIDs to Records
-    pub page_directory: HashMap<i64, Record>,
+    pub page_directory: PageDirectory,
 
     pub num_records: i64,
 
@@ -75,7 +94,7 @@ impl RTable {
         let rec = self.page_range.write(rid, values);
 
         // Save the RID -> Record so it can later be read
-        self.page_directory.insert(rid, rec.clone());
+        self.page_directory.directory.insert(rid, rec.clone());
 
         self.num_records += 1;
         return rec;
@@ -86,7 +105,7 @@ impl RTable {
         let rid = self.index.get(primary_key);
 
         if let Some(r) = rid {
-            let rec = self.page_directory.get(&r);
+            let rec = self.page_directory.directory.get(&r);
 
             // If the rec exists in the page_directory, return the read values
             match rec {
@@ -110,7 +129,7 @@ impl RTable {
             return Some(result);
         }
 
-        let Some(tail_record) = self.page_directory.get(&base_indirection_column) else {
+        let Some(tail_record) = self.page_directory.directory.get(&base_indirection_column) else {
             return None;
         };
 
@@ -119,7 +138,7 @@ impl RTable {
 
     // Given a RID, get the record's values
     pub fn read_by_rid(&self, rid: i64) -> Option<Vec<i64>> {
-        if let Some(record) = self.page_directory.get(&rid) {
+        if let Some(record) = self.page_directory.directory.get(&rid) {
             return self.page_range.read(record.clone());
         }
         None
@@ -141,7 +160,7 @@ impl RTable {
         let target_version = relative_version.abs() as i64;
 
         while versions_back < target_version {
-            let Some(current_record) = self.page_directory.get(&current_rid) else {
+            let Some(current_record) = self.page_directory.directory.get(&current_rid) else {
                 return None;
             };
 
@@ -165,7 +184,7 @@ impl RTable {
         }
 
         // read the final record we want
-        let Some(final_record) = self.page_directory.get(&current_rid) else {
+        let Some(final_record) = self.page_directory.directory.get(&current_rid) else {
             return None;
         };
 
@@ -177,7 +196,7 @@ impl RTable {
         let rid = self.index.get(primary_key);
 
         if let Some(r) = rid {
-            self.page_directory.remove(&r);
+            self.page_directory.directory.remove(&r);
         }
     }
 
@@ -213,7 +232,10 @@ impl RTable {
 
     /// Save the state of RTable in a file
     pub fn save_state(&self) {
-        let hardcoded_filename = "./table.data";
+        let hardcoded_filename = "./redoxdata/table.data";
+
+        // Save the state of the page range
+        self.page_range.save_state();
 
         let table_meta = self.get_metadata();
 
@@ -229,6 +251,7 @@ impl RTable {
             primary_key_column: self.primary_key_column,
             num_columns: self.num_columns,
             num_records: self.num_records,
+            page_range: self.page_range.get_metadata(),
         }
     }
 

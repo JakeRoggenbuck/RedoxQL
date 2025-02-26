@@ -2,11 +2,11 @@ use crate::table::RTableHandle;
 
 use super::index::RIndex;
 use super::pagerange::PageRange;
-use super::table::{RTable, RTableMetadata, StatePersistence};
+use super::table::{PageDirectory, RTable, RTableMetadata, StatePersistence};
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fs::File;
+use std::fs::{create_dir_all, File};
 use std::io::{BufReader, BufWriter, Write};
 use std::path::Path;
 use std::sync::{Arc, RwLock, Weak};
@@ -42,6 +42,10 @@ impl RDatabase {
     fn open(&mut self, path: String) {
         if self.db_filepath.is_none() {
             self.db_filepath = Some(path.clone());
+        }
+
+        if !Path::new("./redoxdata").exists() {
+            create_dir_all("./redoxdata").expect("Should be able to make dir");
         }
 
         if let Some(p) = &self.db_filepath {
@@ -95,7 +99,10 @@ impl RDatabase {
                 file.write_all(&table_bytes).expect("Should serialize.");
             }
             None => {
-                panic!("Could no write!") /* Quietly fail to write to disk */
+                // This actually happens in testM1.py when .close() gets called even though there
+                // never was a .open to begin with. In this case, we can just create a random
+                // filename and save the database, or do nothing. In this case, we can just do
+                // nothing.
             }
         }
     }
@@ -110,7 +117,7 @@ impl RDatabase {
             name: name.clone(),
             page_range: PageRange::new(num_columns as i64),
             primary_key_column: primary_key_column as usize,
-            page_directory: HashMap::new(),
+            page_directory: PageDirectory::new(),
             num_columns: num_columns as usize,
             num_records: 0,
             index: RIndex::new(),

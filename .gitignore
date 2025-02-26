@@ -82,3 +82,5 @@ tests/flamegraph.svg
 tests/perf.data
 tests/perf.data.old
 # ----------------#
+
+redoxdata/
