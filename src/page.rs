@@ -40,7 +40,7 @@ impl PhysicalPage {
     }
 
     pub fn save_state(&self, id: i64) {
-        let hardcoded_filename = format!("./{}-page.data", id);
+        let hardcoded_filename = format!("./redoxdata/{}-page.data", id);
 
         let table_bytes: Vec<u8> = bincode::serialize(&self).expect("Should serialize.");
 
@@ -49,7 +49,7 @@ impl PhysicalPage {
     }
 
     pub fn load_state(id: i64) -> PhysicalPage {
-        let hardcoded_filename = format!("./{}-page.data", id);
+        let hardcoded_filename = format!("./redoxdata/{}-page.data", id);
 
         let file = BufReader::new(File::open(hardcoded_filename).expect("Should open file."));
         let page: PhysicalPage = bincode::deserialize_from(file).expect("Should deserialize.");

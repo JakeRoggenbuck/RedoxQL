@@ -19,7 +19,7 @@ pub struct RTableMetadata {
 
 pub trait StatePersistence {
     fn load_state(&self) -> RTable {
-        let hardcoded_filename = "./table.data";
+        let hardcoded_filename = "./redoxdata/table.data";
 
         let file = BufReader::new(File::open(hardcoded_filename).expect("Should open file."));
         let table_meta: RTableMetadata =
@@ -211,7 +211,7 @@ impl RTable {
 
     /// Save the state of RTable in a file
     pub fn save_state(&self) {
-        let hardcoded_filename = "./table.data";
+        let hardcoded_filename = "./redoxdata/table.data";
 
         // Save the state of the page range
         self.page_range.save_state();

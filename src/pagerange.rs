@@ -46,7 +46,7 @@ impl PageRange {
         self.base_container.save_state();
         self.tail_container.save_state();
 
-        let hardcoded_filename = "./pagerange.data";
+        let hardcoded_filename = "./redoxdata/pagerange.data";
 
         let pr_meta = self.get_metadata();
 
@@ -57,7 +57,7 @@ impl PageRange {
     }
 
     pub fn load_state() -> PageRange {
-        let hardcoded_filename = "./pagerange.data";
+        let hardcoded_filename = "./redoxdata/pagerange.data";
 
         let file = BufReader::new(File::open(hardcoded_filename).expect("Should open file."));
         let pr_meta: PageRangeMetadata =
