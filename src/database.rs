@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Write};
 use std::path::Path;
+use std::sync::{Arc, Weak};
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct RDatabaseMetadata {
@@ -122,15 +123,17 @@ impl RDatabase {
         // Push t into the tables vector so its address becomes stable.
         self.tables.push(t);
         let i = self.tables.len() - 1;
-        // Get a raw pointer to the table in the vector.
-        let table_ptr = &self.tables[i] as *const RTable;
-        // Set the owner pointer in the index.
-        self.tables[i].index.set_owner(table_ptr);
-        // Map a name of a table to it's index
+        // Map a name of a table to its index
         self.tables_hashmap.insert(name, i);
 
-        // Should it really be cloning here?
-        // I guess since it has just an Arc Mutex, the underlying data should persi
+        {
+            // Now create an Arc<RwLock<>> with the table reference
+            let arc_table = std::sync::Arc::new(std::sync::RwLock::new(self.tables[i].clone()));
+
+            // Set the owner on the actual table in our vector
+            self.tables[i].index.set_owner(arc_table);
+        }
+
         return self.tables[i].clone();
     }
 
@@ -199,5 +202,74 @@ mod tests {
         db.drop_table("users".to_string());
 
         assert_eq!(db.tables.len(), 2);
+    }
+
+    #[test]
+    fn test_create_table_with_set_owner() {
+        let mut db = RDatabase::new();
+
+        // Create a table
+        let table = db.create_table(String::from("users"), 3, 0);
+
+        // Verify table was added to the database
+        assert_eq!(db.tables.len(), 1);
+        assert!(db.tables_hashmap.contains_key("users"));
+        assert_eq!(*db.tables_hashmap.get("users").unwrap(), 0);
+
+        // Verify owner is set correctly for the index
+        assert!(table.index.owner.is_some());
+        if let Some(owner_weak) = &table.index.owner {
+            // Verify owner can be upgraded (reference is valid)
+            assert!(owner_weak.upgrade().is_some());
+
+            // Verify the table referenced by the index matches what we expect
+            if let Some(owner_arc) = owner_weak.upgrade() {
+                let referenced_table = owner_arc.read().unwrap();
+                assert_eq!(referenced_table.name, "users");
+                assert_eq!(referenced_table.num_columns, 3);
+                assert_eq!(referenced_table.primary_key_column, 0);
+            }
+        }
+    }
+    #[test]
+    fn test_drop_table_memory_management() {
+        let mut db = RDatabase::new();
+
+        // Create a table
+        let table = db.create_table(String::from("users_to_drop"), 3, 0);
+
+        // Save a weak reference to the table's owner
+        let weak_ref = if let Some(owner) = &table.index.owner {
+            owner.clone()
+        } else {
+            panic!("Owner not set properly");
+        };
+
+        // drop the table (so we aren't holding onto it manually when checking later)
+        drop(table);
+
+        // Verify the weak reference can be upgraded before dropping
+        assert!(weak_ref.upgrade().is_some());
+
+        // Verify the table's properties before dropping
+        if let Some(owner_arc) = weak_ref.upgrade() {
+            let referenced_table = owner_arc.read().unwrap();
+            assert_eq!(referenced_table.name, "users_to_drop");
+            assert_eq!(referenced_table.num_columns, 3);
+            assert_eq!(referenced_table.primary_key_column, 0);
+        }
+
+        // Drop the table
+        db.drop_table("users_to_drop".to_string());
+
+        // Verify the table is removed from the database
+        assert_eq!(db.tables.len(), 0);
+        assert!(!db.tables_hashmap.contains_key("users_to_drop"));
+
+        // Verify the reference is no longer valid (table is fully dropped)
+        assert!(
+            weak_ref.upgrade().is_none(),
+            "Table wasn't properly dropped - Arc reference still exists"
+        );
     }
 }

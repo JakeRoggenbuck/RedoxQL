@@ -11,3 +11,11 @@ dev:
 
 test:
 	cargo test
+
+pyenv:
+	python3 -m venv venv
+	source venv/bin/activate
+	pip install -r requirements.txt
+
+format:
+	cargo fmt

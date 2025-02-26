@@ -1,13 +1,22 @@
 use super::table::RTable;
 use pyo3::prelude::*;
-use std::collections::{BTreeMap, HashMap};
+use std::{
+    collections::{BTreeMap, HashMap},
+    sync::{Arc, RwLock, Weak},
+};
 
 #[pyclass]
 #[derive(Clone, Default)]
 pub struct RIndex {
+    #[pyo3(get, set)]
     pub index: BTreeMap<i64, i64>,
+    #[pyo3(get, set)]
     pub secondary_indices: HashMap<i64, BTreeMap<i64, Vec<i64>>>,
-    owner: Option<usize>, // RTable owner's pointer
+    // Using Arc<RwLock<>> pattern which is safer than raw pointers
+    // these fields are not python exposed
+    pub owner: Option<Weak<RwLock<RTable>>>,
+    // Keep strong reference to the table to prevent it from being dropped
+    pub table_ref: Option<Arc<RwLock<RTable>>>,
 }
 
 #[pymethods]
@@ -19,10 +28,14 @@ impl RIndex {
 
     /// When called from Python, create the secondary index for a given column
     pub fn create_index(&mut self, col_index: i64) {
-        if let Some(ptr) = self.owner {
-            // SAFETY: We assume the owner lives as long as the index
-            let table: &crate::table::RTable = unsafe { &*(ptr as *const crate::table::RTable) };
-            self.create_index_internal(col_index, table);
+        if let Some(owner_weak) = &self.owner {
+            if let Some(owner_arc) = owner_weak.upgrade() {
+                let table = owner_arc.read().unwrap();
+                self.create_index_internal(col_index, &table);
+            } else {
+                // Table was dropped, so this index should be considered invalid
+                panic!("Table reference no longer valid");
+            }
         } else {
             panic!("Owner not set for RIndex");
         }
@@ -52,13 +65,16 @@ impl RIndex {
             index: BTreeMap::new(),
             secondary_indices: HashMap::new(),
             owner: None,
+            table_ref: None,
         }
     }
 
-    /// Set the owner (the table that “owns” this index)
-    pub fn set_owner(&mut self, owner: *const RTable) {
-        // Must cast the owner reference to a raw pointer
-        self.owner = Some(owner as usize);
+    // Set the owner (the table that "owns" this index)
+    pub fn set_owner(&mut self, table_arc: Arc<RwLock<RTable>>) {
+        // Store the Arc directly in table_ref
+        self.table_ref = Some(table_arc.clone());
+        // Generate weak reference when needed
+        self.owner = Some(Arc::downgrade(&table_arc));
     }
 
     /// Create a mapping from primary_key to RID
@@ -229,6 +245,106 @@ mod tests {
             // Drop the index.
             index.drop_index_internal(2);
             assert!(index.secondary_indices.get(&2).is_none());
+        }
+        #[test]
+        fn test_set_owner() {
+            // Create a dummy table
+            let table = RTable {
+                name: "dummy".to_string(),
+                primary_key_column: 0,
+                page_range: PageRange::new(3),
+                page_directory: HashMap::new(),
+                num_records: 0,
+                num_columns: 3,
+                index: RIndex::new(),
+            };
+
+            let mut index = RIndex::new();
+
+            {
+                // Wrap the table in an Arc<RwLock<>>
+                let table_arc = Arc::new(RwLock::new(table));
+
+                // Create an index and set the owner
+                index.set_owner(table_arc);
+            }
+
+            // Verify the owner is set by checking it can be upgraded
+            assert!(index.owner.is_some());
+            let owner_weak = index.owner.as_ref().unwrap();
+            assert!(owner_weak.upgrade().is_some());
+        }
+
+        #[test]
+        fn test_secondary_index_insert() {
+            let mut index = RIndex::new();
+            let col_index = 1;
+
+            // Create an empty secondary index
+            index.secondary_indices.insert(col_index, BTreeMap::new());
+
+            // Insert a value
+            index.secondary_index_insert(col_index, 5, 100);
+
+            // Verify the value was inserted
+            let sec_index = index.secondary_indices.get(&col_index).unwrap();
+            assert_eq!(sec_index.get(&100).unwrap(), &vec![5]);
+
+            // Insert another value with the same key
+            index.secondary_index_insert(col_index, 10, 100);
+            let sec_index = index.secondary_indices.get(&col_index).unwrap();
+            assert_eq!(sec_index.get(&100).unwrap(), &vec![5, 10]);
+        }
+
+        #[test]
+        fn test_secondary_index_update() {
+            let mut index = RIndex::new();
+            let col_index = 1;
+
+            // Create a secondary index with initial values
+            let mut btree = BTreeMap::new();
+            btree.insert(100, vec![5, 10]);
+            btree.insert(200, vec![15]);
+            index.secondary_indices.insert(col_index, btree);
+
+            // Update a value (move rid 10 from value 100 to 200)
+            index.secondary_index_update(col_index, 10, 100, 200);
+
+            // Verify the update
+            let sec_index = index.secondary_indices.get(&col_index).unwrap();
+            // Check that we have the right values in each index
+            let vec_100 = sec_index.get(&100).unwrap();
+            let vec_200 = sec_index.get(&200).unwrap();
+
+            assert_eq!(vec_100.len(), 1);
+            assert!(vec_100.contains(&5));
+
+            assert_eq!(vec_200.len(), 2);
+            assert!(vec_200.contains(&10));
+            assert!(vec_200.contains(&15));
+        }
+
+        #[test]
+        fn test_secondary_index_delete() {
+            let mut index = RIndex::new();
+            let col_index = 1;
+
+            // Create a secondary index with initial values
+            let mut btree = BTreeMap::new();
+            btree.insert(100, vec![5, 10]);
+            index.secondary_indices.insert(col_index, btree);
+
+            // Delete a value
+            index.secondary_index_delete(col_index, 10, 100);
+
+            // Verify the deletion
+            let sec_index = index.secondary_indices.get(&col_index).unwrap();
+            assert_eq!(sec_index.get(&100).unwrap(), &vec![5]);
+
+            // Delete the last value
+            index.secondary_index_delete(col_index, 5, 100);
+            let sec_index = index.secondary_indices.get(&col_index).unwrap();
+            assert!(sec_index.get(&100).unwrap().is_empty());
         }
     }
 }
