@@ -95,7 +95,10 @@ impl RDatabase {
                 file.write_all(&table_bytes).expect("Should serialize.");
             }
             None => {
-                panic!("Could no write!") /* Quietly fail to write to disk */
+                // This actually happens in testM1.py when .close() gets called even though there
+                // never was a .open to begin with. In this case, we can just create a random
+                // filename and save the database, or do nothing. In this case, we can just do
+                // nothing.
             }
         }
     }
