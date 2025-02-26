@@ -214,17 +214,21 @@ impl RTable {
     pub fn save_state(&self) {
         let hardcoded_filename = "./table.data";
 
-        let table_meta = RTableMetadata {
-            name: self.name.clone(),
-            num_columns: self.num_columns,
-            num_records: self.num_records,
-            primary_key_column: self.primary_key_column,
-        };
+        let table_meta = self.get_metadata();
 
         let table_bytes: Vec<u8> = bincode::serialize(&table_meta).expect("Should serialize.");
 
         let mut file = BufWriter::new(File::create(hardcoded_filename).expect("Should open file."));
         file.write_all(&table_bytes).expect("Should serialize.");
+    }
+
+    pub fn get_metadata(&self) -> RTableMetadata {
+        RTableMetadata {
+            name: self.name.clone(),
+            primary_key_column: self.primary_key_column,
+            num_columns: self.num_columns,
+            num_records: self.num_records,
+        }
     }
 
     fn _merge() {
