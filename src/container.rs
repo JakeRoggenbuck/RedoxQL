@@ -8,6 +8,13 @@ pub struct BaseContainerMetadata {
     num_pages: usize,
 }
 
+impl BaseContainerMetadata {
+    pub fn load_state(&self) -> BaseContainer {
+        // TODO: Load each page based on the self.total_pages that I will add to the metadata struct
+        BaseContainer::default()
+    }
+}
+
 #[derive(Clone, Default)]
 pub struct BaseContainer {
     // pages
@@ -189,13 +196,9 @@ impl BaseContainer {
     }
 
     pub fn save_state(&self) {
-        // Iterate over the PhysicalPages in self.physical_pages and save each one
-        // Keep a record of how many there are and save them with the id arg as the index of the
+        // TODO: Iterate over the PhysicalPages in self.physical_pages and save each one
+        // TODO: Keep a record of how many there are and save them with the id arg as the index of the
         // page so that we can load them later
-    }
-
-    pub fn load_state(&self) {
-        // Load each page based on the self.total_pages that I will add to the metadata struct
     }
 
     pub fn get_metadata(&self) -> BaseContainerMetadata {
@@ -208,6 +211,13 @@ impl BaseContainer {
 #[derive(Clone, Default, Deserialize, Serialize, Debug)]
 pub struct TailContainerMetadata {
     num_pages: usize,
+}
+
+impl TailContainerMetadata {
+    pub fn load_state(&self) -> TailContainer {
+        // TODO: Load each page based on the self.total_pages that I will add to the metadata struct
+        TailContainer::default()
+    }
 }
 
 #[derive(Clone, Default)]
@@ -386,13 +396,9 @@ impl TailContainer {
     }
 
     pub fn save_state(&self) {
-        // Iterate over the PhysicalPages in self.physical_pages and save each one
-        // Keep a record of how many there are and save them with the id arg as the index of the
+        // TODO: Iterate over the PhysicalPages in self.physical_pages and save each one
+        // TODO: Keep a record of how many there are and save them with the id arg as the index of the
         // page so that we can load them later
-    }
-
-    pub fn load_state(&self) {
-        // Load each page based on the self.total_pages that I will add to the metadata struct
     }
 
     pub fn get_metadata(&self) -> TailContainerMetadata {
