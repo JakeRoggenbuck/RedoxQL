@@ -27,15 +27,41 @@ pub struct RecordAddressMetadata {
     pub offset: i64,
 }
 
+impl RecordAddressMetadata {
+    pub fn load_state(&self) -> RecordAddress {
+        // TODO: Get the actual physical page by reference
+        let phys_page: PhysicalPage = PhysicalPage::new();
+
+        RecordAddress {
+            page: Arc::new(Mutex::new(phys_page)),
+            offset: self.offset,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RecordMetadata {
     pub rid: i64,
-    // TODO: We can find out what PhysicalPage and what Offset are used to then make RecordAddress
-    // To get the PhysicalPage, we can just look at the index of the column
-    // Offset, I am not exactly sure
-    //
-    // Maybe when we save the state, we just store all of it
+
     pub addresses: Vec<RecordAddressMetadata>,
+}
+
+impl RecordMetadata {
+    pub fn load_state(&self) -> Record {
+        let mut rec_addrs = Vec::new();
+
+        // Create the RecordAddresses from the metadata
+        // This eventually gets propagated through load_state
+        // calls all the way to PageDirectory
+        for rec_addr in &self.addresses {
+            rec_addrs.push(rec_addr.load_state());
+        }
+
+        Record {
+            rid: self.rid,
+            addresses: Arc::new(Mutex::new(rec_addrs)),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

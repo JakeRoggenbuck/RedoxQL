@@ -26,7 +26,21 @@ impl PageDirectory {
     }
 
     fn load_state() -> PageDirectory {
-        PageDirectory::default()
+        let hardcoded_filename = "./redoxdata/page_directory.data";
+
+        let file = BufReader::new(File::open(hardcoded_filename).expect("Should open file."));
+        let page_meta: PageDirectoryMetadata =
+            bincode::deserialize_from(file).expect("Should deserialize.");
+
+        let mut pd: PageDirectory = PageDirectory {
+            directory: HashMap::new(),
+        };
+
+        for (rid, record_meta) in page_meta.directory {
+            pd.directory.insert(rid, record_meta.load_state());
+        }
+
+        return pd;
     }
 
     fn save_state(&self) {
