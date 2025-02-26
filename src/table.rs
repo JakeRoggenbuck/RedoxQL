@@ -8,6 +8,22 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Write};
 
+struct PageDirectory {
+    page_directory: HashMap<i64, Record>,
+}
+
+impl PageDirectory {
+    fn load_state() {}
+
+    fn insert(&mut self, rid: i64, record: Record) {
+        self.page_directory.insert(rid, record);
+    }
+
+    fn get(&mut self, rid: i64) -> Option<Record> {
+        self.page_directory.get(&rid).clone().clone()
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RTableMetadata {
     pub name: String,
@@ -32,7 +48,7 @@ pub trait StatePersistence {
             num_records: table_meta.num_records,
 
             page_range: PageRange::load_state(),
-            page_directory: HashMap::new(),
+            page_directory: PageDirectory::load_state(),
             index: RIndex::new(),
         }
     }
