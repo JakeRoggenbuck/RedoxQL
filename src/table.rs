@@ -1,5 +1,5 @@
 use super::index::RIndex;
-use super::pagerange::PageRange;
+use super::pagerange::{PageRange, PageRangeMetadata};
 use super::record::Record;
 use bincode;
 use pyo3::prelude::*;
@@ -14,6 +14,7 @@ pub struct RTableMetadata {
     pub primary_key_column: usize,
     pub num_records: i64,
     pub num_columns: usize,
+    pub page_range: PageRangeMetadata,
 }
 
 pub trait StatePersistence {
@@ -30,9 +31,7 @@ pub trait StatePersistence {
             num_columns: table_meta.num_columns,
             num_records: table_meta.num_records,
 
-            // TODO: Should we load these up too or create new ones?
-            // I think load them up to, so we need to do that as well
-            page_range: PageRange::new(table_meta.num_columns as i64),
+            page_range: PageRange::load_state(),
             page_directory: HashMap::new(),
             index: RIndex::new(),
         }
@@ -214,6 +213,9 @@ impl RTable {
     pub fn save_state(&self) {
         let hardcoded_filename = "./table.data";
 
+        // Save the state of the page range
+        self.page_range.save_state();
+
         let table_meta = self.get_metadata();
 
         let table_bytes: Vec<u8> = bincode::serialize(&table_meta).expect("Should serialize.");
@@ -228,6 +230,7 @@ impl RTable {
             primary_key_column: self.primary_key_column,
             num_columns: self.num_columns,
             num_records: self.num_records,
+            page_range: self.page_range.get_metadata(),
         }
     }
 
