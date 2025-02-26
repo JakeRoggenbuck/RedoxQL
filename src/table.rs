@@ -36,6 +36,14 @@ impl PageDirectory {
             directory: HashMap::new(),
         };
 
+        // TODO: We need to somehow load all of the physical pages, wrap them 
+        // in an Arc Mutex, and assign those references to the record addresses
+        // that need them
+        //
+        // We could store the id for where the the physical page it stored on disk
+        // in the physical, and then we can load all of them up here, assuming we
+        // have something storing the max page index
+
         for (rid, record_meta) in page_meta.directory {
             pd.directory.insert(rid, record_meta.load_state());
         }
