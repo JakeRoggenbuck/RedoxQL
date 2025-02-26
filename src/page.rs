@@ -70,6 +70,7 @@ mod tests {
         assert_eq!(phys_page.read(0).unwrap(), 10);
     }
 
+    #[test]
     fn save_load_test() {
         // Scope so that page_one and page_two get unallocated and leave scope
         {
@@ -82,14 +83,13 @@ mod tests {
             page_one.write(300);
 
             // Write to page_two
-            page_one.write(100);
             page_two.write(111);
             page_two.write(222);
             page_two.write(333);
 
             // Save page_one and page_two
             page_one.save_state(1);
-            page_one.save_state(2);
+            page_two.save_state(2);
         }
 
         // Load page_one and page_two
@@ -106,7 +106,7 @@ mod tests {
         assert_eq!(page_one.read(2), Some(300));
         assert_eq!(page_one.read(3), Some(400));
 
-        assert_eq!(page_two.read(0), Some(112));
+        assert_eq!(page_two.read(0), Some(111));
         assert_eq!(page_two.read(1), Some(222));
         assert_eq!(page_two.read(2), Some(333));
         assert_eq!(page_two.read(3), Some(444));
