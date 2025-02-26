@@ -2,6 +2,8 @@ use super::page::PhysicalPage;
 use super::record::{Record, RecordAddress};
 use std::sync::{Arc, Mutex};
 
+pub struct BaseContainerMetadata {}
+
 #[derive(Clone, Default)]
 pub struct BaseContainer {
     // pages
@@ -181,7 +183,19 @@ impl BaseContainer {
 
         values
     }
+
+    pub fn save_state() {
+        // Iterate over the PhysicalPages in self.physical_pages and save each one
+        // Keep a record of how many there are and save them with the id arg as the index of the
+        // page so that we can load them later
+    }
+
+    pub fn load_state() {
+        // Load each page based on the self.total_pages that I will add to the metadata struct
+    }
 }
+
+pub struct TailContainerMetadata {}
 
 #[derive(Clone, Default)]
 pub struct TailContainer {
@@ -356,6 +370,16 @@ impl TailContainer {
         }
 
         values
+    }
+
+    pub fn save_state() {
+        // Iterate over the PhysicalPages in self.physical_pages and save each one
+        // Keep a record of how many there are and save them with the id arg as the index of the
+        // page so that we can load them later
+    }
+
+    pub fn load_state() {
+        // Load each page based on the self.total_pages that I will add to the metadata struct
     }
 }
 
