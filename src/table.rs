@@ -8,19 +8,35 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Write};
 
+#[derive(Default, Clone, Debug)]
 struct PageDirectory {
     page_directory: HashMap<i64, Record>,
 }
 
 impl PageDirectory {
-    fn load_state() {}
+    fn load_state() -> PageDirectory {
+        PageDirectory::default()
+    }
 
-    fn insert(&mut self, rid: i64, record: Record) {
+    fn save_state(&self) {
+        let hardcoded_filename = "./redoxdata/page_directory.data";
+
+        let pd_bytes: Vec<u8> = bincode::serialize(self).expect("Should serialize.");
+
+        let mut file = BufWriter::new(File::create(hardcoded_filename).expect("Should open file."));
+        file.write_all(&pd_bytes).expect("Should serialize.");
+    }
+
+    pub fn insert(&mut self, rid: i64, record: Record) {
         self.page_directory.insert(rid, record);
     }
 
-    fn get(&mut self, rid: i64) -> Option<Record> {
-        self.page_directory.get(&rid).clone().clone()
+    pub fn get(&mut self, rid: i64) -> Option<&Record> {
+        self.page_directory.get(&rid)
+    }
+
+    pub fn remove(&mut self, rid: i64) {
+        self.page_directory.remove(&rid);
     }
 }
 
@@ -67,7 +83,7 @@ pub struct RTable {
     pub page_range: PageRange,
 
     // Map RIDs to Records
-    pub page_directory: HashMap<i64, Record>,
+    pub page_directory: PageDirectory,
 
     pub num_records: i64,
 
