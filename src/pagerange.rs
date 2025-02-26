@@ -29,4 +29,13 @@ impl PageRange {
     pub fn read(&self, record: Record) -> Option<Vec<i64>> {
         Some(self.base_container.read_record(record))
     }
+
+    pub fn save_state(&self) {
+        self.base_container.save_state();
+        self.tail_container.save_state();
+    }
+
+    pub fn load_state() {
+        // Load both a base_container and a tail_container
+    }
 }
