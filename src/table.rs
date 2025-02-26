@@ -20,9 +20,14 @@ struct RTableMetadata {
 #[pyclass]
 pub struct RTable {
     pub name: String,
+
     pub primary_key_column: usize,
+
     pub page_range: PageRange,
-    pub page_directory: HashMap<i64, Record>, // Map RIDs to Records
+
+    // Map RIDs to Records
+    pub page_directory: HashMap<i64, Record>,
+
     pub num_records: i64,
 
     #[pyo3(get)]
@@ -33,7 +38,6 @@ pub struct RTable {
 }
 
 impl RTable {
-
     pub fn write(&mut self, values: Vec<i64>) -> Record {
         // Use the primary_key_column'th value as the given key
         let primary_key = values[self.primary_key_column];
@@ -180,7 +184,6 @@ impl RTable {
         return agg;
     }
 
-    
     /// Save the state of RTable in a file
     pub fn save_state(&self) {
         let hardcoded_filename = "./table.data";

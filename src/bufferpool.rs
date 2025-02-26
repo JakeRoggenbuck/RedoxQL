@@ -13,11 +13,16 @@ impl BufferPool {
     }
 
     fn write_page(page_id: usize) {
+        // Figure out if the page is in memory or saved in a file
+        // ?? Keep track of where the physical memory should be if it needs to read it again
         todo!();
     }
 
     fn read_page(page_id: usize) {
-        // TODO: How does it know the page id?
+        // Figure out if the page is in memory or saved in a file
+        // If it's not in memory, we load it into memory (probably LRU)
+
+        // TODO: How does it know the page id? Page ID being a name for knowing where the page is
         todo!();
     }
 
