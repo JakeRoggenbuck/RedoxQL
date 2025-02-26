@@ -1,8 +1,10 @@
-# RedoxQL - ecs-165a-database
+![RedoxQL](https://github.com/user-attachments/assets/edeb271c-fad8-4506-b1e6-2e329f9d9e5e)
 🦀 RedoxQL is an L-Store database written in Rust and Python 🚀
 
 ![Rust](https://img.shields.io/badge/Rust-1A5D8A?style=for-the-badge&logo=rust&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
+
+RedoxQL is our implementation of an [L-Store](https://openproceedings.org/2018/conf/edbt/paper-215.pdf) database.
 
 ![image](https://github.com/user-attachments/assets/bb1f9c7e-0d9a-4c52-8630-73990e0a7eea)
 
