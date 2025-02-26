@@ -1,4 +1,4 @@
-use super::table::RTable;
+use super::table::{PageDirectory, RTable};
 use pyo3::prelude::*;
 use std::{
     collections::{BTreeMap, HashMap},
@@ -90,7 +90,7 @@ impl RIndex {
     // Build a secondary index on a non-primary column. This is called by RTable.create_index
     pub fn create_index_internal(&mut self, col_index: i64, table: &RTable) {
         let mut sec_index: BTreeMap<i64, Vec<i64>> = BTreeMap::new();
-        for (&rid, record) in table.page_directory.iter() {
+        for (&rid, record) in table.page_directory.directory.iter() {
             if let Some(record_data) = table.page_range.read(record.clone()) {
                 if record_data.len() <= (col_index + 3) as usize {
                     // Skip if the record data is unexpectedly short.
@@ -174,7 +174,7 @@ mod tests {
                 name: "dummy".to_string(),
                 primary_key_column: 0,
                 page_range: PageRange::new(3),
-                page_directory: HashMap::new(),
+                page_directory: PageDirectory::new(),
                 num_records: 0,
                 num_columns: 3,
                 index: RIndex::new(),
@@ -217,7 +217,7 @@ mod tests {
                 name: "dummy".to_string(),
                 primary_key_column: 0,
                 page_range: PageRange::new(3),
-                page_directory: HashMap::new(),
+                page_directory: PageDirectory::new(),
                 num_records: 0,
                 num_columns: 3,
                 index: RIndex::new(),
@@ -253,7 +253,7 @@ mod tests {
                 name: "dummy".to_string(),
                 primary_key_column: 0,
                 page_range: PageRange::new(3),
-                page_directory: HashMap::new(),
+                page_directory: PageDirectory::new(),
                 num_records: 0,
                 num_columns: 3,
                 index: RIndex::new(),

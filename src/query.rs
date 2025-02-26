@@ -81,7 +81,7 @@ impl RQuery {
             // Otherwise, do a full scan
             else {
                 let mut results = Vec::new();
-                for (_rid, record) in self.table.page_directory.iter() {
+                for (_rid, record) in self.table.page_directory.directory.iter() {
                     if let Some(record_data) = self.table.page_range.read(record.clone()) {
                         if record_data[(search_key_index + 3) as usize] == search_key {
                             results.push(filter_projected(
@@ -130,7 +130,7 @@ impl RQuery {
         }
 
         // Get record by RID
-        let record = match self.table.page_directory.get(&rid).cloned() {
+        let record = match self.table.page_directory.directory.get(&rid).cloned() {
             Some(r) => r,
             None => return false,
         };
@@ -166,8 +166,11 @@ impl RQuery {
             new_columns = result;
         } else {
             // second and subsequent updates
-            let Some(existing_tail_record) =
-                self.table.page_directory.get(&base_indirection_column)
+            let Some(existing_tail_record) = self
+                .table
+                .page_directory
+                .directory
+                .get(&base_indirection_column)
             else {
                 return false;
             };
@@ -217,7 +220,7 @@ impl RQuery {
         );
 
         // update the page directory with the new record
-        self.table.page_directory.insert(new_rid, new_rec);
+        self.table.page_directory.directory.insert(new_rid, new_rec);
 
         // update the index with the new primary key
         if new_primary_key != primary_key {

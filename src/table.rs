@@ -8,6 +8,26 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Write};
 
+#[derive(Default, Clone)]
+pub struct PageDirectory {
+    pub directory: HashMap<i64, Record>,
+}
+
+impl PageDirectory {
+    pub fn new() -> Self {
+        PageDirectory {
+            directory: HashMap::new(),
+        }
+    }
+
+    fn load_state() -> PageDirectory {
+        PageDirectory::default()
+    }
+
+    fn save_state(&self) {
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RTableMetadata {
     pub name: String,
@@ -32,7 +52,7 @@ pub trait StatePersistence {
             num_records: table_meta.num_records,
 
             page_range: PageRange::load_state(),
-            page_directory: HashMap::new(),
+            page_directory: PageDirectory::load_state(),
             index: RIndex::new(),
         }
     }
@@ -51,7 +71,7 @@ pub struct RTable {
     pub page_range: PageRange,
 
     // Map RIDs to Records
-    pub page_directory: HashMap<i64, Record>,
+    pub page_directory: PageDirectory,
 
     pub num_records: i64,
 
@@ -73,7 +93,7 @@ impl RTable {
         let rec = self.page_range.write(rid, values);
 
         // Save the RID -> Record so it can later be read
-        self.page_directory.insert(rid, rec.clone());
+        self.page_directory.directory.insert(rid, rec.clone());
 
         self.num_records += 1;
         return rec;
@@ -84,7 +104,7 @@ impl RTable {
         let rid = self.index.get(primary_key);
 
         if let Some(r) = rid {
-            let rec = self.page_directory.get(&r);
+            let rec = self.page_directory.directory.get(&r);
 
             // If the rec exists in the page_directory, return the read values
             match rec {
@@ -108,7 +128,7 @@ impl RTable {
             return Some(result);
         }
 
-        let Some(tail_record) = self.page_directory.get(&base_indirection_column) else {
+        let Some(tail_record) = self.page_directory.directory.get(&base_indirection_column) else {
             return None;
         };
 
@@ -117,7 +137,7 @@ impl RTable {
 
     // Given a RID, get the record's values
     pub fn read_by_rid(&self, rid: i64) -> Option<Vec<i64>> {
-        if let Some(record) = self.page_directory.get(&rid) {
+        if let Some(record) = self.page_directory.directory.get(&rid) {
             return self.page_range.read(record.clone());
         }
         None
@@ -139,7 +159,7 @@ impl RTable {
         let target_version = relative_version.abs() as i64;
 
         while versions_back < target_version {
-            let Some(current_record) = self.page_directory.get(&current_rid) else {
+            let Some(current_record) = self.page_directory.directory.get(&current_rid) else {
                 return None;
             };
 
@@ -163,7 +183,7 @@ impl RTable {
         }
 
         // read the final record we want
-        let Some(final_record) = self.page_directory.get(&current_rid) else {
+        let Some(final_record) = self.page_directory.directory.get(&current_rid) else {
             return None;
         };
 
@@ -175,7 +195,7 @@ impl RTable {
         let rid = self.index.get(primary_key);
 
         if let Some(r) = rid {
-            self.page_directory.remove(&r);
+            self.page_directory.directory.remove(&r);
         }
     }
 
