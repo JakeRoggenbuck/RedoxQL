@@ -5,13 +5,36 @@ use std::sync::{Arc, Mutex};
 
 #[derive(Clone, Default, Deserialize, Serialize, Debug)]
 pub struct BaseContainerMetadata {
+    // This takes the place of the actual pages in the disk version
+    // With this number, we are able to load all of the pages
     num_pages: usize,
+
+    num_cols: i64,
+
+    rid_column: i64,
+    schema_encoding_column: i64,
+    indirection_column: i64,
 }
 
 impl BaseContainerMetadata {
     pub fn load_state(&self) -> BaseContainer {
-        // TODO: Load each page based on the self.total_pages that I will add to the metadata struct
-        BaseContainer::default()
+        let mut base = BaseContainer::new(self.num_cols);
+
+        for i in 0..self.num_pages {
+            // Load the page
+            let p = PhysicalPage::load_state(i as i64);
+            // Put the page into an Arc Mutex
+            let m = Arc::new(Mutex::new(p));
+
+            // Add the physical page
+            base.physical_pages.push(m);
+        }
+
+        base.rid_column = self.rid_column;
+        base.schema_encoding_column = self.schema_encoding_column;
+        base.indirection_column = self.indirection_column;
+
+        return base;
     }
 }
 
@@ -204,19 +227,46 @@ impl BaseContainer {
     pub fn get_metadata(&self) -> BaseContainerMetadata {
         BaseContainerMetadata {
             num_pages: self.physical_pages.len(),
+            num_cols: self.num_cols,
+            rid_column: self.rid_column,
+            schema_encoding_column: self.schema_encoding_column,
+            indirection_column: self.indirection_column,
         }
     }
 }
 
 #[derive(Clone, Default, Deserialize, Serialize, Debug)]
 pub struct TailContainerMetadata {
+    // This takes the place of the actual pages in the disk version
+    // With this number, we are able to load all of the pages
     num_pages: usize,
+
+    num_cols: i64,
+
+    rid_column: i64,
+    schema_encoding_column: i64,
+    indirection_column: i64,
 }
 
 impl TailContainerMetadata {
     pub fn load_state(&self) -> TailContainer {
-        // TODO: Load each page based on the self.total_pages that I will add to the metadata struct
-        TailContainer::default()
+        let mut tail = TailContainer::new(self.num_cols);
+
+        for i in 0..self.num_pages {
+            // Load the page
+            let p = PhysicalPage::load_state(i as i64);
+            // Put the page into an Arc Mutex
+            let m = Arc::new(Mutex::new(p));
+
+            // Add the physical page
+            tail.physical_pages.push(m);
+        }
+
+        tail.rid_column = self.rid_column;
+        tail.schema_encoding_column = self.schema_encoding_column;
+        tail.indirection_column = self.indirection_column;
+
+        return tail;
     }
 }
 
@@ -404,6 +454,10 @@ impl TailContainer {
     pub fn get_metadata(&self) -> TailContainerMetadata {
         TailContainerMetadata {
             num_pages: self.physical_pages.len(),
+            num_cols: self.num_cols,
+            rid_column: self.rid_column,
+            schema_encoding_column: self.schema_encoding_column,
+            indirection_column: self.indirection_column,
         }
     }
 }
