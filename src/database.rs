@@ -4,7 +4,7 @@ use super::table::{RTable, RTableMetadata, StatePersistence};
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fs::File;
+use std::fs::{create_dir_all, File};
 use std::io::{BufReader, BufWriter, Write};
 use std::path::Path;
 
@@ -39,6 +39,10 @@ impl RDatabase {
     fn open(&mut self, path: String) {
         if self.db_filepath.is_none() {
             self.db_filepath = Some(path.clone());
+        }
+
+        if !Path::new("./redoxdata").exists() {
+            create_dir_all("./redoxdata").expect("Should be able to make dir");
         }
 
         if let Some(p) = &self.db_filepath {
