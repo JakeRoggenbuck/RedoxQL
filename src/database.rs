@@ -4,6 +4,8 @@ use super::table::{RTable, RTableMetadata, StatePersistence};
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::{BufReader, BufWriter, Write};
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct RDatabaseMetadata {
@@ -42,9 +44,23 @@ impl RDatabase {
     fn close(&self) {
         // TODO: Save the metadata of the database
 
+        let hardcoded_filename = "./database.data";
+
+        let database_meta = RDatabaseMetadata {
+            tables: Vec::<RTableMetadata>::new(),
+            tables_hashmap: self.tables_hashmap.clone(),
+        };
+
         for table in &self.tables {
+            // TODO: Get the metadata for each table
+            // TODO: Push it to database_meta.tables
             table.save_state()
         }
+
+        let table_bytes: Vec<u8> = bincode::serialize(&database_meta).expect("Should serialize.");
+
+        let mut file = BufWriter::new(File::create(hardcoded_filename).expect("Should open file."));
+        file.write_all(&table_bytes).expect("Should serialize.");
     }
 
     pub fn create_table(
