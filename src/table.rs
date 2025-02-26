@@ -31,9 +31,7 @@ pub trait StatePersistence {
             num_columns: table_meta.num_columns,
             num_records: table_meta.num_records,
 
-            // TODO: Should we load these up too or create new ones?
-            // I think load them up to, so we need to do that as well
-            page_range: PageRange::new(table_meta.num_columns as i64),
+            page_range: PageRange::load_state(),
             page_directory: HashMap::new(),
             index: RIndex::new(),
         }
@@ -214,6 +212,9 @@ impl RTable {
     /// Save the state of RTable in a file
     pub fn save_state(&self) {
         let hardcoded_filename = "./table.data";
+
+        // Save the state of the page range
+        self.page_range.save_state();
 
         let table_meta = self.get_metadata();
 
