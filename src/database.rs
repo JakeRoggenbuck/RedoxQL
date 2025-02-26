@@ -1,6 +1,6 @@
 use super::index::RIndex;
 use super::pagerange::PageRange;
-use super::table::{RTable, RTableMetadata, StatePersistence};
+use super::table::{PageDirectory, RTable, RTableMetadata, StatePersistence};
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -110,7 +110,7 @@ impl RDatabase {
             name: name.clone(),
             page_range: PageRange::new(num_columns as i64),
             primary_key_column: primary_key_column as usize,
-            page_directory: HashMap::new(),
+            page_directory: PageDirectory::new(),
             num_columns: num_columns as usize,
             num_records: 0,
             index: RIndex::new(),
