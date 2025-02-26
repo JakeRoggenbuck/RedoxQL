@@ -222,7 +222,7 @@ impl BaseContainer {
 
     pub fn save_state(&self) {
         let base_meta = self.get_metadata();
-        let hardcoded_filename = "./base_container.data";
+        let hardcoded_filename = "./redoxdata/base_container.data";
 
         let mut index = 0;
         // The Rust compiler suggested that I clone here but it's definitely way better to not copy
@@ -463,7 +463,7 @@ impl TailContainer {
 
     pub fn save_state(&self) {
         let tail_meta = self.get_metadata();
-        let hardcoded_filename = "./tail_container.data";
+        let hardcoded_filename = "./redoxdata/tail_container.data";
 
         let mut index = 0;
         // The Rust compiler suggested that I clone here but it's definitely way better to not copy
