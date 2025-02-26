@@ -1,12 +1,17 @@
 use super::index::RIndex;
 use super::pagerange::{PageRange, PageRangeMetadata};
-use super::record::Record;
+use super::record::{Record, RecordMetadata};
 use bincode;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Write};
+
+#[derive(Default, Clone, Serialize, Deserialize)]
+pub struct PageDirectoryMetadata {
+    pub directory: HashMap<i64, RecordMetadata>,
+}
 
 #[derive(Default, Clone)]
 pub struct PageDirectory {
@@ -21,10 +26,47 @@ impl PageDirectory {
     }
 
     fn load_state() -> PageDirectory {
-        PageDirectory::default()
+        let hardcoded_filename = "./redoxdata/page_directory.data";
+
+        let file = BufReader::new(File::open(hardcoded_filename).expect("Should open file."));
+        let page_meta: PageDirectoryMetadata =
+            bincode::deserialize_from(file).expect("Should deserialize.");
+
+        let mut pd: PageDirectory = PageDirectory {
+            directory: HashMap::new(),
+        };
+
+        // TODO: We need to somehow load all of the physical pages, wrap them 
+        // in an Arc Mutex, and assign those references to the record addresses
+        // that need them
+        //
+        // We could store the id for where the the physical page it stored on disk
+        // in the physical, and then we can load all of them up here, assuming we
+        // have something storing the max page index
+
+        for (rid, record_meta) in page_meta.directory {
+            pd.directory.insert(rid, record_meta.load_state());
+        }
+
+        return pd;
     }
 
     fn save_state(&self) {
+        let hardcoded_filename = "./redoxdata/page_directory.data";
+
+        let mut pd_meta = PageDirectoryMetadata {
+            directory: HashMap::new(),
+        };
+
+        for (rid, record) in &self.directory {
+            let r: RecordMetadata = record.get_metadata();
+            pd_meta.directory.insert(*rid, r);
+        }
+
+        let table_bytes: Vec<u8> = bincode::serialize(&pd_meta).expect("Should serialize.");
+
+        let mut file = BufWriter::new(File::create(hardcoded_filename).expect("Should open file."));
+        file.write_all(&table_bytes).expect("Should serialize.");
     }
 }
 
@@ -235,6 +277,8 @@ impl RTable {
 
         // Save the state of the page range
         self.page_range.save_state();
+
+        self.page_directory.save_state();
 
         let table_meta = self.get_metadata();
 
