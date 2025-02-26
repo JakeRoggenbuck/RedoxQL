@@ -72,9 +72,9 @@ impl RIndex {
     // Set the owner (the table that "owns" this index)
     pub fn set_owner(&mut self, table_arc: Arc<RwLock<RTable>>) {
         // Store the Arc directly in table_ref
-        self.table_ref = Some(table_arc.clone());
+        self.table_ref = Some(table_arc);
         // Generate weak reference when needed
-        self.owner = Some(Arc::downgrade(&table_arc));
+        self.owner = Some(Arc::downgrade(self.table_ref.as_ref().unwrap()));
     }
 
     /// Create a mapping from primary_key to RID
