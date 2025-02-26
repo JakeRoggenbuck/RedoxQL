@@ -9,12 +9,38 @@ use std::fs::File;
 use std::io::{BufReader, BufWriter, Write};
 
 #[derive(Serialize, Deserialize, Debug)]
-struct RTableMetadata {
-    name: String,
-    primary_key_column: usize,
-    num_records: i64,
-    num_columns: usize,
+pub struct RTableMetadata {
+    pub name: String,
+    pub primary_key_column: usize,
+    pub num_records: i64,
+    pub num_columns: usize,
 }
+
+pub trait StatePersistence {
+    fn load_state(&self) -> RTable {
+        let hardcoded_filename = "./table.data";
+
+        let file = BufReader::new(File::open(hardcoded_filename).expect("Should open file."));
+        let table_meta: RTableMetadata =
+            bincode::deserialize_from(file).expect("Should deserialize.");
+
+        RTable {
+            name: table_meta.name.clone(),
+            primary_key_column: table_meta.primary_key_column,
+            num_columns: table_meta.num_columns,
+            num_records: table_meta.num_records,
+
+            // TODO: Should we load these up too or create new ones?
+            // I think load them up to, so we need to do that as well
+            page_range: PageRange::new(table_meta.num_columns as i64),
+            page_directory: HashMap::new(),
+            index: RIndex::new(),
+        }
+    }
+}
+
+impl StatePersistence for RTableMetadata {}
+impl StatePersistence for RTable {}
 
 #[derive(Clone, Default)]
 #[pyclass]
@@ -188,12 +214,7 @@ impl RTable {
     pub fn save_state(&self) {
         let hardcoded_filename = "./table.data";
 
-        let table_meta = RTableMetadata {
-            name: self.name.clone(),
-            num_columns: self.num_columns,
-            num_records: self.num_records,
-            primary_key_column: self.primary_key_column,
-        };
+        let table_meta = self.get_metadata();
 
         let table_bytes: Vec<u8> = bincode::serialize(&table_meta).expect("Should serialize.");
 
@@ -201,24 +222,12 @@ impl RTable {
         file.write_all(&table_bytes).expect("Should serialize.");
     }
 
-    pub fn load_state(&self) -> RTable {
-        let hardcoded_filename = "./table.data";
-
-        let file = BufReader::new(File::open(hardcoded_filename).expect("Should open file."));
-        let table_meta: RTableMetadata =
-            bincode::deserialize_from(file).expect("Should deserialize.");
-
-        RTable {
-            name: table_meta.name.clone(),
-            primary_key_column: table_meta.primary_key_column,
-            num_columns: table_meta.num_columns,
-            num_records: table_meta.num_records,
-
-            // TODO: Should we load these up too or create new ones?
-            // I think load them up to, so we need to do that as well
-            page_range: PageRange::new(table_meta.num_columns as i64),
-            page_directory: HashMap::new(),
-            index: RIndex::new(),
+    pub fn get_metadata(&self) -> RTableMetadata {
+        RTableMetadata {
+            name: self.name.clone(),
+            primary_key_column: self.primary_key_column,
+            num_columns: self.num_columns,
+            num_records: self.num_records,
         }
     }
 
