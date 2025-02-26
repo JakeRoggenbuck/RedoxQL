@@ -1,4 +1,7 @@
-![RedoxQL](https://github.com/user-attachments/assets/edeb271c-fad8-4506-b1e6-2e329f9d9e5e)
+
+![RedoxQL-darkmode](https://github.com/user-attachments/assets/ad60c31a-ff64-47b0-b50f-2d161c9e9f96#gh-dark-mode-only)
+![RedoxQL-lightmode](https://github.com/user-attachments/assets/8f38e31e-163a-4f49-aa43-34484ad361ed#gh-light-mode-only)
+
 🦀 RedoxQL is an L-Store database written in Rust and Python 🚀
 
 ![Rust](https://img.shields.io/badge/Rust-1A5D8A?style=for-the-badge&logo=rust&logoColor=white)
