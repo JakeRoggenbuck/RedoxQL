@@ -1,8 +1,15 @@
 use super::index::RIndex;
 use super::pagerange::PageRange;
-use super::table::RTable;
+use super::table::{RTable, RTableMetadata, StatePersistence};
 use pyo3::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+#[derive(Serialize, Deserialize, Debug, Default)]
+pub struct RDatabaseMetadata {
+    tables: Vec<RTableMetadata>,
+    tables_hashmap: HashMap<String, usize>,
+}
 
 #[pyclass]
 pub struct RDatabase {
@@ -22,12 +29,22 @@ impl RDatabase {
         }
     }
 
-    fn open(&self, _path: String) {
-        // unreachable!("Not used in milestone 1");
+    fn open(&mut self, _path: String) {
+        // TODO: Read the metadata of the database
+        let db_meta = RDatabaseMetadata::default();
+
+        // Load each table metadata into this current databases' tables
+        for table in &db_meta.tables {
+            self.tables.push(table.load_state());
+        }
     }
 
     fn close(&self) {
-        // unreachable!("Not used in milestone 1");
+        // TODO: Save the metadata of the database
+
+        for table in &self.tables {
+            table.save_state()
+        }
     }
 
     pub fn create_table(
