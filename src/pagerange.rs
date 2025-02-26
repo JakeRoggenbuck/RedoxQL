@@ -1,5 +1,14 @@
-use super::container::{BaseContainer, TailContainer};
+use super::container::{
+    BaseContainer, BaseContainerMetadata, TailContainer, TailContainerMetadata,
+};
 use super::record::Record;
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Default, Deserialize, Serialize, Debug)]
+pub struct PageRangeMetadata {
+    pub base_container: BaseContainerMetadata,
+    pub tail_container: TailContainerMetadata,
+}
 
 #[derive(Clone, Default)]
 pub struct PageRange {
@@ -37,5 +46,12 @@ impl PageRange {
 
     pub fn load_state() {
         // Load both a base_container and a tail_container
+    }
+
+    pub fn get_metadata(&self) -> PageRangeMetadata {
+        PageRangeMetadata {
+            base_container: self.base_container.get_metadata(),
+            tail_container: self.tail_container.get_metadata(),
+        }
     }
 }

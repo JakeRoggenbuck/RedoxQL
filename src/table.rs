@@ -1,5 +1,5 @@
 use super::index::RIndex;
-use super::pagerange::PageRange;
+use super::pagerange::{PageRange, PageRangeMetadata};
 use super::record::Record;
 use bincode;
 use pyo3::prelude::*;
@@ -14,6 +14,7 @@ pub struct RTableMetadata {
     pub primary_key_column: usize,
     pub num_records: i64,
     pub num_columns: usize,
+    pub page_range: PageRangeMetadata,
 }
 
 pub trait StatePersistence {
@@ -228,6 +229,7 @@ impl RTable {
             primary_key_column: self.primary_key_column,
             num_columns: self.num_columns,
             num_records: self.num_records,
+            page_range: self.page_range.get_metadata(),
         }
     }
 
