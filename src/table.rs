@@ -110,11 +110,12 @@ pub struct RTableMetadata {
     pub num_records: i64,
     pub num_columns: usize,
     pub page_range: PageRangeMetadata,
+    pub table_num: i64,
 }
 
 pub trait StatePersistence {
-    fn load_state(&self) -> RTable {
-        let hardcoded_filename = "./redoxdata/table.data";
+    fn load_state(&self, table_num: i64) -> RTable {
+        let hardcoded_filename = format!("./redoxdata/{}-table.data", table_num);
 
         let file = BufReader::new(File::open(hardcoded_filename).expect("Should open file."));
         let table_meta: RTableMetadata =
@@ -132,6 +133,7 @@ pub trait StatePersistence {
             page_range: pr,
             page_directory: pd,
             index: Arc::new(RwLock::new(RIndex::new())),
+            table_num: table_meta.table_num,
         };
 
         // It does not make sense to clone here
@@ -167,6 +169,9 @@ pub struct RTable {
     pub num_columns: usize,
 
     pub index: Arc<RwLock<RIndex>>,
+
+    /// The nth table that was created will have the value n here and is indexed by zero
+    pub table_num: i64,
 }
 
 impl RTable {
@@ -322,7 +327,7 @@ impl RTable {
 
     /// Save the state of RTable in a file
     pub fn save_state(&self) {
-        let hardcoded_filename = "./redoxdata/table.data";
+        let hardcoded_filename = format!("./redoxdata/{}-table.data", self.table_num);
 
         // Save the state of the page range
         self.page_range.save_state();
@@ -346,6 +351,7 @@ impl RTable {
             num_columns: self.num_columns,
             num_records: self.num_records,
             page_range: self.page_range.get_metadata(),
+            table_num: self.table_num,
         }
     }
 
@@ -434,7 +440,7 @@ mod tests {
 
         table.save_state();
 
-        let new_table: RTable = table.load_state();
+        let new_table: RTable = table.load_state(0);
 
         assert_eq!(table.name, new_table.name);
         assert_eq!(table.primary_key_column, new_table.primary_key_column);
