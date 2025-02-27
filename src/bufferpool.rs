@@ -1,24 +1,24 @@
 use std::sync::{Arc, Mutex};
 
-struct BufferPool {
+pub struct BufferPool {
     // The physical directory on disk that data will be written to
     pub physical_directory: Arc<Mutex<String>>,
 }
 
 impl BufferPool {
-    fn new(directory: &str) -> Self {
+    pub fn new(directory: &str) -> Self {
         BufferPool {
             physical_directory: Arc::new(Mutex::new(directory.to_string())),
         }
     }
 
-    fn write_page(page_id: usize) {
+    pub fn write_page(_page_id: usize) {
         // Figure out if the page is in memory or saved in a file
         // ?? Keep track of where the physical memory should be if it needs to read it again
         todo!();
     }
 
-    fn read_page(page_id: usize) {
+    pub fn read_page(_page_id: usize) {
         // Figure out if the page is in memory or saved in a file
         // If it's not in memory, we load it into memory (probably LRU)
 
@@ -26,9 +26,9 @@ impl BufferPool {
         todo!();
     }
 
-    fn save_state(&self) {}
+    pub fn save_state(&self) {}
 
-    fn load_state(&self, directory: &str) -> BufferPool {
+    pub fn load_state(&self, directory: &str) -> BufferPool {
         BufferPool {
             physical_directory: Arc::new(Mutex::new(directory.to_string())),
         }

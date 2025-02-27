@@ -180,7 +180,7 @@ def correctness_tester2():
 
 def generte_keys():
     global records, number_of_records, number_of_aggregates, number_of_updates, keys
-    
+
     if True:
         records = {}
         seed(3562901)
@@ -190,7 +190,7 @@ def generte_keys():
             records[key] = [key, randint(0, 20), randint(0, 20), randint(0, 20), randint(0, 20)]
 
         keys = sorted(records.keys())
-        
+
         for _ in range(number_of_updates):
             for key in keys:
                 updated_columns = [None, None, None, None, None]
@@ -205,7 +205,7 @@ def generte_keys():
 def durability_tester1():
     print("Checking exam M2 durability")
     global records, number_of_records, number_of_aggregates, number_of_updates, keys
-    
+
     if True:
         db = Database()
         db.open('./M2')
@@ -316,7 +316,7 @@ def durability_tester2():
         if not err:
             pass
         print("Select finished")
-        
+
         err = False
         for i in range(0, number_of_aggregates):
             r = sorted(sample(range(0, len(keys)), 2))
@@ -356,7 +356,7 @@ def merging_tester():
                 for idx in range(index):
                     update_record[4-idx] = None
                 query.update(i, *update_record)
-        keys = sorted(sample(range(0, records_num),sample_count)) 
+        keys = sorted(sample(range(0, records_num),sample_count))
         time = 0
         # 200 * 200 select
         while time < select_repeat:
@@ -370,18 +370,18 @@ from decimal import Decimal
 import os
 import glob
 import traceback
-import shutil   
+import shutil
 
 m2tests = [1,1,1]
 if m2tests[0] == 1:
     print("==========correctness tester===============")
-    correctness_tester1() 
-    correctness_tester2() 
+    correctness_tester1()
+    correctness_tester2()
 if m2tests[1] == 1:
     print("==========durability tester================")
     generte_keys()
     durability_tester1()
-    durability_tester2() 
+    durability_tester2()
 if m2tests[2] == 1:
     print("==========merging tester===================")
     start = timer()

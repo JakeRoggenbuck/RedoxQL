@@ -1,6 +1,7 @@
 use super::page::PhysicalPage;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Clone)]
@@ -28,12 +29,9 @@ pub struct RecordAddressMetadata {
 }
 
 impl RecordAddressMetadata {
-    pub fn load_state(&self) -> RecordAddress {
-        // TODO: Get the actual physical page by reference
-        let phys_page: PhysicalPage = PhysicalPage::new();
-
+    pub fn load_state(&self, phys_page_ref: Arc<Mutex<PhysicalPage>>) -> RecordAddress {
         RecordAddress {
-            page: Arc::new(Mutex::new(phys_page)),
+            page: phys_page_ref,
             offset: self.offset,
         }
     }
@@ -49,14 +47,21 @@ pub struct RecordMetadata {
 }
 
 impl RecordMetadata {
-    pub fn load_state(&self) -> Record {
+    pub fn load_state(
+        &self,
+        base_pages: &HashMap<i64, Arc<Mutex<PhysicalPage>>>,
+        _tail_pages: &HashMap<i64, Arc<Mutex<PhysicalPage>>>,
+    ) -> Record {
         let mut rec_addrs = Vec::new();
 
         // Create the RecordAddresses from the metadata
         // This eventually gets propagated through load_state
         // calls all the way to PageDirectory
+        let mut index = 0;
         for rec_addr in &self.addresses {
-            rec_addrs.push(rec_addr.load_state());
+            let p = base_pages.get(&index).expect("Should be a page here.");
+            rec_addrs.push(rec_addr.load_state(p.clone()));
+            index += 1;
         }
 
         Record {

@@ -2,7 +2,7 @@ use super::page::PhysicalPage;
 use super::record::{Record, RecordAddress};
 use serde::{Deserialize, Serialize};
 use std::fs::File;
-use std::io::{BufReader, BufWriter, Write};
+use std::io::{BufWriter, Write};
 use std::sync::{Arc, Mutex};
 
 pub fn helper_bitwise(a: Vec<Option<i64>>) -> i64 {
@@ -145,9 +145,9 @@ impl BaseContainer {
     ///
     pub fn initialize(&mut self) {
         // initialize the three reserved columns
-        let rid_page = PhysicalPage::new();
-        let schema_encoding_page = PhysicalPage::new();
-        let indirection_page = PhysicalPage::new();
+        let rid_page = PhysicalPage::new(self.rid_col as i64);
+        let schema_encoding_page = PhysicalPage::new(self.schema_encoding_col as i64);
+        let indirection_page = PhysicalPage::new(self.indirection_col as i64);
 
         self.physical_pages.push(Arc::new(Mutex::new(rid_page)));
         self.physical_pages
@@ -156,8 +156,8 @@ impl BaseContainer {
             .push(Arc::new(Mutex::new(indirection_page)));
 
         // initialize the rest of the columns
-        for _ in 0..self.num_cols {
-            let new_page = PhysicalPage::new();
+        for i in 0..self.num_cols {
+            let new_page = PhysicalPage::new((self.num_meta_cols + i) as i64);
             self.physical_pages.push(Arc::new(Mutex::new(new_page)));
         }
     }
@@ -233,10 +233,7 @@ impl BaseContainer {
     pub fn update_field(&self, record: &Record, raw_col_idx: usize, value: i64) {
         let addrs_base = record.addresses.lock().unwrap();
         let mut indirection_page = addrs_base[raw_col_idx].page.lock().unwrap();
-        indirection_page.overwrite(
-            addrs_base[raw_col_idx].offset as usize,
-            value,
-        );
+        indirection_page.overwrite(addrs_base[raw_col_idx].offset as usize, value);
     }
 
     pub fn read_record(&self, record: Record, column_mask: Vec<i64>) -> Vec<Option<i64>> {
@@ -415,21 +412,22 @@ impl TailContainer {
     /// ```
     pub fn initialize(&mut self) {
         // initialize the three reserved columns
-        let rid_page = PhysicalPage::new();
-        let schema_encoding_page = PhysicalPage::new();
-        let indirection_page = PhysicalPage::new();
-        let base_rid_page = PhysicalPage::new();
+        let rid_page = PhysicalPage::new(self.rid_col as i64);
+        let schema_encoding_page = PhysicalPage::new(self.schema_encoding_col as i64);
+        let indirection_page = PhysicalPage::new(self.indirection_col as i64);
+        let base_rid_page = PhysicalPage::new(self.base_rid_col as i64);
 
         self.physical_pages.push(Arc::new(Mutex::new(rid_page)));
         self.physical_pages
             .push(Arc::new(Mutex::new(schema_encoding_page)));
         self.physical_pages
             .push(Arc::new(Mutex::new(indirection_page)));
-        self.physical_pages.push(Arc::new(Mutex::new(base_rid_page)));
+        self.physical_pages
+            .push(Arc::new(Mutex::new(base_rid_page)));
 
         // initialize the rest of the columns
-        for _ in 0..self.num_cols {
-            let new_page = PhysicalPage::new();
+        for i in 0..self.num_cols {
+            let new_page = PhysicalPage::new((self.num_meta_cols + i) as i64);
             self.physical_pages.push(Arc::new(Mutex::new(new_page)));
         }
     }
@@ -555,7 +553,11 @@ impl TailContainer {
         for p in &self.physical_pages {
             // Save the page
             let m = p.lock().unwrap();
-            m.save_state(index);
+
+            // If there is any data in the tail page, save it and overwrite the base page
+            if m.data.len() > 0 {
+                m.save_state(index);
+            }
             index += 1;
         }
 
@@ -640,7 +642,10 @@ mod tests {
     fn test_tail_container_initialize() {
         let mut container = TailContainer::new(5);
         container.initialize();
-        assert_eq!(container.physical_pages.len(), container.num_cols+container.num_meta_cols);
+        assert_eq!(
+            container.physical_pages.len(),
+            container.num_cols + container.num_meta_cols
+        );
     }
 
     #[test]

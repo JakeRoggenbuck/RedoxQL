@@ -1,15 +1,15 @@
-use crate::table::RTableHandle;
-
+use super::bufferpool::BufferPool;
 use super::index::RIndex;
 use super::pagerange::PageRange;
 use super::table::{PageDirectory, RTable, RTableMetadata, StatePersistence};
+use crate::table::RTableHandle;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::{create_dir_all, File};
 use std::io::{BufReader, BufWriter, Write};
 use std::path::Path;
-use std::sync::{Arc, RwLock, Weak};
+use std::sync::{Arc, RwLock};
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct RDatabaseMetadata {
@@ -26,6 +26,8 @@ pub struct RDatabase {
     tables_hashmap: HashMap<String, usize>,
 
     db_filepath: Option<String>,
+
+    pub buffer_pool: BufferPool,
 }
 
 #[pymethods]
@@ -36,6 +38,7 @@ impl RDatabase {
             tables: vec![],
             tables_hashmap: HashMap::new(),
             db_filepath: None,
+            buffer_pool: BufferPool::new("./"),
         }
     }
 
@@ -66,7 +69,10 @@ impl RDatabase {
         // Load each table metadata into this current databases' tables
         let mut index = 0;
         for table in &db_meta.tables {
-            self.tables.push(Arc::new(RwLock::new(table.load_state())));
+            let l = table.load_state();
+            // l.page_directory.display();
+
+            self.tables.push(Arc::new(RwLock::new(l)));
             self.tables_hashmap.insert(table.name.clone(), index);
             index += 1;
         }
@@ -152,9 +158,9 @@ impl RDatabase {
     fn get_table(&self, name: String) -> RTableHandle {
         let i = self.tables_hashmap.get(&name).expect("Should exist");
 
-        RTableHandle {
-            table: self.tables[*i].clone(),
-        }
+        let t = self.tables[*i].clone();
+
+        RTableHandle { table: t }
     }
 
     fn get_table_from_index(&self, i: i64) -> RTableHandle {
@@ -190,6 +196,7 @@ impl RDatabase {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Weak;
 
     #[test]
     fn drop_table_test() {

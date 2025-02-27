@@ -2,7 +2,6 @@ use crate::container::{default_mask, helper_bitwise};
 use crate::table::RTableHandle;
 
 use super::record::Record;
-use super::table::RTable;
 use pyo3::prelude::*;
 use std::iter::zip;
 
@@ -64,6 +63,8 @@ impl RQuery {
         projected_columns_index: Vec<i64>,
     ) -> Option<Vec<Vec<Option<i64>>>> {
         let table = self.handle.table.read().unwrap();
+
+        // table.page_directory.display(); -> This shows the full page dir!!
 
         // Case 1: Searching on the primary key column
         if search_key_index == table.primary_key_column as i64 {

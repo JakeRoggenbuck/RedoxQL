@@ -2,22 +2,11 @@ use crate::container::default_mask;
 
 use super::table::{PageDirectory, RTable};
 use pyo3::prelude::*;
-use std::{
-    collections::{BTreeMap, HashMap},
-    sync::{Arc, RwLock, Weak},
-};
-
-#[pyclass]
-#[derive(Clone, Default)]
-pub struct RIndex {
-    #[pyo3(get, set)]
-    pub index: BTreeMap<i64, i64>,
-    #[pyo3(get, set)]
-    pub secondary_indices: HashMap<i64, BTreeMap<i64, Vec<i64>>>,
-    // Using Arc<RwLock<>> pattern which is safer than raw pointers
-    // these fields are not python exposed
-    pub owner: Option<Weak<RwLock<RTable>>>,
-}
+use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, HashMap};
+use std::fs::File;
+use std::io::{BufReader, BufWriter, Write};
+use std::sync::{Arc, RwLock, Weak};
 
 #[pyclass]
 #[derive(Clone, Default)]
@@ -61,6 +50,25 @@ impl RIndexHandle {
     }
 }
 
+#[derive(Clone, Default, Deserialize, Serialize)]
+pub struct RIndexMetadata {
+    pub index: BTreeMap<i64, i64>,
+    pub secondary_indices: HashMap<i64, BTreeMap<i64, Vec<i64>>>,
+}
+
+#[pyclass]
+#[derive(Clone, Default)]
+pub struct RIndex {
+    #[pyo3(get, set)]
+    pub index: BTreeMap<i64, i64>,
+
+    #[pyo3(get, set)]
+    pub secondary_indices: HashMap<i64, BTreeMap<i64, Vec<i64>>>,
+    // Using Arc<RwLock<>> pattern which is safer than raw pointers
+    // these fields are not python exposed
+    pub owner: Option<Weak<RwLock<RTable>>>,
+}
+
 impl RIndex {
     pub fn new() -> RIndex {
         RIndex {
@@ -89,13 +97,16 @@ impl RIndex {
     pub fn create_index_internal(&mut self, col_index: i64, table: &RTable) {
         let mut sec_index: BTreeMap<i64, Vec<i64>> = BTreeMap::new();
         for (&rid, record) in table.page_directory.directory.iter() {
-            if let Some(record_data) = table.page_range.read(record.clone(), default_mask(&record, false)) {
+            if let Some(record_data) = table
+                .page_range
+                .read(record.clone(), default_mask(&record, false))
+            {
                 if record_data.len() <= (col_index + 3) as usize {
                     // Skip if the record data is unexpectedly short.
                     continue;
                 }
                 // user columns start at offset 3
-                let val = record_data[(col_index + if record.is_tail {4} else {3}) as usize];
+                let val = record_data[(col_index + if record.is_tail { 4 } else { 3 }) as usize];
                 if let Some(value) = val {
                     sec_index.entry(value).or_insert_with(Vec::new).push(rid);
                 }
@@ -142,6 +153,39 @@ impl RIndex {
             }
         }
     }
+
+    pub fn save_state(&self) {
+        let hardcoded_filename = "./redoxdata/index.data";
+
+        let index_meta = self.get_metadata();
+
+        let index_bytes: Vec<u8> = bincode::serialize(&index_meta).expect("Should serialize.");
+
+        let mut file = BufWriter::new(File::create(hardcoded_filename).expect("Should open file."));
+        file.write_all(&index_bytes).expect("Should serialize.");
+    }
+
+    pub fn get_metadata(&self) -> RIndexMetadata {
+        RIndexMetadata {
+            index: self.index.clone(),
+            secondary_indices: self.secondary_indices.clone(),
+        }
+    }
+
+    pub fn load_state(table_ref: Weak<RwLock<RTable>>) -> RIndex {
+        let hardcoded_filename = "./redoxdata/index.data";
+
+        let file = BufReader::new(File::open(hardcoded_filename).expect("Should open file."));
+
+        let index_meta: RIndexMetadata =
+            bincode::deserialize_from(file).expect("Should deserialize.");
+
+        RIndex {
+            index: index_meta.index,
+            secondary_indices: index_meta.secondary_indices,
+            owner: Some(table_ref),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -164,8 +208,8 @@ mod tests {
     mod secondary_index_tests {
         use super::*;
         use crate::pagerange::PageRange;
+        use crate::table::PageDirectory;
         use crate::table::RTable;
-        use std::collections::HashMap;
 
         #[test]
         fn test_create_and_drop_secondary_index_on_col1() {
