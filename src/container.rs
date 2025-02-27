@@ -210,21 +210,20 @@ impl BaseContainer {
     }
 
     pub fn find_rid_offset(&mut self, rid: i64) -> usize {
-        let mut offset: i64 = -1;
-
-        for i in 0..self.rid_page().lock().unwrap().data.len() {
-            if self.rid_page().lock().unwrap().data[i] == rid {
-                offset = i as i64;
-                break;
+        let rid_page = self.rid_page();
+        let data = {
+            let guard = rid_page.lock().unwrap();
+            guard.data.clone()
+        };
+    
+        for (i, &value) in data.iter().enumerate() {
+            if value == rid {
+                return i;
             }
         }
-
-        if offset == -1 {
-            panic!("Could not find RID in RID page");
-        }
-
-        offset as usize
+        panic!("Could not find RID in RID page");
     }
+    
 
     pub fn save_state(&self) {
         let base_meta = self.get_metadata();

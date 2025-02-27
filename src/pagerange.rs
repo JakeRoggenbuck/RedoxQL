@@ -49,113 +49,206 @@ impl PageRange {
 
     /// Merge the two containers in a separate thread
     pub fn merge(&mut self, page_directory: Arc<Mutex<PageDirectory>>) {
+        // println!("Merge: Pre-starting merge operation in a separate thread");
+
         let base_container = self.base_container.clone();
         let tail_container = self.tail_container.clone();
         let thread_pd = page_directory.clone();
-
+    
+        // println!("Merge: Starting merge operation in a separate thread");
+    
         let handle = thread::spawn(move || {
+            // println!("Thread: Merge thread started");
             let mut new_records: Vec<Record> = Vec::new();
             let mut seen_rids: HashSet<i64> = HashSet::new();
-            let mut tail_rids_to_process: Vec<i64> = tail_container
-                .rid_page()
-                .lock()
-                .unwrap()
-                .clone()
-                .data
-                .clone();
-
-            if tail_rids_to_process.len() == 0 {
+    
+            // println!("Thread: Locking tail_container.rid_page()");
+            let tail_rid_page = tail_container.rid_page();
+            let tail_rid_data = {
+                let rid_guard = tail_rid_page.lock().unwrap();
+                // println!("Thread: Acquired tail_container.rid_page lock, data length: {}", rid_guard.data.len());
+                let data = rid_guard.data.clone();
+                data
+            };
+    
+            if tail_rid_data.is_empty() {
+                // println!("Thread: tail_rid_data is empty, returning early");
                 return (base_container, Vec::new());
             }
-
+    
+            let mut tail_rids_to_process = tail_rid_data;
             tail_rids_to_process.reverse();
-
+            // println!("Thread: Reversed tail_rids_to_process");
+    
             let mut new_base = base_container.deep_copy();
             let last_tail_rid = tail_rids_to_process[0];
-
+    
             for tail_rid in tail_rids_to_process {
-                // If we've seen all the rids, break
-                if seen_rids.len() >= new_base.rid_page().lock().unwrap().num_records as usize {
-                    break;
+                // println!("Thread: Processing tail_rid: {}", tail_rid);
+    
+                // Check if we've seen all rids using new_base's RID page.
+                {
+                    let new_base_rid_page = new_base.rid_page();
+                    let rid_guard = new_base_rid_page.lock().unwrap();
+                    // println!("Thread: new_base.rid_page num_records: {}", rid_guard.num_records);
+                    if seen_rids.len() >= rid_guard.num_records as usize {
+                        // println!("Thread: Seen all rids, breaking loop");
+                        break;
+                    }
                 }
-
-                let pd_guard = thread_pd.lock().unwrap();
-                let tail_record = pd_guard.directory.get(&tail_rid).unwrap();
+    
+                // println!("Thread: Locking page_directory to get tail_record for tail_rid: {}", tail_rid);
+                let tail_record = {
+                    let pd_guard = thread_pd.lock().unwrap();
+                    // println!("Thread: Acquired page_directory lock for tail_rid: {}", tail_rid);
+                    pd_guard.directory.get(&tail_rid).unwrap().clone()
+                };
+                // println!("Thread: Got tail_record for tail_rid: {}", tail_rid);
+    
                 let base_rid_address = tail_record.base_rid();
-                let base_rid =
-                    base_rid_address.page.lock().unwrap().data[base_rid_address.offset as usize];
-
+                let base_rid = {
+                    // println!("Thread: Locking base_rid_address.page for base_rid");
+                    let base_rid_page = base_rid_address.page.clone();
+                    let page_guard = base_rid_page.lock().unwrap();
+                    let brid = page_guard.data[base_rid_address.offset as usize];
+                    // println!("Thread: Retrieved base_rid: {}", brid);
+                    brid
+                };
+    
                 if !seen_rids.contains(&base_rid) {
-                    // find how much the rid is offsetted by
                     let offset = new_base.find_rid_offset(base_rid);
-
-                    // update the new_base with the tail record data
-                    new_base.schema_encoding_page().lock().unwrap().data[offset] = 0;
-                    new_base.indirection_page().lock().unwrap().data[offset] = base_rid;
-
+                    // println!("Thread: Found offset {} for base_rid: {}", offset, base_rid);
+    
+                    {
+                        // println!("Thread: Locking new_base.schema_encoding_page");
+                        let schema_page = new_base.schema_encoding_page();
+                        let mut schema_guard = schema_page.lock().unwrap();
+                        schema_guard.data[offset] = 0;
+                        // println!("Thread: Updated schema_encoding_page at offset {}", offset);
+                    }
+                    {
+                        // println!("Thread: Locking new_base.indirection_page");
+                        let indirection_page = new_base.indirection_page();
+                        let mut indir_guard = indirection_page.lock().unwrap();
+                        indir_guard.data[offset] = base_rid;
+                        // println!("Thread: Updated indirection_page at offset {} with base_rid {}", offset, base_rid);
+                    }
+    
+                    // println!("Thread: Creating new record for base_rid: {}", base_rid);
                     let new_record = Record {
                         rid: base_rid,
                         addresses: Arc::new(Mutex::new(Vec::new())),
                     };
-
-                    new_record.addresses.lock().unwrap().push(RecordAddress {
-                        page: new_base.rid_page(),
-                        offset: offset as i64,
-                    });
-
-                    new_record.addresses.lock().unwrap().push(RecordAddress {
-                        page: new_base.schema_encoding_page(),
-                        offset: offset as i64,
-                    });
-
-                    new_record.addresses.lock().unwrap().push(RecordAddress {
-                        page: new_base.indirection_page(),
-                        offset: offset as i64,
-                    });
-
-                    new_record.addresses.lock().unwrap().push(RecordAddress {
-                        page: new_base.base_rid_page(),
-                        offset: offset as i64,
-                    });
-
-                    for i in 0..tail_record.columns().len() {
-                        new_base.column_page(i as i64)
-                            .lock()
-                            .unwrap()
-                            .data[offset] = tail_record.columns()[i]
-                            .page
-                            .lock()
-                            .unwrap()
-                            .data[tail_record.columns()[i].offset as usize];
-                        
-                        new_record.addresses.lock().unwrap().push(RecordAddress {
-                            page: new_base.column_page(i as i64),
+    
+                    {
+                        let new_rid_page = new_base.rid_page();
+                        let mut addr_guard = new_record.addresses.lock().unwrap();
+                        addr_guard.push(RecordAddress {
+                            page: new_rid_page,
                             offset: offset as i64,
                         });
+                        // println!("Thread: Pushed RID address for record {}", base_rid);
                     }
-                    
+                    {
+                        let schema_page = new_base.schema_encoding_page();
+                        let mut addr_guard = new_record.addresses.lock().unwrap();
+                        addr_guard.push(RecordAddress {
+                            page: schema_page,
+                            offset: offset as i64,
+                        });
+                        // println!("Thread: Pushed schema_encoding address for record {}", base_rid);
+                    }
+                    {
+                        let indirection_page = new_base.indirection_page();
+                        let mut addr_guard = new_record.addresses.lock().unwrap();
+                        addr_guard.push(RecordAddress {
+                            page: indirection_page,
+                            offset: offset as i64,
+                        });
+                        // println!("Thread: Pushed indirection address for record {}", base_rid);
+                    }
+                    {
+                        let base_rid_page = new_base.base_rid_page();
+                        let mut addr_guard = new_record.addresses.lock().unwrap();
+                        addr_guard.push(RecordAddress {
+                            page: base_rid_page,
+                            offset: offset as i64,
+                        });
+                        // println!("Thread: Pushed base_rid address for record {}", base_rid);
+                    }
+    
+                    for i in 0..tail_record.columns().len() {
+                        // println!("Thread: Processing column {} for tail_record with base_rid: {}", i, base_rid);
+                        let tail_col_page = tail_record.columns()[i].page.clone();
+                        let col_value = {
+                            let col_guard = tail_col_page.lock().unwrap();
+                            let val = col_guard.data[tail_record.columns()[i].offset as usize];
+                            // println!("Thread: Got column value {} for column {}", val, i);
+                            val
+                        };
+    
+                        {
+                            let new_col_page = new_base.column_page(i as i64);
+                            let mut new_col_guard = new_col_page.lock().unwrap();
+                            new_col_guard.data[offset] = col_value;
+                            // println!("Thread: Updated new_base column {} at offset {} with value {}", i, offset, col_value);
+                        }
+                        {
+                            let new_col_page = new_base.column_page(i as i64);
+                            let mut addr_guard = new_record.addresses.lock().unwrap();
+                            addr_guard.push(RecordAddress {
+                                page: new_col_page,
+                                offset: offset as i64,
+                            });
+                            // println!("Thread: Pushed column address for column {} for record {}", i, base_rid);
+                        }
+                    }
+    
                     new_records.push(new_record);
+                    // println!("Thread: New record for base_rid {} added", base_rid);
                     seen_rids.insert(base_rid);
                 }
             }
             new_base.tail_page_sequence = last_tail_rid;
-
+            // println!("Thread: Set new_base.tail_page_sequence to {}", last_tail_rid);
+            // println!("Thread: Merge thread complete, returning new_base and new_records");
             (new_base, new_records)
         });
-
+    
         let (new_base_container, new_records) = handle.join().unwrap();
-
+        // println!("Main: Merge thread joined successfully");
+    
         self.base_container = new_base_container;
-
+        // println!("Main: Updated self.base_container");
+    
         for record in new_records {
+            // println!("Main: Processing record with rid: {}", record.rid);
             let mut pd_guard = page_directory.lock().unwrap();
-            let current_record = pd_guard.directory.get(&record.rid).unwrap();
-            if current_record.indirection().page.lock().unwrap().data[current_record.indirection().offset as usize] > self.base_container.tail_page_sequence {
-                record.indirection().page.lock().unwrap().data[record.indirection().offset as usize] = current_record.indirection().page.lock().unwrap().data[current_record.indirection().offset as usize];
+            let current_record = pd_guard.directory.get(&record.rid).unwrap().clone();
+    
+            let current_indir_val = {
+                // println!("Main: Locking current_record.indirection().page for record {}", record.rid);
+                let indirection_page = current_record.indirection().page.clone();
+                let indir_guard = indirection_page.lock().unwrap();
+                let val = indir_guard.data[current_record.indirection().offset as usize];
+                // println!("Main: Current indirection value for record {} is {}", record.rid, val);
+                val
+            };
+    
+            if current_indir_val > self.base_container.tail_page_sequence {
+                // println!("Main: Updating record {} indirection with value {}", record.rid, current_indir_val);
+                let record_indirection_page = record.indirection().page.clone();
+                let mut rec_indir_guard = record_indirection_page.lock().unwrap();
+                rec_indir_guard.data[record.indirection().offset as usize] = current_indir_val;
             }
-            pd_guard.directory.insert(record.rid, record);
+            let rid = record.rid;
+            pd_guard.directory.insert(rid, record);
+            // println!("Main: Inserted record {} into page_directory", rid);
         }
     }
+    
+    
+    
 
 
     pub fn save_state(&self) {
