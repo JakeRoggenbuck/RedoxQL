@@ -37,7 +37,7 @@ impl RQuery {
         let binding = handle.table.clone();
         let mut t = binding.write().unwrap();
 
-        if t.num_records > 0 && t.updates_since_merge > 500 {
+        if t.num_records > 0 && t.updates_since_merge > 50000 {
             t.merge();
             t.updates_since_merge = 0;
         }
@@ -139,7 +139,7 @@ impl RQuery {
         let mut table = self.handle.table.write().unwrap();
 
         {
-           if table.num_records > 0 && table.updates_since_merge > 500 {
+           if table.num_records > 0 && table.updates_since_merge > 50000 {
                table.merge();
                table.updates_since_merge = 0;
            }
