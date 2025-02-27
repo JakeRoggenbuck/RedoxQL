@@ -1,15 +1,15 @@
-use crate::index::RIndexHandle;
-
 use super::index::RIndex;
+use super::page::PhysicalPage;
 use super::pagerange::{PageRange, PageRangeMetadata};
 use super::record::{Record, RecordMetadata};
+use crate::index::RIndexHandle;
 use bincode;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Write};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock, Weak};
 
 #[derive(Default, Clone, Serialize, Deserialize)]
 pub struct PageDirectoryMetadata {
@@ -28,10 +28,44 @@ impl PageDirectory {
         }
     }
 
-    fn load_state() -> PageDirectory {
+    pub fn display(&self) {
+        for (rid, record) in self.directory.clone() {
+            print!("{rid} -> ");
+            let m = record.addresses;
+            let b = m.lock().unwrap();
+            let c = b.iter();
+
+            for addr in c {
+                println!("{:?}", addr);
+            }
+            print!("\n\n\n");
+        }
+    }
+
+    fn load_state(page_range: &PageRange) -> PageDirectory {
         let hardcoded_filename = "./redoxdata/page_directory.data";
 
+        let base_phys_pages = &page_range.base_container.physical_pages;
+        let tail_phys_pages = &page_range.tail_container.physical_pages;
+
+        // Create a map of column_indexes to the physical pages there are stored in
+        let mut base_pages = HashMap::<i64, Arc<Mutex<PhysicalPage>>>::new();
+        let mut tail_pages = HashMap::<i64, Arc<Mutex<PhysicalPage>>>::new();
+
+        // Load the base pages into the map
+        for page in base_phys_pages {
+            let m = page.lock().unwrap();
+            base_pages.insert(m.column_index, page.clone());
+        }
+
+        // Load the tail pages into the map
+        for page in tail_phys_pages {
+            let m = page.lock().unwrap();
+            tail_pages.insert(m.column_index, page.clone());
+        }
+
         let file = BufReader::new(File::open(hardcoded_filename).expect("Should open file."));
+
         let page_meta: PageDirectoryMetadata =
             bincode::deserialize_from(file).expect("Should deserialize.");
 
@@ -39,17 +73,13 @@ impl PageDirectory {
             directory: HashMap::new(),
         };
 
-        // TODO: We need to somehow load all of the physical pages, wrap them
-        // in an Arc Mutex, and assign those references to the record addresses
-        // that need them
-        //
-        // We could store the id for where the the physical page it stored on disk
-        // in the physical, and then we can load all of them up here, assuming we
-        // have something storing the max page index
-
+        // Load records into page_directory
         for (rid, record_meta) in page_meta.directory {
-            pd.directory.insert(rid, record_meta.load_state());
+            let rec = record_meta.load_state(&base_pages, &tail_pages);
+            pd.directory.insert(rid, rec);
         }
+
+        // pd.display();
 
         return pd;
     }
@@ -90,16 +120,29 @@ pub trait StatePersistence {
         let table_meta: RTableMetadata =
             bincode::deserialize_from(file).expect("Should deserialize.");
 
-        RTable {
+        let pr = PageRange::load_state();
+        let pd = PageDirectory::load_state(&pr);
+
+        let mut t = RTable {
             name: table_meta.name.clone(),
             primary_key_column: table_meta.primary_key_column,
             num_columns: table_meta.num_columns,
             num_records: table_meta.num_records,
 
-            page_range: PageRange::load_state(),
-            page_directory: PageDirectory::load_state(),
+            page_range: pr,
+            page_directory: pd,
             index: Arc::new(RwLock::new(RIndex::new())),
-        }
+        };
+
+        // It does not make sense to clone here
+        let arc_table = Arc::new(RwLock::new(t.clone()));
+        let weak_table = Arc::downgrade(&arc_table);
+
+        let index = RIndex::load_state(weak_table);
+
+        t.index = Arc::new(RwLock::new(index));
+
+        return t;
     }
 }
 
@@ -286,6 +329,8 @@ impl RTable {
 
         self.page_directory.save_state();
 
+        self.index.read().unwrap().save_state();
+
         let table_meta = self.get_metadata();
 
         let table_bytes: Vec<u8> = bincode::serialize(&table_meta).expect("Should serialize.");
@@ -330,6 +375,11 @@ impl RTableHandle {
     pub fn delete(&self, primary_key: i64) {
         let mut table = self.table.write().expect("Failed to acquire write lock");
         table.delete(primary_key);
+    }
+
+    pub fn debug_page_dir(&self) {
+        let t = self.table.read().unwrap();
+        t.page_directory.display();
     }
 
     // Allow access to properties
