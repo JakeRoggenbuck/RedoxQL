@@ -1,3 +1,5 @@
+use crate::container::{ReservedColumns, NUM_RESERVED_COLUMNS};
+
 use super::page::PhysicalPage;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -5,6 +7,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Clone)]
+#[pyclass]
 pub struct RecordAddress {
     pub page: Arc<Mutex<PhysicalPage>>,
     pub offset: i64,
@@ -116,5 +119,34 @@ impl Record {
         }
 
         format!("Record(rid={}, addresses={:?})", self.rid, addrs)
+    }
+
+    fn __repr__(&self) -> String {
+        self.__str__()
+    }
+
+    pub fn rid(&self) -> i64 {
+        self.rid
+    }
+
+    pub fn schema_encoding(&self) -> RecordAddress {
+        let addresses = self.addresses.lock().unwrap();
+        addresses[ReservedColumns::SchemaEncoding as usize].clone()
+    }
+
+    pub fn indirection(&self) -> RecordAddress {
+        let addresses = self.addresses.lock().unwrap();
+        addresses[ReservedColumns::Indirection as usize].clone()
+    }
+
+    pub fn base_rid(&self) -> RecordAddress {
+        let addresses = self.addresses.lock().unwrap();
+        addresses[ReservedColumns::BaseRID as usize].clone()
+    }
+
+    pub fn columns(&self) -> Vec<RecordAddress> {
+        let addresses = self.addresses.lock().unwrap();
+
+        addresses[(NUM_RESERVED_COLUMNS as usize)..].to_vec()
     }
 }

@@ -21,7 +21,7 @@ pub struct RDatabaseMetadata {
 #[pyclass]
 pub struct RDatabase {
     /// This is where we keep all of the tables
-    tables: Vec<Arc<RwLock<RTable>>>,
+    pub tables: Vec<Arc<RwLock<RTable>>>,
     // Map table names to index on the tables: Vec<RTable>
     tables_hashmap: HashMap<String, usize>,
 
@@ -128,6 +128,7 @@ impl RDatabase {
             num_records: 0,
             index: Arc::new(RwLock::new(RIndex::new())),
             table_num: self.tables.len() as i64,
+            updates_since_merge: 0,
         };
 
         let arc_table = Arc::new(RwLock::new(table));

@@ -1,37 +1,50 @@
+use super::page::PhysicalPage;
+use serde::{Deserialize, Serialize};
+use std::fs::File;
+use std::io::{BufReader, BufWriter, Write};
 use std::sync::{Arc, Mutex};
 
+#[derive(Deserialize, Serialize, Debug)]
 pub struct BufferPool {
     // The physical directory on disk that data will be written to
-    pub physical_directory: Arc<Mutex<String>>,
+    pub physical_directory: String,
 }
 
 impl BufferPool {
     pub fn new(directory: &str) -> Self {
         BufferPool {
-            physical_directory: Arc::new(Mutex::new(directory.to_string())),
+            physical_directory: directory.to_string(),
         }
     }
 
-    pub fn write_page(_page_id: usize) {
-        // Figure out if the page is in memory or saved in a file
-        // ?? Keep track of where the physical memory should be if it needs to read it again
-        todo!();
+    pub fn write_page(page: Arc<Mutex<PhysicalPage>>, value: i64) {
+        let mut m = page.lock().unwrap();
+        m.write(value);
     }
 
-    pub fn read_page(_page_id: usize) {
-        // Figure out if the page is in memory or saved in a file
-        // If it's not in memory, we load it into memory (probably LRU)
-
-        // TODO: How does it know the page id? Page ID being a name for knowing where the page is
-        todo!();
+    pub fn read_page(page: Arc<Mutex<PhysicalPage>>, offset: i64) -> Option<i64> {
+        let m = page.lock().unwrap();
+        return m.read(offset as usize);
     }
 
-    pub fn save_state(&self) {}
+    pub fn save_state(&self) {
+        let hardcoded_filename = "./redoxdata/bufferpull.data";
 
-    pub fn load_state(&self, directory: &str) -> BufferPool {
-        BufferPool {
-            physical_directory: Arc::new(Mutex::new(directory.to_string())),
-        }
+        let bufferpool_bytes: Vec<u8> = bincode::serialize(self).expect("Should serialize.");
+
+        let mut file = BufWriter::new(File::create(hardcoded_filename).expect("Should open file."));
+        file.write_all(&bufferpool_bytes)
+            .expect("Should serialize.");
+    }
+
+    pub fn load_state(&self, _directory: &str) -> BufferPool {
+        let hardcoded_filename = "./redoxdata/bufferpull.data";
+
+        let file = BufReader::new(File::open(hardcoded_filename).expect("Should open file."));
+
+        let bufferpool: BufferPool = bincode::deserialize_from(file).expect("Should deserialize.");
+
+        return bufferpool;
     }
 }
 
@@ -48,8 +61,8 @@ mod tests {
         let new_b = b.load_state("/data");
 
         assert_eq!(
-            b.physical_directory.lock().unwrap().to_string(),
-            new_b.physical_directory.lock().unwrap().to_string()
+            b.physical_directory.to_string(),
+            new_b.physical_directory.to_string()
         );
     }
 

@@ -1,4 +1,5 @@
-use super::table::RTable;
+use super::table::{PageDirectory, RTable};
+use crate::container::NUM_RESERVED_COLUMNS;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
@@ -96,12 +97,12 @@ impl RIndex {
         let mut sec_index: BTreeMap<i64, Vec<i64>> = BTreeMap::new();
         for (&rid, record) in table.page_directory.directory.iter() {
             if let Some(record_data) = table.page_range.read(record.clone()) {
-                if record_data.len() <= (col_index + 3) as usize {
+                if record_data.len() <= (col_index + NUM_RESERVED_COLUMNS) as usize {
                     // Skip if the record data is unexpectedly short.
                     continue;
                 }
                 // user columns start at offset 3
-                let val = record_data[(col_index + 3) as usize];
+                let val = record_data[(col_index + NUM_RESERVED_COLUMNS) as usize];
                 sec_index.entry(val).or_insert_with(Vec::new).push(rid);
             }
             // For each key in the secondary index, sort the vector so that tests compare in order.
@@ -216,6 +217,7 @@ mod tests {
                 num_columns: 3,
                 index: Arc::new(RwLock::new(RIndex::new())),
                 table_num: 0,
+                updates_since_merge: 0,
             };
 
             // Insert three records:
@@ -260,6 +262,7 @@ mod tests {
                 num_columns: 3,
                 index: Arc::new(RwLock::new(RIndex::new())),
                 table_num: 0,
+                updates_since_merge: 0,
             };
 
             // Insert two records:
@@ -297,6 +300,7 @@ mod tests {
                 num_columns: 3,
                 index: Arc::new(RwLock::new(RIndex::new())),
                 table_num: 0,
+                updates_since_merge: 0,
             };
             let arc_table = Arc::new(RwLock::new(table));
 

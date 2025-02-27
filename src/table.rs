@@ -1,3 +1,5 @@
+use crate::container::{ReservedColumns, NUM_RESERVED_COLUMNS};
+
 use super::index::RIndex;
 use super::page::PhysicalPage;
 use super::pagerange::{PageRange, PageRangeMetadata};
@@ -111,6 +113,7 @@ pub struct RTableMetadata {
     pub num_columns: usize,
     pub page_range: PageRangeMetadata,
     pub table_num: i64,
+    pub updates_since_merge: i64,
 }
 
 pub trait StatePersistence {
@@ -134,6 +137,7 @@ pub trait StatePersistence {
             page_directory: pd,
             index: Arc::new(RwLock::new(RIndex::new())),
             table_num: table_meta.table_num,
+            updates_since_merge: table_meta.updates_since_merge,
         };
 
         // It does not make sense to clone here
@@ -172,6 +176,8 @@ pub struct RTable {
 
     /// The nth table that was created will have the value n here and is indexed by zero
     pub table_num: i64,
+
+    pub updates_since_merge: i64,
 }
 
 impl RTable {
@@ -215,9 +221,8 @@ impl RTable {
         let Some(result) = self.read_base(primary_key as i64) else {
             return None;
         };
-        let base_rid = result[self.page_range.base_container.rid_column as usize];
-        let base_indirection_column =
-            result[self.page_range.base_container.indirection_column as usize];
+        let base_rid = result[ReservedColumns::RID as usize];
+        let base_indirection_column = result[ReservedColumns::Indirection as usize];
 
         if base_rid == base_indirection_column {
             return Some(result);
@@ -242,9 +247,8 @@ impl RTable {
         let Some(base) = self.read_base(primary_key as i64) else {
             return None;
         };
-        let base_rid = base[self.page_range.base_container.rid_column as usize];
-        let base_indirection_column =
-            base[self.page_range.base_container.indirection_column as usize];
+        let base_rid = base[ReservedColumns::RID as usize];
+        let base_indirection_column = base[ReservedColumns::Indirection as usize];
         if base_rid == base_indirection_column {
             return Some(base);
         }
@@ -264,8 +268,7 @@ impl RTable {
             };
 
             // get the indirection of the previous version
-            let prev_indirection: i64 =
-                record_data[self.page_range.tail_container.indirection_column as usize];
+            let prev_indirection: i64 = record_data[ReservedColumns::Indirection as usize];
 
             // if we've reached the base record, stop here
             if prev_indirection == base_rid {
@@ -300,7 +303,7 @@ impl RTable {
 
         for primary_key in start_primary_key..end_primary_key + 1 {
             if let Some(v) = self.read(primary_key) {
-                agg += v[(col_index + 3) as usize] as i64;
+                agg += v[(col_index + NUM_RESERVED_COLUMNS) as usize] as i64;
             }
         }
 
@@ -318,7 +321,7 @@ impl RTable {
 
         for primary_key in start_primary_key..end_primary_key + 1 {
             if let Some(v) = self.read_relative(primary_key, relative_version) {
-                agg += v[(col_index + 3) as usize] as i64;
+                agg += v[(col_index + NUM_RESERVED_COLUMNS) as usize] as i64;
             }
         }
 
@@ -352,11 +355,12 @@ impl RTable {
             num_records: self.num_records,
             page_range: self.page_range.get_metadata(),
             table_num: self.table_num,
+            updates_since_merge: self.updates_since_merge,
         }
     }
 
-    fn _merge() {
-        unreachable!("Not used in milestone 1")
+    pub fn merge(&mut self) {
+        self.page_range.merge(Arc::new(Mutex::new(self.page_directory.clone())));
     }
 }
 
@@ -460,13 +464,13 @@ mod tests {
         table.write(vec![0, 10, 12]);
 
         // Read and check
-        assert_eq!(table.read(0).unwrap(), vec![0, 0, 0, 0, 10, 12]);
+        assert_eq!(table.read(0).unwrap(), vec![0, 0, 0, 0, 0, 10, 12]);
 
         // Write
         table.write(vec![1, 20, 30]);
 
         // Read and check
-        assert_eq!(table.read(1).unwrap(), vec![1, 0, 1, 1, 20, 30]);
+        assert_eq!(table.read(1).unwrap(), vec![1, 0, 1, 1, 1, 20, 30]);
     }
 
     #[test]
@@ -479,13 +483,13 @@ mod tests {
         table.write(vec![0, 10, 12]);
 
         // Read and check
-        assert_eq!(table.read_base(0).unwrap(), vec![0, 0, 0, 0, 10, 12]);
+        assert_eq!(table.read_base(0).unwrap(), vec![0, 0, 0, 0, 0, 10, 12]);
 
         // Write
-        table.write(vec![1, 20, 30]);
+        table.write(vec![4, 20, 30]);
 
         // Read and check
-        assert_eq!(table.read_base(1).unwrap(), vec![1, 0, 1, 1, 20, 30]);
+        assert_eq!(table.read_base(4).unwrap(), vec![1, 0, 1, 1, 4, 20, 30]);
     }
 
     #[test]
@@ -518,7 +522,7 @@ mod tests {
         // Write
         table.write(vec![0, 10, 12]);
         // Read and check
-        assert_eq!(table.read_base(0).unwrap(), vec![0, 0, 0, 0, 10, 12]);
+        assert_eq!(table.read_base(0).unwrap(), vec![0, 0, 0, 0, 0, 10, 12]);
 
         // Delete
         table.delete(0);

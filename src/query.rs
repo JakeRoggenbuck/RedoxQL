@@ -1,4 +1,7 @@
-use crate::table::RTableHandle;
+use crate::{
+    container::{ReservedColumns, NUM_RESERVED_COLUMNS},
+    table::RTableHandle,
+};
 
 use super::record::Record;
 use pyo3::prelude::*;
@@ -11,8 +14,8 @@ pub struct RQuery {
 }
 
 fn filter_projected(column_values: Vec<i64>, projected: Vec<i64>) -> Vec<Option<i64>> {
-    // Add the 3 columns used internally
-    let mut projected_cols: Vec<i64> = vec![1, 1, 1];
+    // Add the 4 columns used internally
+    let mut projected_cols: Vec<i64> = vec![1, 1, 1, 1];
     projected_cols.extend(projected.clone());
 
     let mut out: Vec<Option<i64>> = vec![];
@@ -31,6 +34,13 @@ fn filter_projected(column_values: Vec<i64>, projected: Vec<i64>) -> Vec<Option<
 impl RQuery {
     #[new]
     pub fn new(handle: RTableHandle) -> Self {
+        let binding = handle.table.clone();
+        let mut t = binding.write().unwrap();
+
+        if t.num_records > 0 && t.updates_since_merge > 500 {
+            t.merge();
+            t.updates_since_merge = 0;
+        }
         RQuery { handle }
     }
 
@@ -60,7 +70,7 @@ impl RQuery {
     ) -> Option<Vec<Vec<Option<i64>>>> {
         let table = self.handle.table.read().unwrap();
 
-        // table.page_directory.display(); -> This shows the full page dir!!
+        // table.page_directory.display(); // -> This shows the full page dir!!
 
         // Case 1: Searching on the primary key column
         if search_key_index == table.primary_key_column as i64 {
@@ -95,7 +105,9 @@ impl RQuery {
                 let mut results = Vec::new();
                 for (_rid, record) in table.page_directory.directory.iter() {
                     if let Some(record_data) = table.page_range.read(record.clone()) {
-                        if record_data[(search_key_index + 3) as usize] == search_key {
+                        if record_data[(search_key_index + NUM_RESERVED_COLUMNS) as usize]
+                            == search_key
+                        {
                             results.push(filter_projected(
                                 record_data,
                                 projected_columns_index.clone(),
@@ -125,6 +137,15 @@ impl RQuery {
 
     pub fn update(&mut self, primary_key: i64, columns: Vec<Option<i64>>) -> bool {
         let mut table = self.handle.table.write().unwrap();
+
+        {
+           if table.num_records > 0 && table.updates_since_merge > 500 {
+               table.merge();
+               table.updates_since_merge = 0;
+           }
+        
+           table.updates_since_merge += 1;
+        }
 
         // This functin expects an expact number of columns as table has
         if columns.len() != table.num_columns {
@@ -157,13 +178,12 @@ impl RQuery {
             return false;
         };
 
-        let base_cont = &table.page_range.base_container;
-        let indirection_column = base_cont.indirection_column;
+        let indirection_column = ReservedColumns::Indirection as usize;
 
-        // Get values from record for the 3 internal columns
-        let base_rid = result[base_cont.rid_column as usize];
-        let base_schema_encoding = result[base_cont.schema_encoding_column as usize];
-        let base_indirection_column = result[base_cont.indirection_column as usize];
+        // Get values from record for the 4 internal columns
+        let base_rid = result[ReservedColumns::RID as usize];
+        let base_schema_encoding = result[ReservedColumns::SchemaEncoding as usize];
+        let base_indirection_column = result[ReservedColumns::Indirection as usize];
 
         // base record addresses
         let addrs_base = record.addresses.lock().unwrap();
@@ -171,13 +191,12 @@ impl RQuery {
         if base_rid == base_indirection_column {
             // first update
             if base_schema_encoding == 0 {
-                let mut base_schema_encoding = addrs_base
-                    [base_cont.schema_encoding_column as usize]
+                let mut base_schema_encoding = addrs_base[ReservedColumns::SchemaEncoding as usize]
                     .page
                     .lock()
                     .unwrap();
                 base_schema_encoding.overwrite(
-                    addrs_base[base_cont.schema_encoding_column as usize].offset as usize,
+                    addrs_base[ReservedColumns::SchemaEncoding as usize].offset as usize,
                     1,
                 );
             }
@@ -195,12 +214,12 @@ impl RQuery {
                 let tail_cont = &table.page_range.tail_container;
                 // update schema encoding of the tail to be 1 (since record has changed)
                 let addrs_existing = existing_tail_record.addresses.lock().unwrap();
-                let mut schema_encoding = addrs_existing[tail_cont.schema_encoding_column as usize]
+                let mut schema_encoding = addrs_existing[ReservedColumns::SchemaEncoding as usize]
                     .page
                     .lock()
                     .unwrap();
                 schema_encoding.overwrite(
-                    addrs_existing[tail_cont.schema_encoding_column as usize].offset as usize,
+                    addrs_existing[ReservedColumns::SchemaEncoding as usize].offset as usize,
                     1,
                 );
             }
@@ -219,8 +238,8 @@ impl RQuery {
             new_primary_key = pk;
         }
 
-        // drop first 3 columns (rid, schema_encoding, indirection)
-        new_columns.drain(0..3);
+        // drop first 4 columns (rid, schema_encoding, indirection, base_rid)
+        new_columns.drain(0..NUM_RESERVED_COLUMNS as usize);
 
         // overwrite columns values onto new_columns values (that unwrap successfully)
         for i in 0..new_columns.len() {
@@ -234,6 +253,7 @@ impl RQuery {
         let new_rec = table.page_range.tail_container.insert_record(
             new_rid,
             base_indirection_column,
+            base_rid,
             new_columns,
         );
 
@@ -293,7 +313,7 @@ impl RQuery {
 
         if let Some(records) = ret {
             let record = &records[0];
-            let current_value = record[(column + 3) as usize].unwrap();
+            let current_value = record[(column + NUM_RESERVED_COLUMNS) as usize].unwrap();
             let mut to_update: Vec<Option<i64>> = vec![None; num_cols];
             to_update[column as usize] = Some(current_value + 1);
             return self.update(primary_key, to_update);
@@ -320,7 +340,15 @@ mod tests {
         let vals = q.select(1, 0, vec![1, 1, 1]);
         assert_eq!(
             vals.unwrap()[0],
-            vec![Some(0), Some(0), Some(0), Some(1), Some(2), Some(3)]
+            vec![
+                Some(0),
+                Some(0),
+                Some(0),
+                Some(0),
+                Some(1),
+                Some(2),
+                Some(3)
+            ]
         );
     }
 
@@ -338,21 +366,47 @@ mod tests {
         let vals = q.select(1, 0, vec![1, 1, 1]); // Select entire row
         assert_eq!(
             vals.unwrap()[0],
-            vec![Some(1), Some(0), Some(0), Some(1), Some(3), Some(3)]
+            vec![
+                Some(1),
+                Some(0),
+                Some(0),
+                Some(0),
+                Some(1),
+                Some(3),
+                Some(3)
+            ]
         );
 
         q.increment(1, 1);
+
         let vals2 = q.select(1, 0, vec![1, 1, 1]);
         assert_eq!(
             vals2.unwrap()[0],
-            vec![Some(2), Some(0), Some(1), Some(1), Some(4), Some(3)]
+            vec![
+                Some(2),
+                Some(0),
+                Some(1),
+                Some(0),
+                Some(1),
+                Some(4),
+                Some(3)
+            ]
         );
 
         q.increment(1, 1);
+
         let vals3 = q.select(1, 0, vec![1, 1, 1]);
         assert_eq!(
             vals3.unwrap()[0],
-            vec![Some(3), Some(0), Some(2), Some(1), Some(5), Some(3)]
+            vec![
+                Some(3),
+                Some(0),
+                Some(2),
+                Some(0),
+                Some(1),
+                Some(5),
+                Some(3)
+            ]
         );
     }
 
@@ -394,7 +448,15 @@ mod tests {
         let vals = q.select(1, 0, vec![1, 1, 1]);
         assert_eq!(
             vals.unwrap()[0],
-            vec![Some(0), Some(0), Some(0), Some(1), Some(2), Some(3)]
+            vec![
+                Some(0),
+                Some(0),
+                Some(0),
+                Some(0),
+                Some(1),
+                Some(2),
+                Some(3)
+            ]
         );
 
         let success = q.update(1, vec![Some(1), Some(5), Some(6)]);
@@ -403,7 +465,15 @@ mod tests {
         let vals2 = q.select(1, 0, vec![1, 1, 1]);
         assert_eq!(
             vals2.unwrap()[0],
-            vec![Some(1), Some(0), Some(0), Some(1), Some(5), Some(6)]
+            vec![
+                Some(1),
+                Some(0),
+                Some(0),
+                Some(0),
+                Some(1),
+                Some(5),
+                Some(6)
+            ]
         );
     }
 
@@ -435,7 +505,15 @@ mod tests {
         let vals = q.select(1, 0, vec![1, 1, 1]);
         assert_eq!(
             vals.unwrap()[0],
-            vec![Some(3), Some(0), Some(2), Some(1), Some(8), Some(9)]
+            vec![
+                Some(3),
+                Some(0),
+                Some(2),
+                Some(0),
+                Some(1),
+                Some(8),
+                Some(9)
+            ]
         );
     }
 
@@ -469,25 +547,57 @@ mod tests {
         let latest = q.select_version(1, 0, vec![1, 1, 1], 0);
         assert_eq!(
             latest.unwrap(),
-            vec![Some(3), Some(0), Some(2), Some(1), Some(8), Some(9)]
+            vec![
+                Some(3),
+                Some(0),
+                Some(2),
+                Some(0),
+                Some(1),
+                Some(8),
+                Some(9)
+            ]
         ); // Most recent version
 
         let one_back = q.select_version(1, 0, vec![1, 1, 1], 1);
         assert_eq!(
             one_back.unwrap(),
-            vec![Some(2), Some(1), Some(1), Some(1), Some(6), Some(7)]
+            vec![
+                Some(2),
+                Some(1),
+                Some(1),
+                Some(0),
+                Some(1),
+                Some(6),
+                Some(7)
+            ]
         ); // One version back
 
         let two_back = q.select_version(1, 0, vec![1, 1, 1], 2);
         assert_eq!(
             two_back.unwrap(),
-            vec![Some(1), Some(1), Some(0), Some(1), Some(4), Some(5)]
+            vec![
+                Some(1),
+                Some(1),
+                Some(0),
+                Some(0),
+                Some(1),
+                Some(4),
+                Some(5)
+            ]
         ); // Two versions back
 
         let original = q.select_version(1, 0, vec![1, 1, 1], 3);
         assert_eq!(
             original.unwrap(),
-            vec![Some(0), Some(1), Some(3), Some(1), Some(2), Some(3)]
+            vec![
+                Some(0),
+                Some(1),
+                Some(3),
+                Some(0),
+                Some(1),
+                Some(2),
+                Some(3)
+            ]
         ); // Original version
     }
 
@@ -507,7 +617,76 @@ mod tests {
         let vals = q.select(1, 0, vec![1, 1, 1]);
         assert_eq!(
             vals.unwrap()[0],
-            vec![Some(0), Some(0), Some(0), Some(1), Some(2), Some(3)]
+            vec![
+                Some(0),
+                Some(0),
+                Some(0),
+                Some(0),
+                Some(1),
+                Some(2),
+                Some(3)
+            ]
+        );
+    }
+
+    #[test]
+    fn merge_one_test() {
+        let mut db = RDatabase::new();
+        let table_ref = db.create_table(String::from("Grades"), 3, 0);
+        let mut q = RQuery::new(table_ref.clone());
+
+        // Insert initial record
+        q.insert(vec![1, 2, 3]);
+
+        // Make multiple updates
+        q.update(1, vec![Some(1), Some(4), Some(5)]); // Version 1
+        q.update(1, vec![Some(1), Some(6), Some(7)]); // Version 2
+        q.update(1, vec![Some(1), Some(8), Some(9)]); // Version 3
+
+        q = RQuery::new(table_ref);
+
+        let v = q.select(1, 0, vec![1, 1, 1]);
+        assert_eq!(
+            vec![
+                Some(3),
+                Some(0),
+                Some(2),
+                Some(0),
+                Some(1),
+                Some(8),
+                Some(9)
+            ],
+            v.unwrap()[0]
+        );
+    }
+
+    #[test]
+    fn merge_two_test() {
+        let mut db = RDatabase::new();
+        let table_ref = db.create_table(String::from("Grades2"), 3, 0);
+        let mut q = RQuery::new(table_ref.clone());
+
+        // Insert initial record
+        q.insert(vec![1, 2, 3]);
+
+        for _ in 0..600 {
+            q.update(1, vec![Some(1), Some(4), Some(5)]); // Version 1
+        }
+
+        q = RQuery::new(table_ref.clone());
+
+        let v = q.select(1, 0, vec![1, 1, 1]);
+        assert_eq!(
+            vec![
+                Some(600),
+                Some(0),
+                Some(599),
+                Some(0),
+                Some(1),
+                Some(4),
+                Some(5)
+            ],
+            v.unwrap()[0]
         );
     }
 
