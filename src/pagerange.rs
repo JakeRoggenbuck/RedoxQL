@@ -1,3 +1,4 @@
+use crate::record::RecordAddress;
 use crate::table::PageDirectory;
 
 use super::container::{
@@ -8,7 +9,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Write};
-use std::thread;
+use std::sync::{Arc, Mutex};
+use std::thread::{self, JoinHandle};
 
 #[derive(Clone, Default, Deserialize, Serialize, Debug)]
 pub struct PageRangeMetadata {
@@ -46,11 +48,13 @@ impl PageRange {
     }
 
     /// Merge the two containers in a separate thread
-    pub fn merge(&mut self, page_directory: PageDirectory) {
+    pub fn merge(&mut self, page_directory: Arc<Mutex<PageDirectory>>) {
         let base_container = self.base_container.clone();
         let tail_container = self.tail_container.clone();
+        let thread_pd = page_directory.clone();
 
-        let new_base_container = thread::spawn(move || {
+        let handle = thread::spawn(move || {
+            let mut new_records: Vec<Record> = Vec::new();
             let mut seen_rids: HashSet<i64> = HashSet::new();
             let mut tail_rids_to_process: Vec<i64> = tail_container
                 .rid_page()
@@ -61,7 +65,7 @@ impl PageRange {
                 .clone();
 
             if tail_rids_to_process.len() == 0 {
-                return base_container;
+                return (base_container, Vec::new());
             }
 
             tail_rids_to_process.reverse();
@@ -75,7 +79,8 @@ impl PageRange {
                     break;
                 }
 
-                let tail_record = page_directory.directory.get(&tail_rid).unwrap();
+                let pd_guard = thread_pd.lock().unwrap();
+                let tail_record = pd_guard.directory.get(&tail_rid).unwrap();
                 let base_rid_address = tail_record.base_rid();
                 let base_rid =
                     base_rid_address.page.lock().unwrap().data[base_rid_address.offset as usize];
@@ -88,22 +93,65 @@ impl PageRange {
                     new_base.schema_encoding_page().lock().unwrap().data[offset] = 0;
                     new_base.indirection_page().lock().unwrap().data[offset] = base_rid;
 
-                    for i in 0..tail_record.columns().len() {
-                        new_base.column_page(i as i64).lock().unwrap().data[offset] =
-                            tail_record.columns()[i].page.lock().unwrap().data
-                                [tail_record.columns()[i].offset as usize];
-                    }
+                    let new_record = Record {
+                        rid: base_rid,
+                        addresses: Arc::new(Mutex::new(Vec::new())),
+                    };
 
+                    new_record.addresses.lock().unwrap().push(RecordAddress {
+                        page: new_base.rid_page(),
+                        offset: offset as i64,
+                    });
+
+                    new_record.addresses.lock().unwrap().push(RecordAddress {
+                        page: new_base.schema_encoding_page(),
+                        offset: offset as i64,
+                    });
+
+                    new_record.addresses.lock().unwrap().push(RecordAddress {
+                        page: new_base.indirection_page(),
+                        offset: offset as i64,
+                    });
+
+                    new_record.addresses.lock().unwrap().push(RecordAddress {
+                        page: new_base.base_rid_page(),
+                        offset: offset as i64,
+                    });
+
+                    for i in 0..tail_record.columns().len() {
+                        new_base.column_page(i as i64)
+                            .lock()
+                            .unwrap()
+                            .data[offset] = tail_record.columns()[i]
+                            .page
+                            .lock()
+                            .unwrap()
+                            .data[tail_record.columns()[i].offset as usize];
+                        
+                        new_record.addresses.lock().unwrap().push(RecordAddress {
+                            page: new_base.column_page(i as i64),
+                            offset: offset as i64,
+                        });
+                    }
+                    
+                    new_records.push(new_record);
                     seen_rids.insert(base_rid);
                 }
             }
             new_base.tail_page_sequence = last_tail_rid;
 
-            new_base
+            (new_base, new_records)
         });
 
-        self.base_container = new_base_container.join().unwrap();
+        let (new_base_container, new_records) = handle.join().unwrap();
+
+        self.base_container = new_base_container;
+
+        for record in new_records {
+            page_directory.lock().unwrap().directory.insert(record.rid, record);
+        }
     }
+
 
     pub fn save_state(&self) {
         // Save the state of the two containers
