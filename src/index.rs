@@ -1,6 +1,6 @@
-use crate::container::NUM_RESERVED_COLUMNS;
-use super::table::{PageDirectory, RTable};
 use super::table::RTable;
+use super::table::{PageDirectory, RTable};
+use crate::container::NUM_RESERVED_COLUMNS;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};

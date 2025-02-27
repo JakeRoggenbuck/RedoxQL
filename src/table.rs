@@ -218,8 +218,7 @@ impl RTable {
             return None;
         };
         let base_rid = result[ReservedColumns::RID as usize];
-        let base_indirection_column =
-            result[ReservedColumns::RID as usize];
+        let base_indirection_column = result[ReservedColumns::RID as usize];
 
         if base_rid == base_indirection_column {
             return Some(result);
@@ -245,8 +244,7 @@ impl RTable {
             return None;
         };
         let base_rid = base[ReservedColumns::RID as usize];
-        let base_indirection_column =
-            base[ReservedColumns::Indirection as usize];
+        let base_indirection_column = base[ReservedColumns::Indirection as usize];
         if base_rid == base_indirection_column {
             return Some(base);
         }
@@ -266,8 +264,7 @@ impl RTable {
             };
 
             // get the indirection of the previous version
-            let prev_indirection: i64 =
-                record_data[ReservedColumns::Indirection as usize];
+            let prev_indirection: i64 = record_data[ReservedColumns::Indirection as usize];
 
             // if we've reached the base record, stop here
             if prev_indirection == base_rid {

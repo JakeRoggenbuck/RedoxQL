@@ -5,10 +5,10 @@ use super::container::{
 };
 use super::record::Record;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Write};
 use std::thread;
-use std::collections::HashSet;
 
 #[derive(Clone, Default, Deserialize, Serialize, Debug)]
 pub struct PageRangeMetadata {
@@ -52,7 +52,13 @@ impl PageRange {
 
         let new_base_container = thread::spawn(move || {
             let mut seen_rids: HashSet<i64> = HashSet::new();
-            let mut tail_rids_to_process: Vec<i64> = tail_container.rid_page().lock().unwrap().clone().data.clone();
+            let mut tail_rids_to_process: Vec<i64> = tail_container
+                .rid_page()
+                .lock()
+                .unwrap()
+                .clone()
+                .data
+                .clone();
 
             if tail_rids_to_process.len() == 0 {
                 return base_container;
@@ -71,19 +77,21 @@ impl PageRange {
 
                 let tail_record = page_directory.directory.get(&tail_rid).unwrap();
                 let base_rid_address = tail_record.base_rid();
-                let base_rid = base_rid_address.page.lock().unwrap().data[base_rid_address.offset as usize];
+                let base_rid =
+                    base_rid_address.page.lock().unwrap().data[base_rid_address.offset as usize];
 
                 if !seen_rids.contains(&base_rid) {
-                    
                     // find how much the rid is offsetted by
                     let offset = new_base.find_rid_offset(base_rid);
 
                     // update the new_base with the tail record data
                     new_base.schema_encoding_page().lock().unwrap().data[offset] = 0;
                     new_base.indirection_page().lock().unwrap().data[offset] = base_rid;
-                    
+
                     for i in 0..tail_record.columns().len() {
-                        new_base.column_page(i as i64).lock().unwrap().data[offset] = tail_record.columns()[i].page.lock().unwrap().data[tail_record.columns()[i].offset as usize];
+                        new_base.column_page(i as i64).lock().unwrap().data[offset] =
+                            tail_record.columns()[i].page.lock().unwrap().data
+                                [tail_record.columns()[i].offset as usize];
                     }
 
                     seen_rids.insert(base_rid);

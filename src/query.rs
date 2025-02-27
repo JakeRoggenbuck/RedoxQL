@@ -1,4 +1,7 @@
-use crate::{container::{ReservedColumns, NUM_RESERVED_COLUMNS}, table::RTableHandle};
+use crate::{
+    container::{ReservedColumns, NUM_RESERVED_COLUMNS},
+    table::RTableHandle,
+};
 
 use super::record::Record;
 use pyo3::prelude::*;
@@ -31,7 +34,9 @@ fn filter_projected(column_values: Vec<i64>, projected: Vec<i64>) -> Vec<Option<
 impl RQuery {
     #[new]
     pub fn new(handle: RTableHandle) -> Self {
-        if handle.table.write().unwrap().num_records > 0 && handle.table.write().unwrap().num_records % 200 == 0 {
+        if handle.table.write().unwrap().num_records > 0
+            && handle.table.write().unwrap().num_records % 200 == 0
+        {
             handle.table.write().unwrap().merge();
         }
         RQuery { handle }
@@ -98,7 +103,9 @@ impl RQuery {
                 let mut results = Vec::new();
                 for (_rid, record) in table.page_directory.directory.iter() {
                     if let Some(record_data) = table.page_range.read(record.clone()) {
-                        if record_data[(search_key_index + NUM_RESERVED_COLUMNS) as usize] == search_key {
+                        if record_data[(search_key_index + NUM_RESERVED_COLUMNS) as usize]
+                            == search_key
+                        {
                             results.push(filter_projected(
                                 record_data,
                                 projected_columns_index.clone(),
@@ -173,8 +180,7 @@ impl RQuery {
         if base_rid == base_indirection_column {
             // first update
             if base_schema_encoding == 0 {
-                let mut base_schema_encoding = addrs_base
-                    [ReservedColumns::SchemaEncoding as usize]
+                let mut base_schema_encoding = addrs_base[ReservedColumns::SchemaEncoding as usize]
                     .page
                     .lock()
                     .unwrap();

@@ -67,7 +67,7 @@ impl RecordMetadata {
 
         Record {
             rid: self.rid,
-            addresses: Arc::new(Mutex::new(rec_addrs))
+            addresses: Arc::new(Mutex::new(rec_addrs)),
         }
     }
 }
@@ -80,7 +80,7 @@ pub struct Record {
     pub rid: i64,
     /// The Record keeps a Vector of the RecordAddress, which allow us to actually call
     /// RecordAddress.page.read() to get the value stored at the page using the offset
-    pub addresses: Arc<Mutex<Vec<RecordAddress>>>
+    pub addresses: Arc<Mutex<Vec<RecordAddress>>>,
 }
 
 impl Record {
@@ -149,6 +149,4 @@ impl Record {
 
         addresses[(NUM_RESERVED_COLUMNS as usize)..].to_vec()
     }
-
-
 }

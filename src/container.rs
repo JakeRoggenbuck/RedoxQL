@@ -13,7 +13,7 @@ pub struct BaseContainerMetadata {
 
     tail_page_sequence: i64,
 
-    num_cols: i64
+    num_cols: i64,
 }
 
 pub enum ReservedColumns {
@@ -55,17 +55,14 @@ pub struct BaseContainer {
     pub num_cols: i64,
 }
 
-
 impl BaseContainer {
-
     pub fn new(num_cols: i64) -> Self {
         BaseContainer {
             physical_pages: Vec::new(),
             tail_page_sequence: 0,
-            num_cols
+            num_cols,
         }
     }
-
 
     pub fn initialize(&mut self) {
         // initialize reserved columns
@@ -194,7 +191,7 @@ impl BaseContainer {
 
         Record {
             rid,
-            addresses: addresses.clone()
+            addresses: addresses.clone(),
         }
     }
 
@@ -253,7 +250,7 @@ impl BaseContainer {
         BaseContainerMetadata {
             num_pages: self.physical_pages.len(),
             tail_page_sequence: self.tail_page_sequence,
-            num_cols: self.num_cols
+            num_cols: self.num_cols,
         }
     }
 }
@@ -264,7 +261,7 @@ pub struct TailContainerMetadata {
     // With this number, we are able to load all of the pages
     num_pages: usize,
 
-    num_cols: i64
+    num_cols: i64,
 }
 
 impl TailContainerMetadata {
@@ -295,7 +292,6 @@ pub struct TailContainer {
 }
 
 impl TailContainer {
-
     /// Creates a new `TailContainer` with the specified number of columns
     ///
     /// # Arguments
@@ -308,7 +304,7 @@ impl TailContainer {
     pub fn new(num_cols: i64) -> Self {
         TailContainer {
             physical_pages: Vec::new(),
-            num_cols     
+            num_cols,
         }
     }
 
@@ -373,7 +369,13 @@ impl TailContainer {
         self.physical_pages[(col_idx + NUM_RESERVED_COLUMNS) as usize].clone()
     }
 
-    pub fn insert_record(&mut self, rid: i64, indirection_rid: i64, base_rid: i64, values: Vec<i64>) -> Record {
+    pub fn insert_record(
+        &mut self,
+        rid: i64,
+        indirection_rid: i64,
+        base_rid: i64,
+        values: Vec<i64>,
+    ) -> Record {
         if values.len() != self.num_cols as usize {
             panic!("Number of values does not match number of columns");
         }
@@ -434,10 +436,9 @@ impl TailContainer {
             });
         }
 
-
         Record {
             rid,
-            addresses: addresses.clone()
+            addresses: addresses.clone(),
         }
     }
 
@@ -482,7 +483,7 @@ impl TailContainer {
     pub fn get_metadata(&self) -> TailContainerMetadata {
         TailContainerMetadata {
             num_pages: self.physical_pages.len(),
-            num_cols: self.num_cols
+            num_cols: self.num_cols,
         }
     }
 }
@@ -518,12 +519,23 @@ mod tests {
         // Check that the reserved page methods return the expected pages.
         // (Note: ReservedColumns variants use default discriminants (0,1,2,3).)
         assert!(Arc::ptr_eq(&base.rid_page(), &base.physical_pages[0]));
-        assert!(Arc::ptr_eq(&base.schema_encoding_page(), &base.physical_pages[1]));
-        assert!(Arc::ptr_eq(&base.indirection_page(), &base.physical_pages[2]));
+        assert!(Arc::ptr_eq(
+            &base.schema_encoding_page(),
+            &base.physical_pages[1]
+        ));
+        assert!(Arc::ptr_eq(
+            &base.indirection_page(),
+            &base.physical_pages[2]
+        ));
         assert!(Arc::ptr_eq(&base.base_rid_page(), &base.physical_pages[3]));
 
-        assert!(Arc::ptr_eq(&base.column_page(0), &base.physical_pages[NUM_RESERVED_COLUMNS as usize]),
-            "Base container column page 0 should be at index 4");
+        assert!(
+            Arc::ptr_eq(
+                &base.column_page(0),
+                &base.physical_pages[NUM_RESERVED_COLUMNS as usize]
+            ),
+            "Base container column page 0 should be at index 4"
+        );
     }
 
     #[test]
@@ -543,13 +555,16 @@ mod tests {
         // - The additional column pages get the values provided.
         let mut expected = Vec::new();
         expected.push(rid); // RID page
-        expected.push(0);   // schema encoding page
+        expected.push(0); // schema encoding page
         expected.push(rid); // indirection page
         expected.push(rid); // base RID page
         expected.extend(values);
 
         let read_values = base.read_record(record);
-        assert_eq!(read_values, expected, "Read values do not match inserted values");
+        assert_eq!(
+            read_values, expected,
+            "Read values do not match inserted values"
+        );
     }
 
     #[test]
@@ -559,7 +574,7 @@ mod tests {
         let mut base = BaseContainer::new(num_cols);
         base.initialize();
         // Provide an incorrect number of values to trigger the panic.
-        let wrong_values = vec![1, 2]; 
+        let wrong_values = vec![1, 2];
         let _ = base.insert_record(1, wrong_values);
     }
 
@@ -621,13 +636,21 @@ mod tests {
 
         // Verify reserved pages.
         assert!(Arc::ptr_eq(&tail.rid_page(), &tail.physical_pages[0]));
-        assert!(Arc::ptr_eq(&tail.schema_encoding_page(), &tail.physical_pages[1]));
-        assert!(Arc::ptr_eq(&tail.indirection_page(), &tail.physical_pages[2]));
+        assert!(Arc::ptr_eq(
+            &tail.schema_encoding_page(),
+            &tail.physical_pages[1]
+        ));
+        assert!(Arc::ptr_eq(
+            &tail.indirection_page(),
+            &tail.physical_pages[2]
+        ));
         assert!(Arc::ptr_eq(&tail.base_rid_page(), &tail.physical_pages[3]));
 
         // For TailContainer, column_page(0) should return physical_pages[4]
-        assert!(Arc::ptr_eq(&tail.column_page(0), &tail.physical_pages[4]),
-            "Tail container column page 0 should be at index 4");
+        assert!(
+            Arc::ptr_eq(&tail.column_page(0), &tail.physical_pages[4]),
+            "Tail container column page 0 should be at index 4"
+        );
     }
 
     #[test]
@@ -653,7 +676,10 @@ mod tests {
         expected.extend(values);
 
         let read_values = tail.read_record(record);
-        assert_eq!(read_values, expected, "Tail container read values do not match inserted values");
+        assert_eq!(
+            read_values, expected,
+            "Tail container read values do not match inserted values"
+        );
     }
 
     #[test]
@@ -699,4 +725,3 @@ mod tests {
     //     std::env::set_current_dir(original_dir).expect("Failed to restore original directory");
     // }
 }
-
