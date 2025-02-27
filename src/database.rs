@@ -21,7 +21,7 @@ pub struct RDatabaseMetadata {
 #[pyclass]
 pub struct RDatabase {
     /// This is where we keep all of the tables
-    tables: Vec<Arc<RwLock<RTable>>>,
+    pub tables: Vec<Arc<RwLock<RTable>>>,
     // Map table names to index on the tables: Vec<RTable>
     tables_hashmap: HashMap<String, usize>,
 
