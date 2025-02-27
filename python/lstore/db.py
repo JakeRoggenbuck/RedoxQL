@@ -1,4 +1,4 @@
-from .lstore import RDatabase, RTable
+from .lstore import RDatabase, RTable, RTableHandle
 
 
 class Database:
@@ -22,9 +22,7 @@ class Database:
         :param num_columns: int     #Number of Columns: all columns are integer
         :param key: int             #Index of table key in columns
         """
-        self.db.create_table(name, num_columns, key_index)
-
-        return self.db.get_table_from_index(0)
+        return self.db.create_table(name, num_columns, key_index)
 
     def drop_table(self, name: str):
         """Deletes the specified table"""

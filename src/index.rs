@@ -15,23 +15,22 @@ pub struct RIndex {
     // Using Arc<RwLock<>> pattern which is safer than raw pointers
     // these fields are not python exposed
     pub owner: Option<Weak<RwLock<RTable>>>,
-    // Keep strong reference to the table to prevent it from being dropped
-    pub table_ref: Option<Arc<RwLock<RTable>>>,
+}
+
+#[pyclass]
+#[derive(Clone, Default)]
+pub struct RIndexHandle {
+    pub index: Arc<RwLock<RIndex>>,
 }
 
 #[pymethods]
-impl RIndex {
-    #[new]
-    pub fn new_py() -> Self {
-        Self::new()
-    }
-
-    /// When called from Python, create the secondary index for a given column
+impl RIndexHandle {
     pub fn create_index(&mut self, col_index: i64) {
-        if let Some(owner_weak) = &self.owner {
+        let mut index = self.index.write().unwrap();
+        if let Some(owner_weak) = &index.owner {
             if let Some(owner_arc) = owner_weak.upgrade() {
                 let table = owner_arc.read().unwrap();
-                self.create_index_internal(col_index, &table);
+                index.create_index_internal(col_index, &table);
             } else {
                 // Table was dropped, so this index should be considered invalid
                 panic!("Table reference no longer valid");
@@ -40,15 +39,16 @@ impl RIndex {
             panic!("Owner not set for RIndex");
         }
     }
-    /// When called from Python, drop the secondary index for a given column
+
     pub fn drop_index(&mut self, col_index: i64) {
-        self.drop_index_internal(col_index);
+        let mut index = self.index.write().unwrap();
+        index.drop_index_internal(col_index);
     }
 
-    // Debugging purposes
     pub fn get_secondary_indices(&self) -> HashMap<i64, Vec<(i64, Vec<i64>)>> {
+        let index = self.index.read().unwrap();
         let mut out = HashMap::new();
-        for (&col, tree) in self.secondary_indices.iter() {
+        for (&col, tree) in index.secondary_indices.iter() {
             let mut vec = Vec::new();
             for (&val, rids) in tree.iter() {
                 vec.push((val, rids.clone()));
@@ -65,16 +65,12 @@ impl RIndex {
             index: BTreeMap::new(),
             secondary_indices: HashMap::new(),
             owner: None,
-            table_ref: None,
         }
     }
 
     // Set the owner (the table that "owns" this index)
-    pub fn set_owner(&mut self, table_arc: Arc<RwLock<RTable>>) {
-        // Store the Arc directly in table_ref
-        self.table_ref = Some(table_arc.clone());
-        // Generate weak reference when needed
-        self.owner = Some(Arc::downgrade(&table_arc));
+    pub fn set_owner(&mut self, table_arc: std::sync::Weak<RwLock<RTable>>) {
+        self.owner = Some(table_arc);
     }
 
     /// Create a mapping from primary_key to RID
@@ -177,7 +173,7 @@ mod tests {
                 page_directory: PageDirectory::new(),
                 num_records: 0,
                 num_columns: 3,
-                index: RIndex::new(),
+                index: Arc::new(RwLock::new(RIndex::new())),
             };
 
             // Insert three records:
@@ -220,7 +216,7 @@ mod tests {
                 page_directory: PageDirectory::new(),
                 num_records: 0,
                 num_columns: 3,
-                index: RIndex::new(),
+                index: Arc::new(RwLock::new(RIndex::new())),
             };
 
             // Insert two records:
@@ -256,17 +252,15 @@ mod tests {
                 page_directory: PageDirectory::new(),
                 num_records: 0,
                 num_columns: 3,
-                index: RIndex::new(),
+                index: Arc::new(RwLock::new(RIndex::new())),
             };
+            let arc_table = Arc::new(RwLock::new(table));
 
             let mut index = RIndex::new();
 
             {
-                // Wrap the table in an Arc<RwLock<>>
-                let table_arc = Arc::new(RwLock::new(table));
-
-                // Create an index and set the owner
-                index.set_owner(table_arc);
+                // let mut table_guard = arc_table.write().unwrap();
+                index.set_owner(Arc::downgrade(&arc_table));
             }
 
             // Verify the owner is set by checking it can be upgraded

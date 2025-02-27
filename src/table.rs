@@ -1,3 +1,5 @@
+use crate::index::RIndexHandle;
+
 use super::index::RIndex;
 use super::pagerange::{PageRange, PageRangeMetadata};
 use super::record::{Record, RecordMetadata};
@@ -7,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Write};
+use std::sync::{Arc, RwLock};
 
 #[derive(Default, Clone, Serialize, Deserialize)]
 pub struct PageDirectoryMetadata {
@@ -36,7 +39,7 @@ impl PageDirectory {
             directory: HashMap::new(),
         };
 
-        // TODO: We need to somehow load all of the physical pages, wrap them 
+        // TODO: We need to somehow load all of the physical pages, wrap them
         // in an Arc Mutex, and assign those references to the record addresses
         // that need them
         //
@@ -95,7 +98,7 @@ pub trait StatePersistence {
 
             page_range: PageRange::load_state(),
             page_directory: PageDirectory::load_state(),
-            index: RIndex::new(),
+            index: Arc::new(RwLock::new(RIndex::new())),
         }
     }
 }
@@ -120,8 +123,7 @@ pub struct RTable {
     #[pyo3(get)]
     pub num_columns: usize,
 
-    #[pyo3(get)]
-    pub index: RIndex,
+    pub index: Arc<RwLock<RIndex>>,
 }
 
 impl RTable {
@@ -130,8 +132,10 @@ impl RTable {
         let primary_key = values[self.primary_key_column];
 
         let rid = self.num_records;
-        self.index.add(primary_key, rid);
-
+        {
+            let mut index = self.index.write().unwrap();
+            index.add(primary_key, rid);
+        }
         let rec = self.page_range.write(rid, values);
 
         // Save the RID -> Record so it can later be read
@@ -143,7 +147,8 @@ impl RTable {
 
     pub fn read_base(&self, primary_key: i64) -> Option<Vec<i64>> {
         // Lookup RID from primary_key
-        let rid = self.index.get(primary_key);
+        let index = self.index.try_read().unwrap();
+        let rid = index.get(primary_key);
 
         if let Some(r) = rid {
             let rec = self.page_directory.directory.get(&r);
@@ -234,7 +239,8 @@ impl RTable {
 
     pub fn delete(&mut self, primary_key: i64) {
         // Lookup RID from primary_key
-        let rid = self.index.get(primary_key);
+        let index = self.index.read().unwrap();
+        let rid = index.get(primary_key);
 
         if let Some(r) = rid {
             self.page_directory.directory.remove(&r);
@@ -303,6 +309,63 @@ impl RTable {
     }
 }
 
+#[derive(Default, Clone)]
+#[pyclass]
+pub struct RTableHandle {
+    pub table: Arc<RwLock<RTable>>,
+}
+
+#[pymethods]
+impl RTableHandle {
+    pub fn write(&self, values: Vec<i64>) {
+        let mut table = self.table.write().expect("Failed to acquire write lock");
+        table.write(values);
+    }
+
+    pub fn read(&self, primary_key: i64) -> Option<Vec<i64>> {
+        let table = self.table.read().expect("Failed to acquire read lock");
+        table.read(primary_key)
+    }
+
+    pub fn delete(&self, primary_key: i64) {
+        let mut table = self.table.write().expect("Failed to acquire write lock");
+        table.delete(primary_key);
+    }
+
+    // Allow access to properties
+    #[getter]
+    pub fn get_num_records(&self) -> i64 {
+        let table = self.table.read().expect("Failed to acquire read lock");
+        table.num_records
+    }
+
+    #[getter]
+    pub fn index(&self) -> RIndexHandle {
+        let table = self.table.read().expect("Failed to acquire read lock");
+        RIndexHandle {
+            index: table.index.clone(),
+        }
+    }
+
+    #[getter]
+    pub fn get_name(&self) -> String {
+        let table = self.table.read().expect("Failed to acquire read lock");
+        table.name.clone()
+    }
+
+    #[getter]
+    pub fn get_num_columns(&self) -> usize {
+        let table = self.table.read().expect("Failed to acquire read lock");
+        table.num_columns
+    }
+
+    #[getter]
+    pub fn get_primary_key_column(&self) -> usize {
+        let table = self.table.read().expect("Failed to acquire read lock");
+        table.primary_key_column
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -311,7 +374,8 @@ mod tests {
     #[test]
     fn load_and_save_test() {
         let mut db = RDatabase::new();
-        let mut table: RTable = db.create_table("Scores".to_string(), 3, 0);
+        let table_ref = db.create_table("Scores".to_string(), 3, 0);
+        let mut table = table_ref.table.write().unwrap();
 
         table.write(vec![0, 10, 12]);
         table.write(vec![0, 10, 12]);
@@ -333,7 +397,8 @@ mod tests {
     #[test]
     fn read_and_write_test() {
         let mut db = RDatabase::new();
-        let mut table: RTable = db.create_table("Scores".to_string(), 3, 0);
+        let table_ref = db.create_table("Scores".to_string(), 3, 0);
+        let mut table = table_ref.table.write().unwrap();
 
         // Write
         table.write(vec![0, 10, 12]);
@@ -351,7 +416,8 @@ mod tests {
     #[test]
     fn read_base_and_write_test() {
         let mut db = RDatabase::new();
-        let mut table: RTable = db.create_table("Scores".to_string(), 3, 0);
+        let table_ref = db.create_table("Scores".to_string(), 3, 0);
+        let mut table = table_ref.table.write().unwrap();
 
         // Write
         table.write(vec![0, 10, 12]);
@@ -369,7 +435,8 @@ mod tests {
     #[test]
     fn sum_test() {
         let mut db = RDatabase::new();
-        let mut table: RTable = db.create_table("Scores".to_string(), 2, 0);
+        let table_ref = db.create_table("Scores".to_string(), 2, 0);
+        let mut table = table_ref.table.write().unwrap();
 
         table.write(vec![0, 10]);
         table.write(vec![1, 20]);
@@ -389,7 +456,8 @@ mod tests {
     #[test]
     fn delete_test() {
         let mut db = RDatabase::new();
-        let mut table: RTable = db.create_table("Scores".to_string(), 3, 0);
+        let table_ref = db.create_table("Scores".to_string(), 3, 0);
+        let mut table = table_ref.table.write().unwrap();
 
         // Write
         table.write(vec![0, 10, 12]);
