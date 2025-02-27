@@ -30,7 +30,7 @@ pub struct RecordAddressMetadata {
 impl RecordAddressMetadata {
     pub fn load_state(&self) -> RecordAddress {
         // TODO: Get the actual physical page by reference
-        let phys_page: PhysicalPage = PhysicalPage::new();
+        let phys_page: PhysicalPage = PhysicalPage::new(0);
 
         RecordAddress {
             page: Arc::new(Mutex::new(phys_page)),

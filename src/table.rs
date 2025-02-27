@@ -28,7 +28,7 @@ impl PageDirectory {
         }
     }
 
-    fn load_state() -> PageDirectory {
+    fn load_state(page_range: PageRange) -> PageDirectory {
         let hardcoded_filename = "./redoxdata/page_directory.data";
 
         let file = BufReader::new(File::open(hardcoded_filename).expect("Should open file."));
@@ -38,14 +38,6 @@ impl PageDirectory {
         let mut pd: PageDirectory = PageDirectory {
             directory: HashMap::new(),
         };
-
-        // TODO: We need to somehow load all of the physical pages, wrap them
-        // in an Arc Mutex, and assign those references to the record addresses
-        // that need them
-        //
-        // We could store the id for where the the physical page it stored on disk
-        // in the physical, and then we can load all of them up here, assuming we
-        // have something storing the max page index
 
         for (rid, record_meta) in page_meta.directory {
             pd.directory.insert(rid, record_meta.load_state());
@@ -90,14 +82,17 @@ pub trait StatePersistence {
         let table_meta: RTableMetadata =
             bincode::deserialize_from(file).expect("Should deserialize.");
 
+
+        let pr = PageRange::load_state();
+
         RTable {
             name: table_meta.name.clone(),
             primary_key_column: table_meta.primary_key_column,
             num_columns: table_meta.num_columns,
             num_records: table_meta.num_records,
 
-            page_range: PageRange::load_state(),
-            page_directory: PageDirectory::load_state(),
+            page_range: pr,
+            page_directory: PageDirectory::load_state(&pr),
             index: Arc::new(RwLock::new(RIndex::new())),
         }
     }
