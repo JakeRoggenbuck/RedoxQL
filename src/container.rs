@@ -5,22 +5,52 @@ use std::fs::File;
 use std::io::{BufReader, BufWriter, Write};
 use std::sync::{Arc, Mutex};
 
+pub fn helper_bitwise(a: Vec<Option<i64>>) -> i64 {
+    let mut schema_encoding: i64 = 0;
+    for (i, val) in a.iter().enumerate() {
+        if val.is_some() {
+            schema_encoding |= 1 << i;
+        }
+    }
+    schema_encoding
+}
+
+pub fn default_mask(record: &Record, metadata_only: bool) -> Vec<i64> {
+    if !metadata_only {
+        return vec![1; record.addresses.lock().unwrap().len()];
+    }
+
+    let mut mask = vec![0; record.addresses.lock().unwrap().len()];
+    // Set the metadata columns to 1 (always read metadata)
+    let num_meta_cols = if record.is_tail { 4 } else { 3 };
+    for i in 0..num_meta_cols {
+        mask[i] = 1;
+    }
+
+    mask
+}
+
 #[derive(Clone, Default, Deserialize, Serialize, Debug)]
 pub struct BaseContainerMetadata {
     // This takes the place of the actual pages in the disk version
     // With this number, we are able to load all of the pages
     num_pages: usize,
 
-    num_cols: i64,
+    // metadata
+    pub num_meta_cols: usize,
 
-    rid_column: i64,
-    schema_encoding_column: i64,
-    indirection_column: i64,
+    // metadata indicies
+    pub rid_col: usize,
+    pub schema_encoding_col: usize,
+    pub indirection_col: usize,
+
+    // number of additional columns
+    pub num_cols: usize,
 }
 
 impl BaseContainerMetadata {
     pub fn load_state(&self) -> BaseContainer {
-        let mut base = BaseContainer::new(self.num_cols);
+        let mut base = BaseContainer::new(self.num_cols as i64);
 
         for i in 0..self.num_pages {
             // Load the page
@@ -32,9 +62,13 @@ impl BaseContainerMetadata {
             base.physical_pages.push(m);
         }
 
-        base.rid_column = self.rid_column;
-        base.schema_encoding_column = self.schema_encoding_column;
-        base.indirection_column = self.indirection_column;
+        base.num_meta_cols = self.num_meta_cols;
+
+        base.rid_col = self.rid_col;
+        base.schema_encoding_col = self.schema_encoding_col;
+        base.indirection_col = self.indirection_col;
+
+        base.num_cols = self.num_cols;
 
         return base;
     }
@@ -45,13 +79,16 @@ pub struct BaseContainer {
     // pages
     pub physical_pages: Vec<Arc<Mutex<PhysicalPage>>>,
 
-    // number of additional columns
-    pub num_cols: i64,
+    // metadata
+    pub num_meta_cols: usize,
 
-    // reserved columns
-    pub rid_column: i64,
-    pub schema_encoding_column: i64,
-    pub indirection_column: i64,
+    // metadata indicies
+    pub rid_col: usize,
+    pub schema_encoding_col: usize,
+    pub indirection_col: usize,
+
+    // number of additional columns
+    pub num_cols: usize,
 }
 
 /// A container that manages physical pages for storing data in columns
@@ -83,10 +120,11 @@ impl BaseContainer {
     pub fn new(num_cols: i64) -> Self {
         BaseContainer {
             physical_pages: Vec::new(),
-            num_cols,
-            rid_column: 0,
-            schema_encoding_column: 1,
-            indirection_column: 2,
+            num_meta_cols: 3,
+            rid_col: 0,
+            schema_encoding_col: 1,
+            indirection_col: 2,
+            num_cols: num_cols as usize,
         }
     }
 
@@ -124,28 +162,12 @@ impl BaseContainer {
         }
     }
 
-    /// Returns a reference to the RID column page
-    pub fn rid_page(&self) -> Arc<Mutex<PhysicalPage>> {
-        self.physical_pages[self.rid_column as usize].clone()
+    pub fn meta_page(&self, col_idx: usize) -> Arc<Mutex<PhysicalPage>> {
+        self.physical_pages[col_idx].clone()
     }
 
-    /// Returns a reference to the schema encoding column page
-    pub fn schema_encoding_page(&self) -> Arc<Mutex<PhysicalPage>> {
-        self.physical_pages[self.schema_encoding_column as usize].clone()
-    }
-
-    /// Returns a reference to the indirection column page
-    pub fn indirection_page(&self) -> Arc<Mutex<PhysicalPage>> {
-        self.physical_pages[self.indirection_column as usize].clone()
-    }
-
-    /// Returns a reference to the specified column page
-    ///
-    /// ### Arguments
-    ///
-    /// - `col_idx`: The index of the column
-    pub fn column_page(&self, col_idx: i64) -> Arc<Mutex<PhysicalPage>> {
-        self.physical_pages[(col_idx + 3) as usize].clone()
+    pub fn column_page(&self, col_idx: usize) -> Arc<Mutex<PhysicalPage>> {
+        self.physical_pages[col_idx + self.num_meta_cols].clone()
     }
 
     pub fn insert_record(&mut self, rid: i64, values: Vec<i64>) -> Record {
@@ -153,24 +175,25 @@ impl BaseContainer {
             panic!("Number of values does not match number of columns");
         }
 
-        let rid_page = self.rid_page();
-        let mut rp = rid_page.lock().unwrap();
+        let rid_page = self.meta_page(self.rid_col);
+        let mut rid_page_lock = rid_page.lock().unwrap();
 
-        rp.write(rid);
+        rid_page_lock.write(rid);
 
-        let schema_encoding_page = self.schema_encoding_page();
-        let mut sep = schema_encoding_page.lock().unwrap();
-        sep.write(0);
+        let schema_encoding_page = self.meta_page(self.schema_encoding_col);
+        let mut schema_encoding_page_lock = schema_encoding_page.lock().unwrap();
 
-        let indirection_page = self.indirection_page();
-        let mut ip = indirection_page.lock().unwrap();
+        // initial schema encoding is 0 (no columns have been updated in base record)
+        schema_encoding_page_lock.write(0);
 
-        ip.write(rid);
+        let indirection_page = self.meta_page(self.indirection_col);
+        let mut indirection_page_lock = indirection_page.lock().unwrap();
+        indirection_page_lock.write(rid);
 
         for i in 0..self.num_cols {
             let col_page = self.column_page(i);
             let mut col_page = col_page.lock().unwrap();
-            col_page.write(values[i as usize]);
+            col_page.write(values[i]);
         }
 
         let addresses: Arc<Mutex<Vec<RecordAddress>>> = Arc::new(Mutex::new(Vec::new()));
@@ -178,17 +201,17 @@ impl BaseContainer {
 
         a.push(RecordAddress {
             page: rid_page.clone(),
-            offset: rp.num_records - 1,
+            offset: rid_page_lock.num_records - 1,
         });
 
         a.push(RecordAddress {
             page: schema_encoding_page.clone(),
-            offset: sep.num_records - 1,
+            offset: schema_encoding_page_lock.num_records - 1,
         });
 
         a.push(RecordAddress {
             page: indirection_page.clone(),
-            offset: ip.num_records - 1,
+            offset: indirection_page_lock.num_records - 1,
         });
 
         for i in 0..self.num_cols {
@@ -202,19 +225,41 @@ impl BaseContainer {
 
         Record {
             rid,
+            is_tail: false,
             addresses: addresses.clone(),
         }
     }
 
-    pub fn read_record(&self, record: Record) -> Vec<i64> {
-        let mut values = Vec::<i64>::new();
+    pub fn update_field(&self, record: &Record, raw_col_idx: usize, value: i64) {
+        let addrs_base = record.addresses.lock().unwrap();
+        let mut indirection_page = addrs_base[raw_col_idx].page.lock().unwrap();
+        indirection_page.overwrite(
+            addrs_base[raw_col_idx].offset as usize,
+            value,
+        );
+    }
+
+    pub fn read_record(&self, record: Record, column_mask: Vec<i64>) -> Vec<Option<i64>> {
+        let mut values = Vec::<Option<i64>>::new();
 
         let addrs = record.addresses.lock().unwrap();
-        let addrs_clone = addrs.clone();
-        for addr in addrs_clone {
-            let a = addr.page.lock().unwrap();
-            let b = a.read(addr.offset as usize);
-            values.push(b.expect("Value should be there"));
+
+        // Check if the column mask has the correct length
+        if column_mask.len() != addrs.len() {
+            panic!("Column mask length does not match number of columns");
+        }
+
+        for (i, addr) in addrs.iter().enumerate() {
+            // Skip columns we don't want to read (marked with 0)
+            if column_mask[i] == 0 {
+                values.push(None);
+            } else {
+                let a = addr.page.lock().unwrap();
+                match a.read(addr.offset as usize) {
+                    Some(val) => values.push(Some(val)),
+                    None => values.push(None),
+                }
+            }
         }
 
         values
@@ -243,10 +288,11 @@ impl BaseContainer {
     pub fn get_metadata(&self) -> BaseContainerMetadata {
         BaseContainerMetadata {
             num_pages: self.physical_pages.len(),
+            num_meta_cols: self.num_meta_cols,
             num_cols: self.num_cols,
-            rid_column: self.rid_column,
-            schema_encoding_column: self.schema_encoding_column,
-            indirection_column: self.indirection_column,
+            rid_col: self.rid_col,
+            schema_encoding_col: self.schema_encoding_col,
+            indirection_col: self.indirection_col,
         }
     }
 }
@@ -257,11 +303,17 @@ pub struct TailContainerMetadata {
     // With this number, we are able to load all of the pages
     num_pages: usize,
 
-    num_cols: i64,
+    // metadata
+    pub num_meta_cols: usize,
 
-    rid_column: i64,
-    schema_encoding_column: i64,
-    indirection_column: i64,
+    // metadata indicies
+    pub rid_col: usize,
+    pub schema_encoding_col: usize,
+    pub indirection_col: usize,
+    pub base_rid_col: usize,
+
+    // number of additional columns
+    pub num_cols: usize,
 }
 
 impl TailContainerMetadata {
@@ -278,9 +330,14 @@ impl TailContainerMetadata {
             tail.physical_pages.push(m);
         }
 
-        tail.rid_column = self.rid_column;
-        tail.schema_encoding_column = self.schema_encoding_column;
-        tail.indirection_column = self.indirection_column;
+        tail.num_meta_cols = self.num_meta_cols;
+
+        tail.rid_col = self.rid_col;
+        tail.schema_encoding_col = self.schema_encoding_col;
+        tail.indirection_col = self.indirection_col;
+        tail.base_rid_col = self.base_rid_col;
+
+        tail.num_cols = self.num_cols;
 
         return tail;
     }
@@ -291,13 +348,17 @@ pub struct TailContainer {
     // pages
     pub physical_pages: Vec<Arc<Mutex<PhysicalPage>>>,
 
-    // number of additional columns
-    pub num_cols: i64,
+    // metadata
+    pub num_meta_cols: usize,
 
-    // reserved columns
-    pub rid_column: i64,
-    pub schema_encoding_column: i64,
-    pub indirection_column: i64,
+    // metadata indicies
+    pub rid_col: usize,
+    pub schema_encoding_col: usize,
+    pub indirection_col: usize,
+    pub base_rid_col: usize,
+
+    // number of additional columns
+    pub num_cols: usize,
 }
 
 /// A container that manages physical pages for storing data in columns
@@ -326,13 +387,15 @@ impl TailContainer {
     /// # Returns
     ///
     /// A new `TailContainer` instance
-    pub fn new(num_cols: i64) -> Self {
+    pub fn new(num_cols: usize) -> Self {
         TailContainer {
             physical_pages: Vec::new(),
-            num_cols,
-            rid_column: 0,
-            schema_encoding_column: 1,
-            indirection_column: 2,
+            num_meta_cols: 4,
+            rid_col: 0,
+            schema_encoding_col: 1,
+            indirection_col: 2,
+            base_rid_col: 3,
+            num_cols: num_cols,
         }
     }
 
@@ -355,12 +418,14 @@ impl TailContainer {
         let rid_page = PhysicalPage::new();
         let schema_encoding_page = PhysicalPage::new();
         let indirection_page = PhysicalPage::new();
+        let base_rid_page = PhysicalPage::new();
 
         self.physical_pages.push(Arc::new(Mutex::new(rid_page)));
         self.physical_pages
             .push(Arc::new(Mutex::new(schema_encoding_page)));
         self.physical_pages
             .push(Arc::new(Mutex::new(indirection_page)));
+        self.physical_pages.push(Arc::new(Mutex::new(base_rid_page)));
 
         // initialize the rest of the columns
         for _ in 0..self.num_cols {
@@ -369,49 +434,50 @@ impl TailContainer {
         }
     }
 
-    /// Returns a reference to the RID column page
-    pub fn rid_page(&self) -> Arc<Mutex<PhysicalPage>> {
-        self.physical_pages[self.rid_column as usize].clone()
+    pub fn meta_page(&self, col_idx: usize) -> Arc<Mutex<PhysicalPage>> {
+        self.physical_pages[col_idx].clone()
     }
 
-    /// Returns a reference to the schema encoding column page
-    pub fn schema_encoding_page(&self) -> Arc<Mutex<PhysicalPage>> {
-        self.physical_pages[self.schema_encoding_column as usize].clone()
+    pub fn column_page(&self, col_idx: usize) -> Arc<Mutex<PhysicalPage>> {
+        self.physical_pages[col_idx + self.num_meta_cols].clone()
     }
 
-    /// Returns a reference to the indirection column page
-    pub fn indirection_page(&self) -> Arc<Mutex<PhysicalPage>> {
-        self.physical_pages[self.indirection_column as usize].clone()
-    }
-
-    /// Returns a reference to the specified column page
-    pub fn column_page(&self, col_idx: i64) -> Arc<Mutex<PhysicalPage>> {
-        self.physical_pages[(col_idx + 3) as usize].clone()
-    }
-
-    pub fn insert_record(&mut self, rid: i64, indirection_rid: i64, values: Vec<i64>) -> Record {
-        if values.len() != self.num_cols as usize {
+    pub fn insert_record(
+        &mut self,
+        rid: i64,
+        indirection_rid: i64,
+        base_rid: i64,
+        values: Vec<Option<i64>>,
+    ) -> Record {
+        if values.len() != self.num_cols {
             panic!("Number of values does not match number of columns");
         }
 
-        let rid_page = self.rid_page();
-        let mut rp = rid_page.lock().unwrap();
+        let rid_page = self.meta_page(self.rid_col);
+        let mut rid_page_lock = rid_page.lock().unwrap();
 
-        rp.write(rid);
+        rid_page_lock.write(rid);
 
-        let schema_encoding_page = self.schema_encoding_page();
-        let mut sep = schema_encoding_page.lock().unwrap();
-        sep.write(0);
+        let schema_encoding_page = self.meta_page(self.schema_encoding_col);
+        let mut schema_encoding_page_lock = schema_encoding_page.lock().unwrap();
+        // Calculate schema encoding based on which columns have values
+        schema_encoding_page_lock.write(helper_bitwise(values.clone()));
 
-        let indirection_page = self.indirection_page();
-        let mut ip = indirection_page.lock().unwrap();
+        let indirection_page = self.meta_page(self.indirection_col);
+        let mut indirection_page_lock = indirection_page.lock().unwrap();
 
-        ip.write(indirection_rid as i64);
+        indirection_page_lock.write(indirection_rid);
+
+        let base_id_page = self.meta_page(self.base_rid_col);
+        let mut base_id_page_lock = base_id_page.lock().unwrap();
+
+        base_id_page_lock.write(base_rid);
 
         for i in 0..self.num_cols {
             let col_page = self.column_page(i);
             let mut col_page = col_page.lock().unwrap();
-            col_page.write(values[i as usize] as i64);
+            // Unwrap the Option or use 0 as default if None (NULL)
+            col_page.write(values[i].unwrap_or(0));
         }
 
         let addresses: Arc<Mutex<Vec<RecordAddress>>> = Arc::new(Mutex::new(Vec::new()));
@@ -419,17 +485,22 @@ impl TailContainer {
 
         a.push(RecordAddress {
             page: rid_page.clone(),
-            offset: rp.num_records - 1,
+            offset: rid_page_lock.num_records - 1,
         });
 
         a.push(RecordAddress {
             page: schema_encoding_page.clone(),
-            offset: sep.num_records - 1,
+            offset: schema_encoding_page_lock.num_records - 1,
         });
 
         a.push(RecordAddress {
             page: indirection_page.clone(),
-            offset: ip.num_records - 1,
+            offset: indirection_page_lock.num_records - 1,
+        });
+
+        a.push(RecordAddress {
+            page: base_id_page.clone(),
+            offset: base_id_page_lock.num_records - 1,
         });
 
         for i in 0..self.num_cols {
@@ -443,19 +514,32 @@ impl TailContainer {
 
         Record {
             rid,
+            is_tail: true,
             addresses: addresses.clone(),
         }
     }
 
-    pub fn read_record(&self, record: Record) -> Vec<i64> {
-        let mut values = Vec::<i64>::new();
+    pub fn read_record(&self, record: Record, column_mask: Vec<i64>) -> Vec<Option<i64>> {
+        let mut values = Vec::<Option<i64>>::new();
 
         let addrs = record.addresses.lock().unwrap();
-        let addrs_clone = addrs.clone();
-        for addr in addrs_clone {
-            let a = addr.page.lock().unwrap();
-            let b = a.read(addr.offset as usize);
-            values.push(b.expect("Value should be there"));
+
+        // Check if the column mask has the correct length
+        if column_mask.len() != addrs.len() {
+            panic!("Column mask length does not match number of columns");
+        }
+
+        for (i, addr) in addrs.iter().enumerate() {
+            // Skip columns we don't want to read (marked with 0)
+            if column_mask[i] == 0 {
+                values.push(None);
+            } else {
+                let a = addr.page.lock().unwrap();
+                match a.read(addr.offset as usize) {
+                    Some(val) => values.push(Some(val)),
+                    None => values.push(None),
+                }
+            }
         }
 
         values
@@ -485,9 +569,11 @@ impl TailContainer {
         TailContainerMetadata {
             num_pages: self.physical_pages.len(),
             num_cols: self.num_cols,
-            rid_column: self.rid_column,
-            schema_encoding_column: self.schema_encoding_column,
-            indirection_column: self.indirection_column,
+            num_meta_cols: self.num_meta_cols,
+            rid_col: self.rid_col,
+            schema_encoding_col: self.schema_encoding_col,
+            indirection_col: self.indirection_col,
+            base_rid_col: self.base_rid_col,
         }
     }
 }
@@ -554,21 +640,22 @@ mod tests {
     fn test_tail_container_initialize() {
         let mut container = TailContainer::new(5);
         container.initialize();
-        assert_eq!(container.physical_pages.len(), 8); // 3 reserved + 5 data columns
+        assert_eq!(container.physical_pages.len(), container.num_cols+container.num_meta_cols);
     }
 
     #[test]
     fn test_tail_container_insert() {
-        let mut container = TailContainer::new(2);
+        let num_cols = 2;
+        let mut container = TailContainer::new(num_cols);
         container.initialize();
 
-        let values = vec![42, 43];
+        let values = vec![Some(42), Some(43)];
         // TODO: ensure the indirection RID is set correctly (needs a base record)
-        let record = container.insert_record(1, 0, values);
+        let record = container.insert_record(1, 0, 0, values);
 
         assert_eq!(record.rid, 1);
         let addresses = record.addresses.lock().unwrap();
-        assert_eq!(addresses.len(), 5); // 3 reserved + 2 data columns
+        assert_eq!(addresses.len(), 4 + num_cols);
     }
 
     #[test]
@@ -576,8 +663,8 @@ mod tests {
     fn test_tail_container_insert_wrong_columns() {
         let mut container = TailContainer::new(2);
         container.initialize();
-        let values = vec![42];
+        let values = vec![Some(42)];
         // TODO: ensure the indirection RID is set correctly (needs a base record)
-        container.insert_record(1, 0, values);
+        container.insert_record(1, 0, 0, values);
     }
 }

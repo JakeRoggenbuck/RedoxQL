@@ -1,4 +1,6 @@
+use crate::container::default_mask;
 use crate::index::RIndexHandle;
+use crate::pagerange;
 
 use super::index::RIndex;
 use super::pagerange::{PageRange, PageRangeMetadata};
@@ -155,7 +157,14 @@ impl RTable {
 
             // If the rec exists in the page_directory, return the read values
             match rec {
-                Some(r) => return self.page_range.read(r.clone()),
+                Some(r) => {
+                    // Create a column mask that selects all columns (all 1s)
+                    // Convert Option<Option<i64>> to Option<i64>
+                    return self
+                        .page_range
+                        .read(r.clone(), default_mask(&r, false))
+                        .map(|values| values.into_iter().map(|v| v.unwrap_or(0)).collect());
+                }
                 None => return None,
             }
         }
@@ -167,9 +176,9 @@ impl RTable {
         let Some(result) = self.read_base(primary_key as i64) else {
             return None;
         };
-        let base_rid = result[self.page_range.base_container.rid_column as usize];
+        let base_rid = result[self.page_range.base_container.rid_col as usize];
         let base_indirection_column =
-            result[self.page_range.base_container.indirection_column as usize];
+            result[self.page_range.base_container.indirection_col as usize];
 
         if base_rid == base_indirection_column {
             return Some(result);
@@ -179,13 +188,22 @@ impl RTable {
             return None;
         };
 
-        return self.page_range.read(tail_record.clone());
+        // Create a column mask that selects all columns (all 1s)
+        // Read with column mask and unwrap Option<i64> values
+        let a = self.page_range.read(tail_record.clone(), default_mask(&tail_record, false));
+
+        if let Some(values) = a {
+            return Some(values.into_iter().filter_map(|v| v).collect());
+        }
+
+        None
     }
 
     // Given a RID, get the record's values
     pub fn read_by_rid(&self, rid: i64) -> Option<Vec<i64>> {
         if let Some(record) = self.page_directory.directory.get(&rid) {
-            return self.page_range.read(record.clone());
+            return self.page_range.read(record.clone(), default_mask(&record, false))
+                .map(|values| values.into_iter().map(|v| v.unwrap_or(0)).collect());
         }
         None
     }
@@ -194,9 +212,9 @@ impl RTable {
         let Some(base) = self.read_base(primary_key as i64) else {
             return None;
         };
-        let base_rid = base[self.page_range.base_container.rid_column as usize];
+        let base_rid = base[self.page_range.base_container.rid_col as usize];
         let base_indirection_column =
-            base[self.page_range.base_container.indirection_column as usize];
+            base[self.page_range.base_container.indirection_col as usize];
         if base_rid == base_indirection_column {
             return Some(base);
         }
@@ -211,13 +229,13 @@ impl RTable {
             };
 
             // read the current record
-            let Some(record_data) = self.page_range.read(current_record.clone()) else {
+            let Some(record_data) = self.page_range.read(current_record.clone(), default_mask(&current_record, false)) else {
                 return None;
             };
 
             // get the indirection of the previous version
             let prev_indirection: i64 =
-                record_data[self.page_range.tail_container.indirection_column as usize];
+                record_data[self.page_range.tail_container.indirection_col as usize].unwrap();
 
             // if we've reached the base record, stop here
             if prev_indirection == base_rid {
@@ -234,7 +252,8 @@ impl RTable {
             return None;
         };
 
-        return self.page_range.read(final_record.clone());
+        return self.page_range.read(final_record.clone(), default_mask(&final_record, false))
+            .map(|values| values.into_iter().map(|v| v.unwrap_or(0)).collect());
     }
 
     pub fn delete(&mut self, primary_key: i64) {
@@ -252,7 +271,7 @@ impl RTable {
 
         for primary_key in start_primary_key..end_primary_key + 1 {
             if let Some(v) = self.read(primary_key) {
-                agg += v[(col_index + 3) as usize] as i64;
+                agg += v[(v.len() - self.num_columns + col_index as usize)] as i64;
             }
         }
 

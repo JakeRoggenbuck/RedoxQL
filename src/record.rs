@@ -43,6 +43,8 @@ impl RecordAddressMetadata {
 pub struct RecordMetadata {
     pub rid: i64,
 
+    pub is_tail: bool,
+
     pub addresses: Vec<RecordAddressMetadata>,
 }
 
@@ -59,6 +61,7 @@ impl RecordMetadata {
 
         Record {
             rid: self.rid,
+            is_tail: self.is_tail,
             addresses: Arc::new(Mutex::new(rec_addrs)),
         }
     }
@@ -70,6 +73,8 @@ pub struct Record {
     /// Each Record has a RID and we can retrieve the Record via RTable.page_directory
     #[pyo3(get)]
     pub rid: i64,
+
+    pub is_tail: bool,
     /// The Record keeps a Vector of the RecordAddress, which allow us to actually call
     /// RecordAddress.page.read() to get the value stored at the page using the offset
     pub addresses: Arc<Mutex<Vec<RecordAddress>>>,
@@ -79,6 +84,7 @@ impl Record {
     pub fn get_metadata(&self) -> RecordMetadata {
         let mut rm = RecordMetadata {
             rid: self.rid,
+            is_tail: self.is_tail,
             addresses: Vec::new(),
         };
 

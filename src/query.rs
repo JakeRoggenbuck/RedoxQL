@@ -1,3 +1,4 @@
+use crate::container::{default_mask, helper_bitwise};
 use crate::table::RTableHandle;
 
 use super::record::Record;
@@ -11,16 +12,19 @@ pub struct RQuery {
     pub handle: RTableHandle,
 }
 
-fn filter_projected(column_values: Vec<i64>, projected: Vec<i64>) -> Vec<Option<i64>> {
-    // Add the 3 columns used internally
-    let mut projected_cols: Vec<i64> = vec![1, 1, 1];
+fn filter_projected(column_values: Vec<Option<i64>>, projected: Vec<i64>) -> Vec<Option<i64>> {
+    // Retrieve the number of metadata columns from the column values
+    let num_meta_cols = column_values.len() - projected.len();
+
+    // Initialize projected_cols with 1s for all metadata columns
+    let mut projected_cols: Vec<i64> = vec![1; num_meta_cols];
     projected_cols.extend(projected.clone());
 
     let mut out: Vec<Option<i64>> = vec![];
 
     for (a, b) in zip(column_values, projected_cols) {
         out.push(match b {
-            1 => Some(a),
+            1 => a,
             _ => None,
         });
     }
@@ -64,7 +68,7 @@ impl RQuery {
         // Case 1: Searching on the primary key column
         if search_key_index == table.primary_key_column as i64 {
             if let Some(ret) = table.read(search_key) {
-                return Some(vec![filter_projected(ret, projected_columns_index)]);
+                return Some(vec![filter_projected(ret.into_iter().map(Some).collect(), projected_columns_index)]);
             } else {
                 return None;
             }
@@ -79,7 +83,7 @@ impl RQuery {
                     for &rid in rids {
                         if let Some(record_data) = table.read_by_rid(rid) {
                             results.push(filter_projected(
-                                record_data,
+                                record_data.into_iter().map(Some).collect(),
                                 projected_columns_index.clone(),
                             ));
                         }
@@ -93,8 +97,18 @@ impl RQuery {
             else {
                 let mut results = Vec::new();
                 for (_rid, record) in table.page_directory.directory.iter() {
-                    if let Some(record_data) = table.page_range.read(record.clone()) {
-                        if record_data[(search_key_index + 3) as usize] == search_key {
+                    // Create a mask that selects all columns
+                    if let Some(record_data) = table
+                        .page_range
+                        .read(record.clone(), default_mask(&record, false))
+                    {
+                        let Some(d) = record_data[(search_key_index
+                            + if record.is_tail { 4 } else { 3 } as i64)
+                            as usize]
+                        else {
+                            continue;
+                        };
+                        if d == search_key {
                             results.push(filter_projected(
                                 record_data,
                                 projected_columns_index.clone(),
@@ -119,9 +133,10 @@ impl RQuery {
             return None;
         };
 
-        Some(filter_projected(ret, projected_columns_index))
+        Some(filter_projected(ret.into_iter().map(Some).collect(), projected_columns_index))
     }
 
+    const CUMULATIVE_MODE: bool = true;
     pub fn update(&mut self, primary_key: i64, columns: Vec<Option<i64>>) -> bool {
         let mut table = self.handle.table.write().unwrap();
 
@@ -130,7 +145,7 @@ impl RQuery {
             return false;
         }
 
-        let mut new_columns: Vec<i64>;
+        let mut new_columns: Vec<Option<i64>> = columns.clone();
 
         // Check if the record found by primary_key exists
         let index = table.index.read().unwrap();
@@ -152,36 +167,59 @@ impl RQuery {
         };
         drop(index);
 
-        let Some(result) = table.page_range.read(record.clone()) else {
-            return false;
-        };
-
         let base_cont = &table.page_range.base_container;
-        let indirection_column = base_cont.indirection_column;
+
+        let result = base_cont.read_record(
+            record.clone(),
+            vec![1i64; base_cont.num_meta_cols as usize]
+                .into_iter()
+                .chain(vec![0i64; base_cont.num_cols as usize])
+                .collect(),
+        );
+
+        let indirection_column = base_cont.indirection_col;
 
         // Get values from record for the 3 internal columns
-        let base_rid = result[base_cont.rid_column as usize];
-        let base_schema_encoding = result[base_cont.schema_encoding_column as usize];
-        let base_indirection_column = result[base_cont.indirection_column as usize];
+        let base_rid = result[base_cont.rid_col as usize].unwrap();
+        let base_schema_encoding = result[base_cont.schema_encoding_col as usize].unwrap();
+        let base_indirection_column = result[base_cont.indirection_col as usize].unwrap();
 
         // base record addresses
-        let addrs_base = record.addresses.lock().unwrap();
+
+        let update_encoding = helper_bitwise(columns.clone());
+
+        // if it's not already fully 1s, update the schema encoding
+        if (update_encoding | base_schema_encoding) != base_schema_encoding {
+            base_cont.update_field(
+                &record,
+                base_cont.schema_encoding_col,
+                update_encoding | base_schema_encoding,
+            );
+        }
 
         if base_rid == base_indirection_column {
             // first update
-            if base_schema_encoding == 0 {
-                let mut base_schema_encoding = addrs_base
-                    [base_cont.schema_encoding_column as usize]
-                    .page
-                    .lock()
-                    .unwrap();
-                base_schema_encoding.overwrite(
-                    addrs_base[base_cont.schema_encoding_column as usize].offset as usize,
-                    1,
-                );
-            }
 
-            new_columns = result;
+            if RQuery::CUMULATIVE_MODE {
+                // fill in the rest of the columns with the existing values in base record
+                // Create a mask: 0s for metadata columns and columns we're updating, 1s for columns we need to fetch
+                let mut fields_needed = vec![0i64; base_cont.num_meta_cols as usize];
+                fields_needed.extend(new_columns.iter().map(|col| match col {
+                    None => 1,    // Need to fetch this column from base record
+                    Some(_) => 0, // Already have a value, no need to fetch
+                }));
+
+                // Read the base record with our mask to only fetch fields we need
+                let dataread = base_cont.read_record(record.clone(), fields_needed);
+                // Fill in the missing columns with values from the base record
+                for i in 0..new_columns.len() {
+                    if new_columns[i].is_none()
+                        && dataread[i + base_cont.num_meta_cols as usize].is_some()
+                    {
+                        new_columns[i] = dataread[i + base_cont.num_meta_cols as usize];
+                    }
+                }
+            }
         } else {
             // second and subsequent updates
             let Some(existing_tail_record) =
@@ -190,25 +228,26 @@ impl RQuery {
                 return false;
             };
 
-            {
-                let tail_cont = &table.page_range.tail_container;
-                // update schema encoding of the tail to be 1 (since record has changed)
-                let addrs_existing = existing_tail_record.addresses.lock().unwrap();
-                let mut schema_encoding = addrs_existing[tail_cont.schema_encoding_column as usize]
-                    .page
-                    .lock()
-                    .unwrap();
-                schema_encoding.overwrite(
-                    addrs_existing[tail_cont.schema_encoding_column as usize].offset as usize,
-                    1,
-                );
+            let tail_cont = &table.page_range.tail_container;
+
+            if RQuery::CUMULATIVE_MODE {
+                // fill in the rest of the columns with the existing values from latest tail record
+
+                let mut fields_needed = vec![0i64; tail_cont.num_meta_cols as usize];
+                fields_needed.extend(new_columns.iter().map(|col| match col {
+                    None => 1,    // Need to fetch this column from tail record
+                    Some(_) => 0, // Already have a value, no need to fetch
+                }));
+
+                let dataread = tail_cont.read_record(existing_tail_record.clone(), fields_needed);
+                for i in 0..new_columns.len() {
+                    if new_columns[i].is_none()
+                        && dataread[i + tail_cont.num_meta_cols as usize].is_some()
+                    {
+                        new_columns[i] = dataread[i + tail_cont.num_meta_cols as usize];
+                    }
+                }
             }
-
-            let Some(result) = table.page_range.read(existing_tail_record.clone()) else {
-                return false;
-            };
-
-            new_columns = result;
         }
         // drop(base_cont);
 
@@ -218,21 +257,12 @@ impl RQuery {
             new_primary_key = pk;
         }
 
-        // drop first 3 columns (rid, schema_encoding, indirection)
-        new_columns.drain(0..3);
-
-        // overwrite columns values onto new_columns values (that unwrap successfully)
-        for i in 0..new_columns.len() {
-            if let Some(value) = columns[i] {
-                new_columns[i] = value;
-            }
-        }
-
         let new_rid = table.num_records;
 
         let new_rec = table.page_range.tail_container.insert_record(
             new_rid,
             base_indirection_column,
+            base_rid,
             new_columns,
         );
 
@@ -247,6 +277,7 @@ impl RQuery {
         }
 
         // update the indirection column of the base record
+        let addrs_base = record.addresses.lock().unwrap();
         let mut indirection_page = addrs_base[indirection_column as usize].page.lock().unwrap();
         indirection_page.overwrite(
             addrs_base[indirection_column as usize].offset as usize,
@@ -292,7 +323,8 @@ impl RQuery {
 
         if let Some(records) = ret {
             let record = &records[0];
-            let current_value = record[(column + 3) as usize].unwrap();
+            let num_meta = record.len() - num_cols;
+            let current_value = record[num_meta + column as usize].unwrap();
             let mut to_update: Vec<Option<i64>> = vec![None; num_cols];
             to_update[column as usize] = Some(current_value + 1);
             return self.update(primary_key, to_update);
@@ -337,21 +369,21 @@ mod tests {
         let vals = q.select(1, 0, vec![1, 1, 1]); // Select entire row
         assert_eq!(
             vals.unwrap()[0],
-            vec![Some(1), Some(0), Some(0), Some(1), Some(3), Some(3)]
+            vec![Some(1), Some(7), Some(0), Some(0), Some(1), Some(3), Some(3)]
         );
 
         q.increment(1, 1);
         let vals2 = q.select(1, 0, vec![1, 1, 1]);
         assert_eq!(
             vals2.unwrap()[0],
-            vec![Some(2), Some(0), Some(1), Some(1), Some(4), Some(3)]
+            vec![Some(2), Some(7), Some(1), Some(0), Some(1), Some(4), Some(3)]
         );
 
         q.increment(1, 1);
         let vals3 = q.select(1, 0, vec![1, 1, 1]);
         assert_eq!(
             vals3.unwrap()[0],
-            vec![Some(3), Some(0), Some(2), Some(1), Some(5), Some(3)]
+            vec![Some(3), Some(7), Some(2), Some(0), Some(1), Some(5), Some(3)]
         );
     }
 
@@ -402,7 +434,7 @@ mod tests {
         let vals2 = q.select(1, 0, vec![1, 1, 1]);
         assert_eq!(
             vals2.unwrap()[0],
-            vec![Some(1), Some(0), Some(0), Some(1), Some(5), Some(6)]
+            vec![Some(1), Some(7), Some(0), Some(0), Some(1), Some(5), Some(6)]
         );
     }
 
@@ -434,7 +466,7 @@ mod tests {
         let vals = q.select(1, 0, vec![1, 1, 1]);
         assert_eq!(
             vals.unwrap()[0],
-            vec![Some(3), Some(0), Some(2), Some(1), Some(8), Some(9)]
+            vec![Some(3), Some(7), Some(2), Some(0), Some(1), Some(8), Some(9)]
         );
     }
 
@@ -468,25 +500,25 @@ mod tests {
         let latest = q.select_version(1, 0, vec![1, 1, 1], 0);
         assert_eq!(
             latest.unwrap(),
-            vec![Some(3), Some(0), Some(2), Some(1), Some(8), Some(9)]
+            vec![Some(3), Some(7), Some(2), Some(0), Some(1), Some(8), Some(9)]
         ); // Most recent version
 
         let one_back = q.select_version(1, 0, vec![1, 1, 1], 1);
         assert_eq!(
             one_back.unwrap(),
-            vec![Some(2), Some(1), Some(1), Some(1), Some(6), Some(7)]
+            vec![Some(2), Some(7), Some(1), Some(0), Some(1), Some(6), Some(7)]
         ); // One version back
 
         let two_back = q.select_version(1, 0, vec![1, 1, 1], 2);
         assert_eq!(
             two_back.unwrap(),
-            vec![Some(1), Some(1), Some(0), Some(1), Some(4), Some(5)]
+            vec![Some(1), Some(7), Some(0), Some(0), Some(1), Some(4), Some(5)]
         ); // Two versions back
 
         let original = q.select_version(1, 0, vec![1, 1, 1], 3);
         assert_eq!(
             original.unwrap(),
-            vec![Some(0), Some(1), Some(3), Some(1), Some(2), Some(3)]
+            vec![Some(0), Some(7), Some(3), Some(1), Some(2), Some(3)]
         ); // Original version
     }
 

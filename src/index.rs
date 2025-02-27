@@ -1,3 +1,5 @@
+use crate::container::default_mask;
+
 use super::table::{PageDirectory, RTable};
 use pyo3::prelude::*;
 use std::{
@@ -87,14 +89,16 @@ impl RIndex {
     pub fn create_index_internal(&mut self, col_index: i64, table: &RTable) {
         let mut sec_index: BTreeMap<i64, Vec<i64>> = BTreeMap::new();
         for (&rid, record) in table.page_directory.directory.iter() {
-            if let Some(record_data) = table.page_range.read(record.clone()) {
+            if let Some(record_data) = table.page_range.read(record.clone(), default_mask(&record, false)) {
                 if record_data.len() <= (col_index + 3) as usize {
                     // Skip if the record data is unexpectedly short.
                     continue;
                 }
                 // user columns start at offset 3
-                let val = record_data[(col_index + 3) as usize];
-                sec_index.entry(val).or_insert_with(Vec::new).push(rid);
+                let val = record_data[(col_index + if record.is_tail {4} else {3}) as usize];
+                if let Some(value) = val {
+                    sec_index.entry(value).or_insert_with(Vec::new).push(rid);
+                }
             }
             // For each key in the secondary index, sort the vector so that tests compare in order.
             for vec in sec_index.values_mut() {

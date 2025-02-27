@@ -23,7 +23,7 @@ impl PageRange {
         let mut base = BaseContainer::new(num_cols);
         base.initialize();
 
-        let mut tail = TailContainer::new(num_cols);
+        let mut tail = TailContainer::new(num_cols as usize);
         tail.initialize();
 
         PageRange {
@@ -37,8 +37,8 @@ impl PageRange {
         self.base_container.insert_record(new_rid, values)
     }
 
-    pub fn read(&self, record: Record) -> Option<Vec<i64>> {
-        Some(self.base_container.read_record(record))
+    pub fn read(&self, record: Record, column_mask: Vec<i64>) -> Option<Vec<Option<i64>>> {
+        Some(self.base_container.read_record(record, column_mask))
     }
 
     pub fn save_state(&self) {

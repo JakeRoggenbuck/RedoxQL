@@ -3,8 +3,8 @@ from .lstore import RQuery, RTable
 
 
 class ReturnRecord:
-    def __init__(self, columns: List[int]):
-        self.columns = columns[3:]
+    def __init__(self, columns: List[int], projected_columns_index: List[int]):
+        self.columns = columns[len(columns) - len(projected_columns_index):]
 
 
 class Query:
@@ -63,7 +63,7 @@ class Query:
         """
         res = self.rquery.select(search_key, search_key_index, projected_columns_index)
         # If res is not None, it should be a list of records.
-        return [ReturnRecord(r) for r in res] if res is not None else []
+        return [ReturnRecord(r, projected_columns_index) for r in res] if res is not None else []
 
     def select_version(
         self,
