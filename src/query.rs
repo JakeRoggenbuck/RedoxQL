@@ -34,13 +34,13 @@ fn filter_projected(column_values: Vec<i64>, projected: Vec<i64>) -> Vec<Option<
 impl RQuery {
     #[new]
     pub fn new(handle: RTableHandle) -> Self {
-        //let binding = handle.table.clone();
-        //let mut t = binding.write().unwrap();
-        //
-        //if t.num_records > 0 && t.updates_since_merge > 500 {
-        //    t.merge();
-        //    t.updates_since_merge = 0;
-        //}
+        let binding = handle.table.clone();
+        let mut t = binding.write().unwrap();
+
+        if t.num_records > 0 && t.updates_since_merge > 500 {
+            t.merge();
+            t.updates_since_merge = 0;
+        }
         RQuery { handle }
     }
 
