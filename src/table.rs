@@ -1,3 +1,5 @@
+use crate::container::ReservedColumns;
+
 use super::index::RIndex;
 use super::pagerange::{PageRange, PageRangeMetadata};
 use super::record::Record;
@@ -100,9 +102,9 @@ impl RTable {
         let Some(result) = self.read_base(primary_key as i64) else {
             return None;
         };
-        let base_rid = result[self.page_range.base_container.rid_column as usize];
+        let base_rid = result[ReservedColumns::RID as usize];
         let base_indirection_column =
-            result[self.page_range.base_container.indirection_column as usize];
+            result[ReservedColumns::RID as usize];
 
         if base_rid == base_indirection_column {
             return Some(result);
@@ -127,9 +129,9 @@ impl RTable {
         let Some(base) = self.read_base(primary_key as i64) else {
             return None;
         };
-        let base_rid = base[self.page_range.base_container.rid_column as usize];
+        let base_rid = base[ReservedColumns::RID as usize];
         let base_indirection_column =
-            base[self.page_range.base_container.indirection_column as usize];
+            base[ReservedColumns::Indirection as usize];
         if base_rid == base_indirection_column {
             return Some(base);
         }
@@ -150,7 +152,7 @@ impl RTable {
 
             // get the indirection of the previous version
             let prev_indirection: i64 =
-                record_data[self.page_range.tail_container.indirection_column as usize];
+                record_data[ReservedColumns::Indirection as usize];
 
             // if we've reached the base record, stop here
             if prev_indirection == base_rid {

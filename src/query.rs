@@ -3,6 +3,7 @@ use super::table::RTable;
 use pyo3::prelude::*;
 use std::iter::zip;
 use std::fmt;
+use super::container::ReservedColumns;
 
 #[pyclass]
 pub struct RQuery {
@@ -143,9 +144,9 @@ impl RQuery {
         let base_cont = &self.table.page_range.base_container;
 
         // Get values from record for the 3 internal columns
-        let base_rid = result[base_cont.rid_column as usize];
-        let base_schema_encoding = result[base_cont.schema_encoding_column as usize];
-        let base_indirection_column = result[base_cont.indirection_column as usize];
+        let base_rid = result[ReservedColumns::RID as usize];
+        let base_schema_encoding = result[ReservedColumns::SchemaEncoding as usize];
+        let base_indirection_column = result[ReservedColumns::Indirection as usize];
 
         // base record addresses
         let addrs_base = record.addresses.lock().unwrap();
@@ -154,12 +155,12 @@ impl RQuery {
             // first update
             if base_schema_encoding == 0 {
                 let mut base_schema_encoding = addrs_base
-                    [base_cont.schema_encoding_column as usize]
+                    [ReservedColumns::SchemaEncoding as usize]
                     .page
                     .lock()
                     .unwrap();
                 base_schema_encoding.overwrite(
-                    addrs_base[base_cont.schema_encoding_column as usize].offset as usize,
+                    addrs_base[ReservedColumns::SchemaEncoding as usize].offset as usize,
                     1,
                 );
             }
@@ -177,12 +178,12 @@ impl RQuery {
                 let tail_cont = &self.table.page_range.tail_container;
                 // update schema encoding of the tail to be 1 (since record has changed)
                 let addrs_existing = existing_tail_record.addresses.lock().unwrap();
-                let mut schema_encoding = addrs_existing[tail_cont.schema_encoding_column as usize]
+                let mut schema_encoding = addrs_existing[ReservedColumns::SchemaEncoding as usize]
                     .page
                     .lock()
                     .unwrap();
                 schema_encoding.overwrite(
-                    addrs_existing[tail_cont.schema_encoding_column as usize].offset as usize,
+                    addrs_existing[ReservedColumns::SchemaEncoding as usize].offset as usize,
                     1,
                 );
             }
@@ -228,12 +229,12 @@ impl RQuery {
         }
 
         // update the indirection column of the base record
-        let mut indirection_page = addrs_base[base_cont.indirection_column as usize]
+        let mut indirection_page = addrs_base[ReservedColumns::Indirection as usize]
             .page
             .lock()
             .unwrap();
         indirection_page.overwrite(
-            addrs_base[base_cont.indirection_column as usize].offset as usize,
+            addrs_base[ReservedColumns::Indirection as usize].offset as usize,
             new_rid,
         );
 
