@@ -1,15 +1,15 @@
-use crate::index::RIndexHandle;
-
 use super::index::RIndex;
+use super::page::PhysicalPage;
 use super::pagerange::{PageRange, PageRangeMetadata};
 use super::record::{Record, RecordMetadata};
+use crate::index::RIndexHandle;
 use bincode;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Write};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 
 #[derive(Default, Clone, Serialize, Deserialize)]
 pub struct PageDirectoryMetadata {
@@ -31,7 +31,27 @@ impl PageDirectory {
     fn load_state(page_range: &PageRange) -> PageDirectory {
         let hardcoded_filename = "./redoxdata/page_directory.data";
 
+        let base_phys_pages = &page_range.base_container.physical_pages;
+        let tail_phys_pages = &page_range.tail_container.physical_pages;
+
+        // Create a map of column_indexes to the physical pages there are stored in
+        let mut base_pages = HashMap::<i64, Arc<Mutex<PhysicalPage>>>::new();
+        let mut tail_pages = HashMap::<i64, Arc<Mutex<PhysicalPage>>>::new();
+
+        // Load the base pages into the map
+        for page in base_phys_pages {
+            let m = page.lock().unwrap();
+            base_pages.insert(m.column_index, page.clone());
+        }
+
+        // Load the tail pages into the map
+        for page in tail_phys_pages {
+            let m = page.lock().unwrap();
+            tail_pages.insert(m.column_index, page.clone());
+        }
+
         let file = BufReader::new(File::open(hardcoded_filename).expect("Should open file."));
+
         let page_meta: PageDirectoryMetadata =
             bincode::deserialize_from(file).expect("Should deserialize.");
 
