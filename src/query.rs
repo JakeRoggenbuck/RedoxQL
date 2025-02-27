@@ -35,7 +35,7 @@ impl RQuery {
         RQuery { handle }
     }
 
-    pub fn delete(&mut self, primary_key: i64)-> PyResult<()> {
+    pub fn delete(&mut self, primary_key: i64) -> PyResult<()> {
         let mut table = self.handle.table.write().map_err(|_| {
             PyErr::new::<pyo3::exceptions::PyRuntimeError, _>("Failed to acquire write lock")
         })?;
@@ -49,9 +49,11 @@ impl RQuery {
             PyErr::new::<pyo3::exceptions::PyRuntimeError, _>("Failed to acquire write lock")
         })?;
         // check if primary key already exists
-        if table.index.get(values[table.primary_key_column]) != None {
+{        let index = table.index.read().unwrap();
+        if index.get(values[table.primary_key_column]) != None {
             return Ok(None);
         }
+}      
 
         Ok(Some(table.write(values)))
     }
@@ -77,7 +79,8 @@ impl RQuery {
         // Case 2: Searching on a non-primary column
         else {
             // If a secondary index exists, use it
-            if let Some(sec_index) = table.index.secondary_indices.get(&search_key_index) {
+            let index = table.index.read().unwrap();
+            if let Some(sec_index) = index.secondary_indices.get(&search_key_index) {
                 if let Some(rids) = sec_index.get(&search_key) {
                     let mut results = Vec::new();
                     for &rid in rids {
@@ -140,13 +143,14 @@ impl RQuery {
         let mut new_columns: Vec<i64>;
 
         // Check if the record found by primary_key exists
-        let Some(rid) = table.index.get(primary_key) else {
+        let index = table.index.read().unwrap();
+        let Some(rid) = index.get(primary_key) else {
             return Ok(false);
         };
 
         // do not allow primary key to be changed to an existing primary key
         if let Some(new_primary_key) = columns[table.primary_key_column as usize] {
-            if primary_key != new_primary_key && table.index.get(new_primary_key) != None {
+            if primary_key != new_primary_key && index.get(new_primary_key) != None {
                 return Ok(false);
             }
         }
@@ -156,6 +160,7 @@ impl RQuery {
             Some(r) => r,
             None => return Ok(false),
         };
+        drop(index);
 
         let Some(result) = table.page_range.read(record.clone()) else {
             return Ok(false);
@@ -189,10 +194,8 @@ impl RQuery {
             new_columns = result;
         } else {
             // second and subsequent updates
-            let Some(existing_tail_record) = table
-                .page_directory
-                .directory
-                .get(&base_indirection_column)
+            let Some(existing_tail_record) =
+                table.page_directory.directory.get(&base_indirection_column)
             else {
                 return Ok(false);
             };
@@ -248,15 +251,13 @@ impl RQuery {
 
         // update the index with the new primary key
         if new_primary_key != primary_key {
-            table.index.index.remove(&primary_key);
-            table.index.index.insert(new_primary_key, new_rid);
+            let mut index = table.index.write().unwrap();
+            index.index.remove(&primary_key);
+            index.index.insert(new_primary_key, new_rid);
         }
 
         // update the indirection column of the base record
-        let mut indirection_page = addrs_base[indirection_column as usize]
-            .page
-            .lock()
-            .unwrap();
+        let mut indirection_page = addrs_base[indirection_column as usize].page.lock().unwrap();
         indirection_page.overwrite(
             addrs_base[indirection_column as usize].offset as usize,
             new_rid,
@@ -267,12 +268,16 @@ impl RQuery {
         return Ok(true);
     }
 
-    pub fn sum(&mut self, start_primary_key: i64, end_primary_key: i64, col_index: i64) -> PyResult<i64> {
+    pub fn sum(
+        &mut self,
+        start_primary_key: i64,
+        end_primary_key: i64,
+        col_index: i64,
+    ) -> PyResult<i64> {
         let mut table = self.handle.table.write().map_err(|_| {
             PyErr::new::<pyo3::exceptions::PyRuntimeError, _>("Failed to acquire write lock")
         })?;
-        Ok(table
-            .sum(start_primary_key, end_primary_key, col_index))
+        Ok(table.sum(start_primary_key, end_primary_key, col_index))
     }
 
     fn sum_version(
@@ -285,8 +290,7 @@ impl RQuery {
         let mut table = self.handle.table.write().map_err(|_| {
             PyErr::new::<pyo3::exceptions::PyRuntimeError, _>("Failed to acquire write lock")
         })?;
-        Ok(
-        table.sum_version(
+        Ok(table.sum_version(
             start_primary_key,
             end_primary_key,
             col_index,
@@ -301,7 +305,6 @@ impl RQuery {
             })?;
             table.num_columns
         };
-                
 
         // Select the value of the column before we increment
         let cols = vec![1i64; num_cols];

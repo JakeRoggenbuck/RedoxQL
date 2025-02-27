@@ -17,19 +17,20 @@ pub struct RIndex {
     pub owner: Option<Weak<RwLock<RTable>>>,
 }
 
-#[pymethods]
-impl RIndex {
-    #[new]
-    pub fn new_py() -> Self {
-        Self::new()
-    }
+#[pyclass]
+#[derive(Clone, Default)]
+pub struct RIndexHandle {
+    pub index: Arc<RwLock<RIndex>>,
+}
 
-    /// When called from Python, create the secondary index for a given column
+#[pymethods]
+impl RIndexHandle {
     pub fn create_index(&mut self, col_index: i64) {
-        if let Some(owner_weak) = &self.owner {
+        let mut index = self.index.write().unwrap();
+        if let Some(owner_weak) = &index.owner {
             if let Some(owner_arc) = owner_weak.upgrade() {
                 let table = owner_arc.read().unwrap();
-                self.create_index_internal(col_index, &table);
+                index.create_index_internal(col_index, &table);
             } else {
                 // Table was dropped, so this index should be considered invalid
                 panic!("Table reference no longer valid");
@@ -38,15 +39,16 @@ impl RIndex {
             panic!("Owner not set for RIndex");
         }
     }
-    /// When called from Python, drop the secondary index for a given column
+
     pub fn drop_index(&mut self, col_index: i64) {
-        self.drop_index_internal(col_index);
+        let mut index = self.index.write().unwrap();
+        index.drop_index_internal(col_index);
     }
 
-    // Debugging purposes
     pub fn get_secondary_indices(&self) -> HashMap<i64, Vec<(i64, Vec<i64>)>> {
+        let index = self.index.read().unwrap();
         let mut out = HashMap::new();
-        for (&col, tree) in self.secondary_indices.iter() {
+        for (&col, tree) in index.secondary_indices.iter() {
             let mut vec = Vec::new();
             for (&val, rids) in tree.iter() {
                 vec.push((val, rids.clone()));
@@ -171,7 +173,7 @@ mod tests {
                 page_directory: PageDirectory::new(),
                 num_records: 0,
                 num_columns: 3,
-                index: RIndex::new(),
+                index: Arc::new(RwLock::new(RIndex::new())),
             };
 
             // Insert three records:
@@ -214,7 +216,7 @@ mod tests {
                 page_directory: PageDirectory::new(),
                 num_records: 0,
                 num_columns: 3,
-                index: RIndex::new(),
+                index: Arc::new(RwLock::new(RIndex::new())),
             };
 
             // Insert two records:
@@ -250,7 +252,7 @@ mod tests {
                 page_directory: PageDirectory::new(),
                 num_records: 0,
                 num_columns: 3,
-                index: RIndex::new(),
+                index: Arc::new(RwLock::new(RIndex::new())),
             };
             let arc_table = Arc::new(RwLock::new(table));
 

@@ -1,3 +1,5 @@
+use crate::index::RIndexHandle;
+
 use super::index::RIndex;
 use super::pagerange::{PageRange, PageRangeMetadata};
 use super::record::{Record, RecordMetadata};
@@ -37,7 +39,7 @@ impl PageDirectory {
             directory: HashMap::new(),
         };
 
-        // TODO: We need to somehow load all of the physical pages, wrap them 
+        // TODO: We need to somehow load all of the physical pages, wrap them
         // in an Arc Mutex, and assign those references to the record addresses
         // that need them
         //
@@ -96,7 +98,7 @@ pub trait StatePersistence {
 
             page_range: PageRange::load_state(),
             page_directory: PageDirectory::load_state(),
-            index: RIndex::new(),
+            index: Arc::new(RwLock::new(RIndex::new())),
         }
     }
 }
@@ -121,8 +123,7 @@ pub struct RTable {
     #[pyo3(get)]
     pub num_columns: usize,
 
-    #[pyo3(get)]
-    pub index: RIndex,
+    pub index: Arc<RwLock<RIndex>>,
 }
 
 impl RTable {
@@ -131,8 +132,10 @@ impl RTable {
         let primary_key = values[self.primary_key_column];
 
         let rid = self.num_records;
-        self.index.add(primary_key, rid);
-
+        {
+            let mut index = self.index.write().unwrap();
+            index.add(primary_key, rid);
+        }
         let rec = self.page_range.write(rid, values);
 
         // Save the RID -> Record so it can later be read
@@ -144,7 +147,8 @@ impl RTable {
 
     pub fn read_base(&self, primary_key: i64) -> Option<Vec<i64>> {
         // Lookup RID from primary_key
-        let rid = self.index.get(primary_key);
+        let index = self.index.try_read().unwrap();
+        let rid = index.get(primary_key);
 
         if let Some(r) = rid {
             let rec = self.page_directory.directory.get(&r);
@@ -235,7 +239,8 @@ impl RTable {
 
     pub fn delete(&mut self, primary_key: i64) {
         // Lookup RID from primary_key
-        let rid = self.index.get(primary_key);
+        let index = self.index.read().unwrap();
+        let rid = index.get(primary_key);
 
         if let Some(r) = rid {
             self.page_directory.directory.remove(&r);
@@ -345,6 +350,17 @@ impl RTableHandle {
         })?;
 
         Ok(table.num_records)
+    }
+
+    #[getter]
+    pub fn index(&self) -> PyResult<RIndexHandle> {
+        let table = self.table.read().map_err(|_| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>("Failed to acquire read lock")
+        })?;
+
+        Ok(RIndexHandle {
+            index: table.index.clone(),
+        })
     }
 
     #[getter]

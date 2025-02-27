@@ -1,3 +1,4 @@
+use crate::index;
 use crate::table::RTableHandle;
 
 use super::index::RIndex;
@@ -120,15 +121,16 @@ impl RDatabase {
             page_directory: PageDirectory::new(),
             num_columns: num_columns as usize,
             num_records: 0,
-            index: RIndex::new(),
+            index: Arc::new(RwLock::new(RIndex::new())),
         };
 
         let arc_table = Arc::new(RwLock::new(table));
 
         // Set the owner on the index inside the table
         {
-            let mut table_guard = arc_table.write().unwrap();
-            table_guard.index.set_owner(Arc::downgrade(&arc_table));
+            let table_guard = arc_table.read().unwrap();
+            let mut index_guard = table_guard.index.write().unwrap();
+            index_guard.set_owner(Arc::downgrade(&arc_table));
         }
 
         // PREVIOUS IMPLEMENTATION
@@ -234,8 +236,9 @@ mod tests {
         // Verify owner is set correctly for the index
         let binding = table.unwrap();
         let table_ = binding.table.read().unwrap();
-        assert!(table_.index.owner.is_some());
-        if let Some(owner_weak) = &table_.index.owner {
+        let index = table_.index.read().unwrap();
+        assert!(index.owner.is_some());
+        if let Some(owner_weak) = &index.owner {
             // Verify owner can be upgraded (reference is valid)
             assert!(owner_weak.upgrade().is_some());
 
@@ -260,7 +263,8 @@ mod tests {
         {
             // Save a weak reference to the table's owner
             let table_ = tablebinding.table.read().unwrap();
-            weak_ref = if let Some(owner) = &table_.index.owner {
+            let index = table_.index.read().unwrap();
+            weak_ref = if let Some(owner) = &index.owner {
                 Some(owner.clone())
             } else {
                 panic!("Owner not set properly");
@@ -332,8 +336,9 @@ mod tests {
 
         // Verify owner is set correctly for the index
         let table3: std::sync::RwLockReadGuard<'_, RTable> = table1binding.table.read().unwrap();
-        assert!(table3.index.owner.is_some());
-        if let Some(owner_weak) = &table3.index.owner {
+        let index = table3.index.read().unwrap();
+        assert!(index.owner.is_some());
+        if let Some(owner_weak) = &index.owner {
             // Verify owner can be upgraded (reference is valid)
             assert!(owner_weak.upgrade().is_some());
 
