@@ -61,8 +61,20 @@ impl PageDirectory {
 
         // Load records into page_directory
         for (rid, record_meta) in page_meta.directory {
-            pd.directory
-                .insert(rid, record_meta.load_state(&base_pages, &tail_pages));
+            let rec = record_meta.load_state(&base_pages, &tail_pages);
+            pd.directory.insert(rid, rec);
+        }
+
+        for (rid, record) in pd.directory.clone() {
+            print!("{rid} -> ");
+            let m = record.addresses;
+            let b = m.lock().unwrap();
+            let c = b.iter();
+
+            for addr in c {
+                println!("{:?}", addr);
+            }
+            print!("\n\n\n");
         }
 
         return pd;
