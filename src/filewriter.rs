@@ -53,6 +53,10 @@ impl JSONFileWriter {
     }
 }
 
+/// The point of this Writer is so that you can switch what type of file you want to write as
+/// using. It implements the Strategy pattern allowing you to pass in JSONFileWriter or BinaryFileWriter.
+/// The use of BinaryFileWriter is optimal for having small and fast files for the database and
+/// having JSONFileWriter is great for debugging file writes because it is human readable.
 pub struct Writer<T> {
     strategy: Box<dyn WriterStrategy<T>>,
 }
