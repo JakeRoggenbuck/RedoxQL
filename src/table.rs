@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Write};
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, Mutex, RwLock, Weak};
 
 #[derive(Default, Clone, Serialize, Deserialize)]
 pub struct PageDirectoryMetadata {
@@ -123,7 +123,7 @@ pub trait StatePersistence {
         let pr = PageRange::load_state();
         let pd = PageDirectory::load_state(&pr);
 
-        RTable {
+        let mut t = RTable {
             name: table_meta.name.clone(),
             primary_key_column: table_meta.primary_key_column,
             num_columns: table_meta.num_columns,
@@ -132,7 +132,17 @@ pub trait StatePersistence {
             page_range: pr,
             page_directory: pd,
             index: Arc::new(RwLock::new(RIndex::new())),
-        }
+        };
+
+        // It does not make sense to clone here
+        let arc_table = Arc::new(RwLock::new(t.clone()));
+        let weak_table = Arc::downgrade(&arc_table);
+
+        let index = RIndex::load_state(weak_table);
+
+        t.index = Arc::new(RwLock::new(index));
+
+        return t;
     }
 }
 

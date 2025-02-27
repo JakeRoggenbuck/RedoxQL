@@ -1,21 +1,10 @@
 use super::table::{PageDirectory, RTable};
 use pyo3::prelude::*;
-use std::{
-    collections::{BTreeMap, HashMap},
-    sync::{Arc, RwLock, Weak},
-};
-
-#[pyclass]
-#[derive(Clone, Default)]
-pub struct RIndex {
-    #[pyo3(get, set)]
-    pub index: BTreeMap<i64, i64>,
-    #[pyo3(get, set)]
-    pub secondary_indices: HashMap<i64, BTreeMap<i64, Vec<i64>>>,
-    // Using Arc<RwLock<>> pattern which is safer than raw pointers
-    // these fields are not python exposed
-    pub owner: Option<Weak<RwLock<RTable>>>,
-}
+use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, HashMap};
+use std::fs::File;
+use std::io::{BufReader, BufWriter, Write};
+use std::sync::{Arc, RwLock, Weak};
 
 #[pyclass]
 #[derive(Clone, Default)]
@@ -57,6 +46,25 @@ impl RIndexHandle {
         }
         out
     }
+}
+
+#[derive(Clone, Default, Deserialize, Serialize)]
+pub struct RIndexMetadata {
+    pub index: BTreeMap<i64, i64>,
+    pub secondary_indices: HashMap<i64, BTreeMap<i64, Vec<i64>>>,
+}
+
+#[pyclass]
+#[derive(Clone, Default)]
+pub struct RIndex {
+    #[pyo3(get, set)]
+    pub index: BTreeMap<i64, i64>,
+
+    #[pyo3(get, set)]
+    pub secondary_indices: HashMap<i64, BTreeMap<i64, Vec<i64>>>,
+    // Using Arc<RwLock<>> pattern which is safer than raw pointers
+    // these fields are not python exposed
+    pub owner: Option<Weak<RwLock<RTable>>>,
 }
 
 impl RIndex {
@@ -136,6 +144,39 @@ impl RIndex {
             if let Some(vec_rids) = sec_index.get_mut(&value) {
                 vec_rids.retain(|&r| r != rid);
             }
+        }
+    }
+
+    pub fn save_state(&self) {
+        let hardcoded_filename = "./redoxdata/index.data";
+
+        let index_meta = self.get_metadata();
+
+        let index_bytes: Vec<u8> = bincode::serialize(&index_meta).expect("Should serialize.");
+
+        let mut file = BufWriter::new(File::create(hardcoded_filename).expect("Should open file."));
+        file.write_all(&index_bytes).expect("Should serialize.");
+    }
+
+    pub fn get_metadata(&self) -> RIndexMetadata {
+        RIndexMetadata {
+            index: self.index.clone(),
+            secondary_indices: self.secondary_indices.clone(),
+        }
+    }
+
+    pub fn load_state(table_ref: Weak<RwLock<RTable>>) -> RIndex {
+        let hardcoded_filename = "./redoxdata/index.data";
+
+        let file = BufReader::new(File::open(hardcoded_filename).expect("Should open file."));
+
+        let index_meta: RIndexMetadata =
+            bincode::deserialize_from(file).expect("Should deserialize.");
+
+        RIndex {
+            index: index_meta.index,
+            secondary_indices: index_meta.secondary_indices,
+            owner: Some(table_ref),
         }
     }
 }
