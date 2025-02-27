@@ -1,4 +1,3 @@
-use super::table::RTable;
 use super::table::{PageDirectory, RTable};
 use crate::container::NUM_RESERVED_COLUMNS;
 use pyo3::prelude::*;
