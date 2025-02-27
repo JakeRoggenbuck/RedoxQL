@@ -1,8 +1,8 @@
-use crate::table::RTableHandle;
-
+use super::bufferpool::BufferPool;
 use super::index::RIndex;
 use super::pagerange::PageRange;
 use super::table::{PageDirectory, RTable, RTableMetadata, StatePersistence};
+use crate::table::RTableHandle;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -26,6 +26,8 @@ pub struct RDatabase {
     tables_hashmap: HashMap<String, usize>,
 
     db_filepath: Option<String>,
+
+    pub buffer_pool: BufferPool,
 }
 
 #[pymethods]
@@ -36,6 +38,7 @@ impl RDatabase {
             tables: vec![],
             tables_hashmap: HashMap::new(),
             db_filepath: None,
+            buffer_pool: BufferPool::new("./"),
         }
     }
 
