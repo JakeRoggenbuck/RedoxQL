@@ -115,7 +115,7 @@ impl BaseContainer {
     ///
     /// - `col_idx`: The index of the column
     pub fn column_page(&self, col_idx: i64) -> Arc<Mutex<PhysicalPage>> {
-        self.physical_pages[(col_idx + BaseContainer::NUM_RESERVED_COLUMNS) as usize].clone()
+        self.physical_pages[(col_idx + NUM_RESERVED_COLUMNS) as usize].clone()
     }
 
     pub fn insert_record(&mut self, rid: i64, values: Vec<i64>) -> Record {
