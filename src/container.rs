@@ -471,7 +471,7 @@ impl TailContainer {
         let tail_meta = self.get_metadata();
         let hardcoded_filename = "./redoxdata/tail_container.data";
 
-        let mut index = 0;
+        let mut index = self.physical_pages.len() as i64;
         // The Rust compiler suggested that I clone here but it's definitely way better to not copy
         // all of the data and just use a reference
         for p in &self.physical_pages {
