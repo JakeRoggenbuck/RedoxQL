@@ -4,7 +4,7 @@ from .lstore import RQuery, RTable
 
 class ReturnRecord:
     def __init__(self, columns: List[int]):
-        self.columns = columns[3:]
+        self.columns = columns[4:]
 
     def __str__(self):
         return f"Record({self.columns})"
