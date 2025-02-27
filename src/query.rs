@@ -31,6 +31,9 @@ fn filter_projected(column_values: Vec<i64>, projected: Vec<i64>) -> Vec<Option<
 impl RQuery {
     #[new]
     pub fn new(handle: RTableHandle) -> Self {
+        if handle.table.write().unwrap().num_records > 0 && handle.table.write().unwrap().num_records % 200 == 0 {
+            handle.table.write().unwrap().merge();
+        }
         RQuery { handle }
     }
 

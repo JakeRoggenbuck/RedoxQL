@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Write};
-use std::sync::{Arc, Mutex, RwLock, Weak};
+use std::sync::{Arc, Mutex, RwLock};
 
 #[derive(Default, Clone, Serialize, Deserialize)]
 pub struct PageDirectoryMetadata {
@@ -351,8 +351,8 @@ impl RTable {
         }
     }
 
-    fn _merge() {
-        unreachable!("Not used in milestone 1")
+    pub fn merge(&mut self) {
+        self.page_range.merge(self.page_directory.clone());
     }
 }
 

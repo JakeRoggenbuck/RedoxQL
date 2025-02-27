@@ -1,4 +1,4 @@
-use crate::container::NUM_RESERVED_COLUMNS;
+use crate::container::{ReservedColumns, NUM_RESERVED_COLUMNS};
 
 use super::page::PhysicalPage;
 use pyo3::prelude::*;
@@ -129,21 +129,26 @@ impl Record {
         self.__str__()
     }
 
-    fn rid(&self) -> i64 {
+    pub fn rid(&self) -> i64 {
         self.rid
     }
 
-    fn schema_encoding(&self) -> RecordAddress {
+    pub fn schema_encoding(&self) -> RecordAddress {
         let addresses = self.addresses.lock().unwrap();
-        addresses[1].clone()
+        addresses[ReservedColumns::SchemaEncoding as usize].clone()
     }
 
-    fn indirection(&self) -> RecordAddress {
+    pub fn indirection(&self) -> RecordAddress {
         let addresses = self.addresses.lock().unwrap();
-        addresses[2].clone()
+        addresses[ReservedColumns::Indirection as usize].clone()
     }
 
-    fn columns(&self) -> Vec<RecordAddress> {
+    pub fn base_rid(&self) -> RecordAddress {
+        let addresses = self.addresses.lock().unwrap();
+        addresses[ReservedColumns::BaseRID as usize].clone()
+    }
+
+    pub fn columns(&self) -> Vec<RecordAddress> {
         let addresses = self.addresses.lock().unwrap();
 
         addresses[(NUM_RESERVED_COLUMNS as usize)..].to_vec()

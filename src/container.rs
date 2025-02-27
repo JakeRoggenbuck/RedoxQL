@@ -2,7 +2,7 @@ use super::page::PhysicalPage;
 use super::record::{Record, RecordAddress};
 use serde::{Deserialize, Serialize};
 use std::fs::File;
-use std::io::{BufReader, BufWriter, Write};
+use std::io::{BufWriter, Write};
 use std::sync::{Arc, Mutex};
 
 #[derive(Clone, Default, Deserialize, Serialize, Debug)]
@@ -118,6 +118,19 @@ impl BaseContainer {
         self.physical_pages[(col_idx + NUM_RESERVED_COLUMNS) as usize].clone()
     }
 
+    pub fn deep_copy(&self) -> BaseContainer {
+        let mut base = BaseContainer::new(self.num_cols);
+
+        for i in 0..self.physical_pages.len() {
+            let p = self.physical_pages[i].lock().unwrap();
+            let new_page = p.clone();
+            let m = Arc::new(Mutex::new(new_page));
+            base.physical_pages.push(m);
+        }
+
+        base
+    }
+
     pub fn insert_record(&mut self, rid: i64, values: Vec<i64>) -> Record {
         if values.len() != self.num_cols as usize {
             panic!("Number of values does not match number of columns");
@@ -197,6 +210,23 @@ impl BaseContainer {
         }
 
         values
+    }
+
+    pub fn find_rid_offset(&mut self, rid: i64) -> usize {
+        let mut offset: i64 = -1;
+
+        for i in 0..self.rid_page().lock().unwrap().data.len() {
+            if self.rid_page().lock().unwrap().data[i] == rid {
+                offset = i as i64;
+                break;
+            }
+        }
+
+        if offset == -1 {
+            panic!("Could not find RID in RID page");
+        }
+
+        offset as usize
     }
 
     pub fn save_state(&self) {
