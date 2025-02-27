@@ -128,6 +128,7 @@ impl RDatabase {
             num_records: 0,
             index: Arc::new(RwLock::new(RIndex::new())),
             table_num: self.tables.len() as i64,
+            updates_since_merge: 0,
         };
 
         let arc_table = Arc::new(RwLock::new(table));

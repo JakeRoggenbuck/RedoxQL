@@ -113,6 +113,7 @@ pub struct RTableMetadata {
     pub num_columns: usize,
     pub page_range: PageRangeMetadata,
     pub table_num: i64,
+    pub updates_since_merge: i64,
 }
 
 pub trait StatePersistence {
@@ -136,6 +137,7 @@ pub trait StatePersistence {
             page_directory: pd,
             index: Arc::new(RwLock::new(RIndex::new())),
             table_num: table_meta.table_num,
+            updates_since_merge: table_meta.updates_since_merge,
         };
 
         // It does not make sense to clone here
@@ -174,6 +176,8 @@ pub struct RTable {
 
     /// The nth table that was created will have the value n here and is indexed by zero
     pub table_num: i64,
+
+    pub updates_since_merge: i64,
 }
 
 impl RTable {
@@ -351,6 +355,7 @@ impl RTable {
             num_records: self.num_records,
             page_range: self.page_range.get_metadata(),
             table_num: self.table_num,
+            updates_since_merge: self.updates_since_merge,
         }
     }
 
