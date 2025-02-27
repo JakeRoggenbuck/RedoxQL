@@ -1,3 +1,4 @@
+use super::filewriter::{BinaryFileWriter, Writer};
 use super::page::PhysicalPage;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
@@ -28,13 +29,9 @@ impl BufferPool {
     }
 
     pub fn save_state(&self) {
-        let hardcoded_filename = "./redoxdata/bufferpull.data";
-
-        let bufferpool_bytes: Vec<u8> = bincode::serialize(self).expect("Should serialize.");
-
-        let mut file = BufWriter::new(File::create(hardcoded_filename).expect("Should open file."));
-        file.write_all(&bufferpool_bytes)
-            .expect("Should serialize.");
+        let b = BinaryFileWriter::new();
+        let writer = Writer::new(Box::new(b));
+        writer.write_file("./redoxdata/bufferpull.data", self);
     }
 
     pub fn load_state(&self, _directory: &str) -> BufferPool {
