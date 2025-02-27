@@ -137,12 +137,15 @@ impl RQuery {
 
     pub fn update(&mut self, primary_key: i64, columns: Vec<Option<i64>>) -> bool {
         let mut table = self.handle.table.write().unwrap();
-        //if table.num_records > 0 && table.updates_since_merge > 500 {
-        //    table.merge();
-        //    table.updates_since_merge = 0;
-        //}
 
-        table.updates_since_merge += 1;
+        //{
+        //    if table.num_records > 0 && table.updates_since_merge > 500 {
+        //        table.merge();
+        //        table.updates_since_merge = 0;
+        //    }
+        //
+        //    table.updates_since_merge += 1;
+        //}
 
         // This functin expects an expact number of columns as table has
         if columns.len() != table.num_columns {
