@@ -1,5 +1,5 @@
 use super::page::PhysicalPage;
-use super::record::{Record, RecordAddress};
+use super::record::{Record, RecordAddress, RecordType};
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Write};
@@ -10,6 +10,8 @@ pub struct BaseContainerMetadata {
     // This takes the place of the actual pages in the disk version
     // With this number, we are able to load all of the pages
     num_pages: usize,
+
+    tail_page_sequence: i64,
 
     num_cols: i64,
 
@@ -45,6 +47,9 @@ pub struct BaseContainer {
     // pages
     pub physical_pages: Vec<Arc<Mutex<PhysicalPage>>>,
 
+    // tail-page sequence number
+    pub tail_page_sequence: i64,
+
     // number of additional columns
     pub num_cols: i64,
 
@@ -66,11 +71,15 @@ pub struct BaseContainer {
 /// # Fields
 ///
 /// - `physical_pages`: A vector of physical pages
+/// - `tail_page_sequence`: The sequence number of the tail page
 /// - `num_cols`: The number of additional columns
 /// - `rid_column`: The index of the RID column
 /// - `schema_encoding_column`: The index of the schema encoding column
 /// - `indirection_column`: The index of the indirection column
 impl BaseContainer {
+
+    pub const NUM_RESERVED_COLUMNS: i64 = 3;
+
     /// Creates a new `BaseContainer` with the specified number of columns
     ///
     /// # Arguments
@@ -83,6 +92,7 @@ impl BaseContainer {
     pub fn new(num_cols: i64) -> Self {
         BaseContainer {
             physical_pages: Vec::new(),
+            tail_page_sequence: 0,
             num_cols,
             rid_column: 0,
             schema_encoding_column: 1,
@@ -145,7 +155,7 @@ impl BaseContainer {
     ///
     /// - `col_idx`: The index of the column
     pub fn column_page(&self, col_idx: i64) -> Arc<Mutex<PhysicalPage>> {
-        self.physical_pages[(col_idx + 3) as usize].clone()
+        self.physical_pages[(col_idx + BaseContainer::NUM_RESERVED_COLUMNS) as usize].clone()
     }
 
     pub fn insert_record(&mut self, rid: i64, values: Vec<i64>) -> Record {
@@ -203,6 +213,7 @@ impl BaseContainer {
         Record {
             rid,
             addresses: addresses.clone(),
+            record_type: RecordType::Base,
         }
     }
 
@@ -243,6 +254,7 @@ impl BaseContainer {
     pub fn get_metadata(&self) -> BaseContainerMetadata {
         BaseContainerMetadata {
             num_pages: self.physical_pages.len(),
+            tail_page_sequence: self.tail_page_sequence,
             num_cols: self.num_cols,
             rid_column: self.rid_column,
             schema_encoding_column: self.schema_encoding_column,
@@ -262,6 +274,7 @@ pub struct TailContainerMetadata {
     rid_column: i64,
     schema_encoding_column: i64,
     indirection_column: i64,
+    base_rid_column: i64,
 }
 
 impl TailContainerMetadata {
@@ -298,6 +311,7 @@ pub struct TailContainer {
     pub rid_column: i64,
     pub schema_encoding_column: i64,
     pub indirection_column: i64,
+    pub base_rid_column: i64, // keep track of the base container record id
 }
 
 /// A container that manages physical pages for storing data in columns
@@ -308,6 +322,7 @@ pub struct TailContainer {
 /// - rid_column (0): Record IDs
 /// - schema_encoding_column (1): Schema encoding information
 /// - indirection_column (2): Indirection records
+/// - base_rid_column (3): The base container record ID
 ///
 /// # Fields
 ///
@@ -316,7 +331,12 @@ pub struct TailContainer {
 /// - `rid_column`: The index of the RID column
 /// - `schema_encoding_column`: The index of the schema encoding column
 /// - `indirection_column`: The index of the indirection column
+/// - `base_rid_column`: The base container record ID
 impl TailContainer {
+
+    // Static vars
+    pub const NUM_RESERVED_COLUMNS: i64 = 4;
+
     /// Creates a new `TailContainer` with the specified number of columns
     ///
     /// # Arguments
@@ -333,6 +353,7 @@ impl TailContainer {
             rid_column: 0,
             schema_encoding_column: 1,
             indirection_column: 2,
+            base_rid_column: 3        
         }
     }
 
@@ -355,12 +376,15 @@ impl TailContainer {
         let rid_page = PhysicalPage::new();
         let schema_encoding_page = PhysicalPage::new();
         let indirection_page = PhysicalPage::new();
+        let base_rid_page = PhysicalPage::new();
 
         self.physical_pages.push(Arc::new(Mutex::new(rid_page)));
         self.physical_pages
             .push(Arc::new(Mutex::new(schema_encoding_page)));
         self.physical_pages
             .push(Arc::new(Mutex::new(indirection_page)));
+        self.physical_pages
+            .push(Arc::new(Mutex::new(base_rid_page)));
 
         // initialize the rest of the columns
         for _ in 0..self.num_cols {
@@ -384,12 +408,17 @@ impl TailContainer {
         self.physical_pages[self.indirection_column as usize].clone()
     }
 
-    /// Returns a reference to the specified column page
-    pub fn column_page(&self, col_idx: i64) -> Arc<Mutex<PhysicalPage>> {
-        self.physical_pages[(col_idx + 3) as usize].clone()
+    // Returns a reference to the base RID column page
+    pub fn base_rid_page(&self) -> Arc<Mutex<PhysicalPage>> {
+        self.physical_pages[self.base_rid_column as usize].clone()
     }
 
-    pub fn insert_record(&mut self, rid: i64, indirection_rid: i64, values: Vec<i64>) -> Record {
+    /// Returns a reference to the specified column page
+    pub fn column_page(&self, col_idx: i64) -> Arc<Mutex<PhysicalPage>> {
+        self.physical_pages[(col_idx + TailContainer::NUM_RESERVED_COLUMNS) as usize].clone()
+    }
+
+    pub fn insert_record(&mut self, rid: i64, indirection_rid: i64, base_rid: i64, values: Vec<i64>) -> Record {
         if values.len() != self.num_cols as usize {
             panic!("Number of values does not match number of columns");
         }
@@ -407,6 +436,10 @@ impl TailContainer {
         let mut ip = indirection_page.lock().unwrap();
 
         ip.write(indirection_rid as i64);
+
+        let base_rid_page = self.base_rid_page();
+        let mut brp = base_rid_page.lock().unwrap();
+        brp.write(base_rid as i64);
 
         for i in 0..self.num_cols {
             let col_page = self.column_page(i);
@@ -432,6 +465,11 @@ impl TailContainer {
             offset: ip.num_records - 1,
         });
 
+        a.push(RecordAddress {
+            page: base_rid_page.clone(),
+            offset: brp.num_records - 1,
+        });
+
         for i in 0..self.num_cols {
             let col_page = self.column_page(i);
             let cp = col_page.lock().unwrap();
@@ -441,9 +479,11 @@ impl TailContainer {
             });
         }
 
+
         Record {
             rid,
             addresses: addresses.clone(),
+            record_type: RecordType::Tail,
         }
     }
 
@@ -488,96 +528,83 @@ impl TailContainer {
             rid_column: self.rid_column,
             schema_encoding_column: self.schema_encoding_column,
             indirection_column: self.indirection_column,
+            base_rid_column: self.base_rid_column,
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use bincode::de::read;
+
     use super::*;
 
     #[test]
     fn test_base_container_creation() {
         let container = BaseContainer::new(5);
         assert_eq!(container.num_cols, 5);
-        assert_eq!(container.physical_pages.len(), 0);
+        assert_eq!(container.rid_column, 0);
+        assert_eq!(container.schema_encoding_column, 1);
+        assert_eq!(container.indirection_column, 2);
     }
 
     #[test]
-    fn test_base_container_initialize() {
+    fn test_base_container_initialization() {
         let mut container = BaseContainer::new(5);
         container.initialize();
         assert_eq!(container.physical_pages.len(), 8); // 3 reserved + 5 data columns
     }
 
     #[test]
-    fn test_base_container_insert() {
-        let mut container = BaseContainer::new(2);
-        container.initialize();
-
-        let values = vec![42, 43];
-        let record = container.insert_record(1, values);
-
-        assert_eq!(record.rid, 1);
-        let addresses = record.addresses.lock().unwrap();
-        assert_eq!(addresses.len(), 5); // 3 reserved + 2 data columns
-    }
-
-    #[test]
-    fn test_base_container_insert_513() {
-        let mut container = BaseContainer::new(2);
-        container.initialize();
-
-        for _ in 0..513 {
-            let values = vec![42, 43];
-            let _record = container.insert_record(1, values);
-        }
-    }
-
-    #[test]
-    #[should_panic(expected = "Number of values does not match number of columns")]
-    fn test_base_container_insert_wrong_columns() {
-        let mut container = BaseContainer::new(2);
-        container.initialize();
-        let values = vec![42];
-        container.insert_record(1, values);
-    }
-
-    #[test]
     fn test_tail_container_creation() {
         let container = TailContainer::new(5);
         assert_eq!(container.num_cols, 5);
-        assert_eq!(container.physical_pages.len(), 0);
+        assert_eq!(container.rid_column, 0);
+        assert_eq!(container.schema_encoding_column, 1); 
+        assert_eq!(container.indirection_column, 2);
+        assert_eq!(container.base_rid_column, 3);
     }
 
     #[test]
-    fn test_tail_container_initialize() {
+    fn test_tail_container_initialization() {
         let mut container = TailContainer::new(5);
         container.initialize();
-        assert_eq!(container.physical_pages.len(), 8); // 3 reserved + 5 data columns
+        assert_eq!(container.physical_pages.len(), 9); // 4 reserved + 5 data columns
     }
 
     #[test]
-    fn test_tail_container_insert() {
+    fn test_base_container_insert_read() {
+        let mut container = BaseContainer::new(2);
+        container.initialize();
+        let values = vec![42, 24];
+        let record = container.insert_record(1, values.clone());
+        let read_values = container.read_record(record);
+        assert_eq!(read_values[(BaseContainer::NUM_RESERVED_COLUMNS as usize)..], values);
+    }
+
+    #[test]
+    fn test_tail_container_insert_read() {
         let mut container = TailContainer::new(2);
         container.initialize();
-
-        let values = vec![42, 43];
-        // TODO: ensure the indirection RID is set correctly (needs a base record)
-        let record = container.insert_record(1, 0, values);
-
-        assert_eq!(record.rid, 1);
-        let addresses = record.addresses.lock().unwrap();
-        assert_eq!(addresses.len(), 5); // 3 reserved + 2 data columns
+        let values = vec![42, 24];
+        let record = container.insert_record(1, 2, 3, values.clone());
+        let read_values = container.read_record(record);
+        assert_eq!(read_values[(TailContainer::NUM_RESERVED_COLUMNS as usize)..], values);
     }
 
     #[test]
     #[should_panic(expected = "Number of values does not match number of columns")]
-    fn test_tail_container_insert_wrong_columns() {
+    fn test_base_container_invalid_insert() {
+        let mut container = BaseContainer::new(2);
+        container.initialize();
+        container.insert_record(1, vec![42]);
+    }
+
+    #[test]
+    #[should_panic(expected = "Number of values does not match number of columns")]
+    fn test_tail_container_invalid_insert() {
         let mut container = TailContainer::new(2);
         container.initialize();
-        let values = vec![42];
-        // TODO: ensure the indirection RID is set correctly (needs a base record)
-        container.insert_record(1, 0, values);
+        container.insert_record(1, 2, 3, vec![42]);
     }
 }

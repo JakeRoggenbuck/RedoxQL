@@ -2,6 +2,7 @@ use super::record::Record;
 use super::table::RTable;
 use pyo3::prelude::*;
 use std::iter::zip;
+use std::fmt;
 
 #[pyclass]
 pub struct RQuery {
@@ -213,7 +214,8 @@ impl RQuery {
         let new_rec = self.table.page_range.tail_container.insert_record(
             new_rid,
             base_indirection_column,
-            new_columns,
+            *rid,
+            new_columns
         );
 
         // update the page directory with the new record
@@ -309,6 +311,9 @@ mod tests {
 
         // Increment the first user column (column 1)
         q.increment(1, 1);
+
+        // print vals
+        println!("{:?}", q.select(1, 0, vec![1, 1, 1]));
 
         let vals = q.select(1, 0, vec![1, 1, 1]); // Select entire row
         assert_eq!(
