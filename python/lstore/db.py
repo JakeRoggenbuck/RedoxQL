@@ -22,7 +22,7 @@ class Database:
         :param num_columns: int     #Number of Columns: all columns are integer
         :param key: int             #Index of table key in columns
         """
-        return self.db.create_table(name, num_columns, key_index).table
+        return self.db.create_table(name, num_columns, key_index)
 
     def drop_table(self, name: str):
         """Deletes the specified table"""
@@ -30,4 +30,4 @@ class Database:
 
     def get_table(self, name: str) -> RTable:
         """Returns table with the passed name"""
-        return self.db.get_table(name).table
+        return self.db.get_table(name)

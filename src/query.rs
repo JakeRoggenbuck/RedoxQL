@@ -1,3 +1,5 @@
+use crate::table::RTableHandle;
+
 use super::record::Record;
 use super::table::RTable;
 use pyo3::prelude::*;
@@ -5,7 +7,8 @@ use std::iter::zip;
 
 #[pyclass]
 pub struct RQuery {
-    pub table: RTable,
+    // pub table: RTable,
+    pub handle: RTableHandle,
 }
 
 fn filter_projected(column_values: Vec<i64>, projected: Vec<i64>) -> Vec<Option<i64>> {
@@ -28,21 +31,29 @@ fn filter_projected(column_values: Vec<i64>, projected: Vec<i64>) -> Vec<Option<
 #[pymethods]
 impl RQuery {
     #[new]
-    pub fn new(table: RTable) -> Self {
-        RQuery { table }
+    pub fn new(handle: RTableHandle) -> Self {
+        RQuery { handle }
     }
 
-    pub fn delete(&mut self, primary_key: i64) {
-        self.table.delete(primary_key)
+    pub fn delete(&mut self, primary_key: i64)-> PyResult<()> {
+        let mut table = self.handle.table.write().map_err(|_| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>("Failed to acquire write lock")
+        })?;
+        table.delete(primary_key);
+
+        Ok(())
     }
 
-    pub fn insert(&mut self, values: Vec<i64>) -> Option<Record> {
+    pub fn insert(&mut self, values: Vec<i64>) -> PyResult<Option<Record>> {
+        let mut table = self.handle.table.write().map_err(|_| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>("Failed to acquire write lock")
+        })?;
         // check if primary key already exists
-        if self.table.index.get(values[self.table.primary_key_column]) != None {
-            return None;
+        if table.index.get(values[table.primary_key_column]) != None {
+            return Ok(None);
         }
 
-        Some(self.table.write(values))
+        Ok(Some(table.write(values)))
     }
 
     pub fn select(
@@ -50,39 +61,43 @@ impl RQuery {
         search_key: i64,
         search_key_index: i64,
         projected_columns_index: Vec<i64>,
-    ) -> Option<Vec<Vec<Option<i64>>>> {
+    ) -> PyResult<Option<Vec<Vec<Option<i64>>>>> {
+        let table = self.handle.table.read().map_err(|_| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>("Failed to acquire write lock")
+        })?;
+
         // Case 1: Searching on the primary key column
-        if search_key_index == self.table.primary_key_column as i64 {
-            if let Some(ret) = self.table.read(search_key) {
-                return Some(vec![filter_projected(ret, projected_columns_index)]);
+        if search_key_index == table.primary_key_column as i64 {
+            if let Some(ret) = table.read(search_key) {
+                return Ok(Some(vec![filter_projected(ret, projected_columns_index)]));
             } else {
-                return None;
+                return Ok(None);
             }
         }
         // Case 2: Searching on a non-primary column
         else {
             // If a secondary index exists, use it
-            if let Some(sec_index) = self.table.index.secondary_indices.get(&search_key_index) {
+            if let Some(sec_index) = table.index.secondary_indices.get(&search_key_index) {
                 if let Some(rids) = sec_index.get(&search_key) {
                     let mut results = Vec::new();
                     for &rid in rids {
-                        if let Some(record_data) = self.table.read_by_rid(rid) {
+                        if let Some(record_data) = table.read_by_rid(rid) {
                             results.push(filter_projected(
                                 record_data,
                                 projected_columns_index.clone(),
                             ));
                         }
                     }
-                    return Some(results);
+                    return Ok(Some(results));
                 } else {
-                    return Some(vec![]); // No records match
+                    return Ok(Some(vec![])); // No records match
                 }
             }
             // Otherwise, do a full scan
             else {
                 let mut results = Vec::new();
-                for (_rid, record) in self.table.page_directory.directory.iter() {
-                    if let Some(record_data) = self.table.page_range.read(record.clone()) {
+                for (_rid, record) in table.page_directory.directory.iter() {
+                    if let Some(record_data) = table.page_range.read(record.clone()) {
                         if record_data[(search_key_index + 3) as usize] == search_key {
                             results.push(filter_projected(
                                 record_data,
@@ -91,7 +106,7 @@ impl RQuery {
                         }
                     }
                 }
-                return Some(results);
+                return Ok(Some(results));
             }
         }
     }
@@ -101,45 +116,53 @@ impl RQuery {
         _search_key_index: i64,
         projected_columns_index: Vec<i64>,
         relative_version: i64,
-    ) -> Option<Vec<Option<i64>>> {
-        let Some(ret) = self.table.read_relative(primary_key, relative_version) else {
-            return None;
+    ) -> PyResult<Option<Vec<Option<i64>>>> {
+        let table = self.handle.table.read().map_err(|_| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>("Failed to acquire write lock")
+        })?;
+        let Some(ret) = table.read_relative(primary_key, relative_version) else {
+            return Ok(None);
         };
 
-        Some(filter_projected(ret, projected_columns_index))
+        Ok(Some(filter_projected(ret, projected_columns_index)))
     }
 
-    pub fn update(&mut self, primary_key: i64, columns: Vec<Option<i64>>) -> bool {
+    pub fn update(&mut self, primary_key: i64, columns: Vec<Option<i64>>) -> PyResult<bool> {
+        let mut table = self.handle.table.write().map_err(|_| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>("Failed to acquire write lock")
+        })?;
+
         // This functin expects an expact number of columns as table has
-        if columns.len() != self.table.num_columns {
-            return false;
+        if columns.len() != table.num_columns {
+            return Ok(false);
         }
 
         let mut new_columns: Vec<i64>;
 
         // Check if the record found by primary_key exists
-        let Some(rid) = self.table.index.get(primary_key) else {
-            return false;
+        let Some(rid) = table.index.get(primary_key) else {
+            return Ok(false);
         };
 
         // do not allow primary key to be changed to an existing primary key
-        if let Some(new_primary_key) = columns[self.table.primary_key_column as usize] {
-            if primary_key != new_primary_key && self.table.index.get(new_primary_key) != None {
-                return false;
+        if let Some(new_primary_key) = columns[table.primary_key_column as usize] {
+            if primary_key != new_primary_key && table.index.get(new_primary_key) != None {
+                return Ok(false);
             }
         }
 
         // Get record by RID
-        let record = match self.table.page_directory.directory.get(&rid).cloned() {
+        let record = match table.page_directory.directory.get(&rid).cloned() {
             Some(r) => r,
-            None => return false,
+            None => return Ok(false),
         };
 
-        let Some(result) = self.table.page_range.read(record.clone()) else {
-            return false;
+        let Some(result) = table.page_range.read(record.clone()) else {
+            return Ok(false);
         };
 
-        let base_cont = &self.table.page_range.base_container;
+        let base_cont = &table.page_range.base_container;
+        let indirection_column = base_cont.indirection_column;
 
         // Get values from record for the 3 internal columns
         let base_rid = result[base_cont.rid_column as usize];
@@ -166,17 +189,16 @@ impl RQuery {
             new_columns = result;
         } else {
             // second and subsequent updates
-            let Some(existing_tail_record) = self
-                .table
+            let Some(existing_tail_record) = table
                 .page_directory
                 .directory
                 .get(&base_indirection_column)
             else {
-                return false;
+                return Ok(false);
             };
 
             {
-                let tail_cont = &self.table.page_range.tail_container;
+                let tail_cont = &table.page_range.tail_container;
                 // update schema encoding of the tail to be 1 (since record has changed)
                 let addrs_existing = existing_tail_record.addresses.lock().unwrap();
                 let mut schema_encoding = addrs_existing[tail_cont.schema_encoding_column as usize]
@@ -189,16 +211,17 @@ impl RQuery {
                 );
             }
 
-            let Some(result) = self.table.page_range.read(existing_tail_record.clone()) else {
-                return false;
+            let Some(result) = table.page_range.read(existing_tail_record.clone()) else {
+                return Ok(false);
             };
 
             new_columns = result;
         }
+        // drop(base_cont);
 
         // Extract the new primary key (if provided)
         let mut new_primary_key = primary_key;
-        if let Some(pk) = columns[self.table.primary_key_column] {
+        if let Some(pk) = columns[table.primary_key_column] {
             new_primary_key = pk;
         }
 
@@ -212,40 +235,44 @@ impl RQuery {
             }
         }
 
-        let new_rid = self.table.num_records;
-        let new_rec = self.table.page_range.tail_container.insert_record(
+        let new_rid = table.num_records;
+
+        let new_rec = table.page_range.tail_container.insert_record(
             new_rid,
             base_indirection_column,
             new_columns,
         );
 
         // update the page directory with the new record
-        self.table.page_directory.directory.insert(new_rid, new_rec);
+        table.page_directory.directory.insert(new_rid, new_rec);
 
         // update the index with the new primary key
         if new_primary_key != primary_key {
-            self.table.index.index.remove(&primary_key);
-            self.table.index.index.insert(new_primary_key, new_rid);
+            table.index.index.remove(&primary_key);
+            table.index.index.insert(new_primary_key, new_rid);
         }
 
         // update the indirection column of the base record
-        let mut indirection_page = addrs_base[base_cont.indirection_column as usize]
+        let mut indirection_page = addrs_base[indirection_column as usize]
             .page
             .lock()
             .unwrap();
         indirection_page.overwrite(
-            addrs_base[base_cont.indirection_column as usize].offset as usize,
+            addrs_base[indirection_column as usize].offset as usize,
             new_rid,
         );
 
-        self.table.num_records += 1;
+        table.num_records += 1;
 
-        return true;
+        return Ok(true);
     }
 
-    pub fn sum(&mut self, start_primary_key: i64, end_primary_key: i64, col_index: i64) -> i64 {
-        self.table
-            .sum(start_primary_key, end_primary_key, col_index)
+    pub fn sum(&mut self, start_primary_key: i64, end_primary_key: i64, col_index: i64) -> PyResult<i64> {
+        let mut table = self.handle.table.write().map_err(|_| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>("Failed to acquire write lock")
+        })?;
+        Ok(table
+            .sum(start_primary_key, end_primary_key, col_index))
     }
 
     fn sum_version(
@@ -254,30 +281,42 @@ impl RQuery {
         end_primary_key: i64,
         col_index: i64,
         relative_version: i64,
-    ) -> i64 {
-        self.table.sum_version(
+    ) -> PyResult<i64> {
+        let mut table = self.handle.table.write().map_err(|_| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>("Failed to acquire write lock")
+        })?;
+        Ok(
+        table.sum_version(
             start_primary_key,
             end_primary_key,
             col_index,
             relative_version,
-        )
+        ))
     }
 
-    pub fn increment(&mut self, primary_key: i64, column: i64) -> bool {
-        // Select the value of the column before we increment
-        let cols = vec![1i64; self.table.num_columns];
+    pub fn increment(&mut self, primary_key: i64, column: i64) -> PyResult<bool> {
+        let num_cols = {
+            let table = self.handle.table.read().map_err(|_| {
+                PyErr::new::<pyo3::exceptions::PyRuntimeError, _>("Failed to acquire write lock")
+            })?;
+            table.num_columns
+        };
+                
 
-        let ret = self.select(primary_key, 0, cols);
+        // Select the value of the column before we increment
+        let cols = vec![1i64; num_cols];
+
+        let ret = self.select(primary_key, 0, cols).unwrap();
 
         if let Some(records) = ret {
             let record = &records[0];
             let current_value = record[(column + 3) as usize].unwrap();
-            let mut to_update: Vec<Option<i64>> = vec![None; self.table.num_columns];
+            let mut to_update: Vec<Option<i64>> = vec![None; num_cols];
             to_update[column as usize] = Some(current_value + 1);
             return self.update(primary_key, to_update);
         }
 
-        return false;
+        return Ok(false);
     }
 }
 
@@ -290,13 +329,12 @@ mod tests {
     fn test_insert_and_read_test() {
         let mut db = RDatabase::new();
         let table_ref = db.create_table(String::from("Grades"), 3, 0).unwrap();
-        let t = table_ref.table.read().unwrap();
-        let mut q = RQuery::new(t.to_owned());
+        let mut q = RQuery::new(table_ref);
 
         q.insert(vec![1, 2, 3]);
 
         // Use primary_key of 1
-        let vals = q.select(1, 0, vec![1, 1, 1]);
+        let vals = q.select(1, 0, vec![1, 1, 1]).unwrap();
         assert_eq!(
             vals.unwrap()[0],
             vec![Some(0), Some(0), Some(0), Some(1), Some(2), Some(3)]
@@ -307,29 +345,28 @@ mod tests {
     fn increment_test() {
         let mut db = RDatabase::new();
         let table_ref = db.create_table(String::from("Counts"), 3, 0).unwrap();
-        let t = table_ref.table.read().unwrap();
-        let mut q = RQuery::new(t.to_owned());
+        let mut q = RQuery::new(table_ref);
 
         q.insert(vec![1, 2, 3]); // Insert [Primary Key: 1, Col1: 2, Col2: 3]
 
         // Increment the first user column (column 1)
         q.increment(1, 1);
 
-        let vals = q.select(1, 0, vec![1, 1, 1]); // Select entire row
+        let vals = q.select(1, 0, vec![1, 1, 1]).unwrap(); // Select entire row
         assert_eq!(
             vals.unwrap()[0],
             vec![Some(1), Some(0), Some(0), Some(1), Some(3), Some(3)]
         );
 
         q.increment(1, 1);
-        let vals2 = q.select(1, 0, vec![1, 1, 1]);
+        let vals2 = q.select(1, 0, vec![1, 1, 1]).unwrap();
         assert_eq!(
             vals2.unwrap()[0],
             vec![Some(2), Some(0), Some(1), Some(1), Some(4), Some(3)]
         );
 
         q.increment(1, 1);
-        let vals3 = q.select(1, 0, vec![1, 1, 1]);
+        let vals3 = q.select(1, 0, vec![1, 1, 1]).unwrap();
         assert_eq!(
             vals3.unwrap()[0],
             vec![Some(3), Some(0), Some(2), Some(1), Some(5), Some(3)]
@@ -366,22 +403,21 @@ mod tests {
     fn test_update_read_test() {
         let mut db = RDatabase::new();
         let table_ref = db.create_table(String::from("Grades"), 3, 0).unwrap();
-        let t = table_ref.table.read().unwrap();
-        let mut q = RQuery::new(t.to_owned());
+        let mut q = RQuery::new(table_ref);
 
         q.insert(vec![1, 2, 3]);
 
         // Use primary_key of 1
-        let vals = q.select(1, 0, vec![1, 1, 1]);
+        let vals = q.select(1, 0, vec![1, 1, 1]).unwrap();
         assert_eq!(
             vals.unwrap()[0],
             vec![Some(0), Some(0), Some(0), Some(1), Some(2), Some(3)]
         );
 
-        let success = q.update(1, vec![Some(1), Some(5), Some(6)]);
+        let success = q.update(1, vec![Some(1), Some(5), Some(6)]).unwrap();
         assert!(success);
 
-        let vals2 = q.select(1, 0, vec![1, 1, 1]);
+        let vals2 = q.select(1, 0, vec![1, 1, 1]).unwrap();
         assert_eq!(
             vals2.unwrap()[0],
             vec![Some(1), Some(0), Some(0), Some(1), Some(5), Some(6)]
@@ -405,8 +441,7 @@ mod tests {
     fn test_multiple_updates() {
         let mut db = RDatabase::new();
         let table_ref = db.create_table(String::from("Grades"), 3, 0).unwrap();
-        let t = table_ref.table.read().unwrap();
-        let mut q = RQuery::new(t.to_owned());
+        let mut q = RQuery::new(table_ref);
 
         q.insert(vec![1, 2, 3]);
 
@@ -414,7 +449,7 @@ mod tests {
         q.update(1, vec![Some(1), Some(6), Some(7)]);
         q.update(1, vec![Some(1), Some(8), Some(9)]);
 
-        let vals = q.select(1, 0, vec![1, 1, 1]);
+        let vals = q.select(1, 0, vec![1, 1, 1]).unwrap();
         assert_eq!(
             vals.unwrap()[0],
             vec![Some(3), Some(0), Some(2), Some(1), Some(8), Some(9)]
@@ -425,21 +460,19 @@ mod tests {
     fn test_delete_and_select() {
         let mut db = RDatabase::new();
         let table_ref = db.create_table(String::from("Grades"), 3, 0).unwrap();
-        let t = table_ref.table.read().unwrap();
-        let mut q = RQuery::new(t.to_owned());
+        let mut q = RQuery::new(table_ref);
 
         q.insert(vec![1, 2, 3]);
         q.delete(1);
 
-        assert_eq!(q.select(1, 0, vec![1, 1, 1]), None);
+        assert_eq!(q.select(1, 0, vec![1, 1, 1]).unwrap(), None);
     }
 
     #[test]
     fn test_select_version() {
         let mut db = RDatabase::new();
         let table_ref = db.create_table(String::from("Grades"), 3, 0).unwrap();
-        let t = table_ref.table.read().unwrap();
-        let mut q = RQuery::new(t.to_owned());
+        let mut q = RQuery::new(table_ref);
 
         // Insert initial record
         q.insert(vec![1, 2, 3]);
@@ -450,25 +483,25 @@ mod tests {
         q.update(1, vec![Some(1), Some(8), Some(9)]); // Version 3
 
         // Test different versions
-        let latest = q.select_version(1, 0, vec![1, 1, 1], 0);
+        let latest = q.select_version(1, 0, vec![1, 1, 1], 0).unwrap();
         assert_eq!(
             latest.unwrap(),
             vec![Some(3), Some(0), Some(2), Some(1), Some(8), Some(9)]
         ); // Most recent version
 
-        let one_back = q.select_version(1, 0, vec![1, 1, 1], 1);
+        let one_back = q.select_version(1, 0, vec![1, 1, 1], 1).unwrap();
         assert_eq!(
             one_back.unwrap(),
             vec![Some(2), Some(1), Some(1), Some(1), Some(6), Some(7)]
         ); // One version back
 
-        let two_back = q.select_version(1, 0, vec![1, 1, 1], 2);
+        let two_back = q.select_version(1, 0, vec![1, 1, 1], 2).unwrap();
         assert_eq!(
             two_back.unwrap(),
             vec![Some(1), Some(1), Some(0), Some(1), Some(4), Some(5)]
         ); // Two versions back
 
-        let original = q.select_version(1, 0, vec![1, 1, 1], 3);
+        let original = q.select_version(1, 0, vec![1, 1, 1], 3).unwrap();
         assert_eq!(
             original.unwrap(),
             vec![Some(0), Some(1), Some(3), Some(1), Some(2), Some(3)]
@@ -479,17 +512,16 @@ mod tests {
     fn test_insert_existing_primary_key() {
         let mut db = RDatabase::new();
         let table_ref = db.create_table("Grades".to_string(), 3, 0).unwrap();
-        let t = table_ref.table.write().unwrap();
-        let mut q = RQuery::new(t.to_owned());
+        let mut q = RQuery::new(table_ref);
 
         q.insert(vec![1, 2, 3]);
 
         // Attempt to insert a record with an existing primary key
-        let result = q.insert(vec![1, 4, 5]);
+        let result = q.insert(vec![1, 4, 5]).unwrap();
         assert!(result.is_none());
 
         // Verify that the original record is still intact
-        let vals = q.select(1, 0, vec![1, 1, 1]);
+        let vals = q.select(1, 0, vec![1, 1, 1]).unwrap();
         assert_eq!(
             vals.unwrap()[0],
             vec![Some(0), Some(0), Some(0), Some(1), Some(2), Some(3)]

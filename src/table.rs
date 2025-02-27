@@ -303,7 +303,7 @@ impl RTable {
         unreachable!("Not used in milestone 1")
     }
 }
-
+#[derive(Default, Clone)]
 #[pyclass]
 pub struct RTableHandle {
     pub table: Arc<RwLock<RTable>>,
@@ -311,11 +311,6 @@ pub struct RTableHandle {
 
 #[pymethods]
 impl RTableHandle {
-    #[getter]
-    pub fn table(&self) -> RTable {
-        self.table.read().unwrap().clone()
-    }
-
     pub fn write(&self, values: Vec<i64>) -> PyResult<()> {
         let mut table = self.table.write().map_err(|_| {
             PyErr::new::<pyo3::exceptions::PyRuntimeError, _>("Failed to acquire write lock")
