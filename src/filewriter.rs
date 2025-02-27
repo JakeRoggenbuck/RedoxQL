@@ -87,7 +87,7 @@ impl<T: Serialize + for<'de> Deserialize<'de>> Writer<T> {
         self.strategy.write_file(path, object);
     }
 
-    pub fn read_file(&self, path: &str) {
-        self.strategy.read_file(path);
+    pub fn read_file(&self, path: &str) -> T {
+        self.strategy.read_file(path)
     }
 }
