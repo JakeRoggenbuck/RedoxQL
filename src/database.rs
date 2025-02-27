@@ -43,12 +43,15 @@ impl RDatabase {
     }
 
     fn open(&mut self, path: String) {
+        // This would be "./redoxdata/M2" if path is "./M2"
+        let dir = Path::new("./redoxdata").join(path.clone());
+
         if self.db_filepath.is_none() {
-            self.db_filepath = Some(path.clone());
+            self.db_filepath = Some(dir.display().to_string());
         }
 
-        if !Path::new("./redoxdata").exists() {
-            create_dir_all("./redoxdata").expect("Should be able to make dir");
+        if !dir.exists() {
+            create_dir_all(dir).expect("Should be able to make dir");
         }
 
         if let Some(p) = &self.db_filepath {
