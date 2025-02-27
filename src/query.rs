@@ -69,7 +69,10 @@ impl RQuery {
         // Case 1: Searching on the primary key column
         if search_key_index == table.primary_key_column as i64 {
             if let Some(ret) = table.read(search_key) {
-                return Some(vec![filter_projected(ret.into_iter().map(Some).collect(), projected_columns_index)]);
+                return Some(vec![filter_projected(
+                    ret.into_iter().map(Some).collect(),
+                    projected_columns_index,
+                )]);
             } else {
                 return None;
             }
@@ -134,7 +137,10 @@ impl RQuery {
             return None;
         };
 
-        Some(filter_projected(ret.into_iter().map(Some).collect(), projected_columns_index))
+        Some(filter_projected(
+            ret.into_iter().map(Some).collect(),
+            projected_columns_index,
+        ))
     }
 
     const CUMULATIVE_MODE: bool = true;
@@ -370,21 +376,45 @@ mod tests {
         let vals = q.select(1, 0, vec![1, 1, 1]); // Select entire row
         assert_eq!(
             vals.unwrap()[0],
-            vec![Some(1), Some(7), Some(0), Some(0), Some(1), Some(3), Some(3)]
+            vec![
+                Some(1),
+                Some(7),
+                Some(0),
+                Some(0),
+                Some(1),
+                Some(3),
+                Some(3)
+            ]
         );
 
         q.increment(1, 1);
         let vals2 = q.select(1, 0, vec![1, 1, 1]);
         assert_eq!(
             vals2.unwrap()[0],
-            vec![Some(2), Some(7), Some(1), Some(0), Some(1), Some(4), Some(3)]
+            vec![
+                Some(2),
+                Some(7),
+                Some(1),
+                Some(0),
+                Some(1),
+                Some(4),
+                Some(3)
+            ]
         );
 
         q.increment(1, 1);
         let vals3 = q.select(1, 0, vec![1, 1, 1]);
         assert_eq!(
             vals3.unwrap()[0],
-            vec![Some(3), Some(7), Some(2), Some(0), Some(1), Some(5), Some(3)]
+            vec![
+                Some(3),
+                Some(7),
+                Some(2),
+                Some(0),
+                Some(1),
+                Some(5),
+                Some(3)
+            ]
         );
     }
 
@@ -435,7 +465,15 @@ mod tests {
         let vals2 = q.select(1, 0, vec![1, 1, 1]);
         assert_eq!(
             vals2.unwrap()[0],
-            vec![Some(1), Some(7), Some(0), Some(0), Some(1), Some(5), Some(6)]
+            vec![
+                Some(1),
+                Some(7),
+                Some(0),
+                Some(0),
+                Some(1),
+                Some(5),
+                Some(6)
+            ]
         );
     }
 
@@ -467,7 +505,15 @@ mod tests {
         let vals = q.select(1, 0, vec![1, 1, 1]);
         assert_eq!(
             vals.unwrap()[0],
-            vec![Some(3), Some(7), Some(2), Some(0), Some(1), Some(8), Some(9)]
+            vec![
+                Some(3),
+                Some(7),
+                Some(2),
+                Some(0),
+                Some(1),
+                Some(8),
+                Some(9)
+            ]
         );
     }
 
@@ -501,19 +547,43 @@ mod tests {
         let latest = q.select_version(1, 0, vec![1, 1, 1], 0);
         assert_eq!(
             latest.unwrap(),
-            vec![Some(3), Some(7), Some(2), Some(0), Some(1), Some(8), Some(9)]
+            vec![
+                Some(3),
+                Some(7),
+                Some(2),
+                Some(0),
+                Some(1),
+                Some(8),
+                Some(9)
+            ]
         ); // Most recent version
 
         let one_back = q.select_version(1, 0, vec![1, 1, 1], 1);
         assert_eq!(
             one_back.unwrap(),
-            vec![Some(2), Some(7), Some(1), Some(0), Some(1), Some(6), Some(7)]
+            vec![
+                Some(2),
+                Some(7),
+                Some(1),
+                Some(0),
+                Some(1),
+                Some(6),
+                Some(7)
+            ]
         ); // One version back
 
         let two_back = q.select_version(1, 0, vec![1, 1, 1], 2);
         assert_eq!(
             two_back.unwrap(),
-            vec![Some(1), Some(7), Some(0), Some(0), Some(1), Some(4), Some(5)]
+            vec![
+                Some(1),
+                Some(7),
+                Some(0),
+                Some(0),
+                Some(1),
+                Some(4),
+                Some(5)
+            ]
         ); // Two versions back
 
         let original = q.select_version(1, 0, vec![1, 1, 1], 3);
