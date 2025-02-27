@@ -329,7 +329,15 @@ mod tests {
         let vals = q.select(1, 0, vec![1, 1, 1]);
         assert_eq!(
             vals.unwrap()[0],
-            vec![Some(0), Some(0), Some(0), Some(0), Some(1), Some(2), Some(3)]
+            vec![
+                Some(0),
+                Some(0),
+                Some(0),
+                Some(0),
+                Some(1),
+                Some(2),
+                Some(3)
+            ]
         );
     }
 
@@ -339,15 +347,26 @@ mod tests {
         let table_ref = db.create_table(String::from("Counts"), 3, 0);
         let mut q = RQuery::new(table_ref);
 
-        q.insert(vec![1, 2, 3]); // Insert [Primary Key: 1, Col1: 2, Col2: 3]
+        q.insert(vec![0, 2, 3]); // Insert [Primary Key: 1, Col1: 2, Col2: 3]
 
         // Increment the first user column (column 1)
-        q.increment(1, 1);
+        q.increment(0, 1);
 
-        let vals = q.select(1, 0, vec![1, 1, 1]); // Select entire row
+        println!("{}", db.tables[0].read().unwrap().page_range.tail_container);
+        println!("{}", db.tables[0].read().unwrap().page_range.base_container);
+
+        let vals = q.select(0, 0, vec![1, 1, 1]); // Select entire row
         assert_eq!(
             vals.unwrap()[0],
-            vec![Some(1), Some(0), Some(0), Some(0), Some(1), Some(3), Some(3)]
+            vec![
+                Some(0),
+                Some(1),
+                Some(1),
+                Some(0),
+                Some(1),
+                Some(3),
+                Some(3)
+            ]
         );
 
         q.increment(1, 1);
@@ -355,7 +374,7 @@ mod tests {
         let vals2 = q.select(1, 0, vec![1, 1, 1]);
         assert_eq!(
             vals2.unwrap()[0],
-            vec![Some(2), Some(0), Some(1), Some(0), Some(1), Some(4), Some(3)]
+            vec![Some(2), Some(0), Some(0), Some(1), Some(1), Some(4), Some(3)]
         );
 
         q.increment(1, 1);
@@ -363,7 +382,7 @@ mod tests {
         let vals3 = q.select(1, 0, vec![1, 1, 1]);
         assert_eq!(
             vals3.unwrap()[0],
-            vec![Some(3), Some(0), Some(2), Some(0), Some(1), Some(5), Some(3)]
+            vec![Some(3), Some(0), Some(0), Some(2), Some(1), Some(5), Some(3)]
         );
     }
 
@@ -405,7 +424,15 @@ mod tests {
         let vals = q.select(1, 0, vec![1, 1, 1]);
         assert_eq!(
             vals.unwrap()[0],
-            vec![Some(0), Some(0), Some(0), Some(0), Some(1), Some(2), Some(3)]
+            vec![
+                Some(0),
+                Some(0),
+                Some(0),
+                Some(0),
+                Some(1),
+                Some(2),
+                Some(3)
+            ]
         );
 
         let success = q.update(1, vec![Some(1), Some(5), Some(6)]);
@@ -414,7 +441,15 @@ mod tests {
         let vals2 = q.select(1, 0, vec![1, 1, 1]);
         assert_eq!(
             vals2.unwrap()[0],
-            vec![Some(1), Some(0), Some(0), Some(0), Some(1), Some(5), Some(6)]
+            vec![
+                Some(1),
+                Some(0),
+                Some(0),
+                Some(0),
+                Some(1),
+                Some(5),
+                Some(6)
+            ]
         );
     }
 
@@ -519,7 +554,15 @@ mod tests {
         let vals = q.select(1, 0, vec![1, 1, 1]);
         assert_eq!(
             vals.unwrap()[0],
-            vec![Some(0), Some(0), Some(0), Some(0), Some(1), Some(2), Some(3)]
+            vec![
+                Some(0),
+                Some(0),
+                Some(0),
+                Some(0),
+                Some(1),
+                Some(2),
+                Some(3)
+            ]
         );
     }
 
