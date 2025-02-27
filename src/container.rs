@@ -255,6 +255,53 @@ impl BaseContainer {
     }
 }
 
+use std::fmt;
+
+impl fmt::Display for BaseContainer {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Define reserved column names.
+        let reserved = ["RID", "SchemaEncoding", "Indirection", "BaseRID"];
+
+        // Total number of columns = reserved columns + additional columns.
+        let total_columns = reserved.len() + self.num_cols as usize;
+
+        // Determine the number of rows by inspecting the first physical page.
+        // (Assumes all pages have the same number of records.)
+        let num_rows = if let Some(first_page) = self.physical_pages.first() {
+            first_page.lock().unwrap().data.len()
+        } else {
+            0
+        };
+
+        // Print header row: reserved columns then additional columns labeled "col0", "col1", etc.
+        write!(f, "|")?;
+        for name in reserved.iter() {
+            write!(f, " {:^15} |", name)?;
+        }
+        for i in 0..self.num_cols {
+            write!(f, " {:^15} |", format!("col{}", i))?;
+        }
+        writeln!(f)?;
+
+        // Print a horizontal separator line.
+        writeln!(f, "{}", "-".repeat(total_columns * 18))?;
+
+        // For each record (row), print the corresponding value from each physical page.
+        for row in 0..num_rows {
+            write!(f, "|")?;
+            for page in &self.physical_pages {
+                // Lock the page; in a production setting, handle poisoning appropriately.
+                let page = page.lock().unwrap();
+                // Retrieve the value from the data vector. If missing, print 0.
+                let value = page.data.get(row).unwrap_or(&0);
+                write!(f, " {:^15} |", value)?;
+            }
+            writeln!(f)?;
+        }
+        Ok(())
+    }
+}
+
 #[derive(Clone, Default, Deserialize, Serialize, Debug)]
 pub struct TailContainerMetadata {
     // This takes the place of the actual pages in the disk version
@@ -485,6 +532,51 @@ impl TailContainer {
             num_pages: self.physical_pages.len(),
             num_cols: self.num_cols,
         }
+    }
+}
+
+impl fmt::Display for TailContainer {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Define reserved column names.
+        let reserved = ["RID", "SchemaEncoding", "Indirection", "BaseRID"];
+
+        // Total number of columns = reserved columns + additional columns.
+        let total_columns = reserved.len() + self.num_cols as usize;
+
+        // Determine the number of rows by inspecting the first physical page.
+        // (Assumes all pages have the same number of records.)
+        let num_rows = if let Some(first_page) = self.physical_pages.first() {
+            first_page.lock().unwrap().data.len()
+        } else {
+            0
+        };
+
+        // Print header row: reserved columns then additional columns labeled "col0", "col1", etc.
+        write!(f, "|")?;
+        for name in reserved.iter() {
+            write!(f, " {:^15} |", name)?;
+        }
+        for i in 0..self.num_cols {
+            write!(f, " {:^15} |", format!("col{}", i))?;
+        }
+        writeln!(f)?;
+
+        // Print a horizontal separator line.
+        writeln!(f, "{}", "-".repeat(total_columns * 18))?;
+
+        // For each record (row), print the corresponding value from each physical page.
+        for row in 0..num_rows {
+            write!(f, "|")?;
+            for page in &self.physical_pages {
+                // Lock the page; in a production setting, handle poisoning appropriately.
+                let page = page.lock().unwrap();
+                // Retrieve the value from the data vector. If missing, print 0.
+                let value = page.data.get(row).unwrap_or(&0);
+                write!(f, " {:^15} |", value)?;
+            }
+            writeln!(f)?;
+        }
+        Ok(())
     }
 }
 
