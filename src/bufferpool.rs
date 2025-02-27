@@ -1,14 +1,17 @@
-use std::sync::{Arc, Mutex};
+use serde::{Deserialize, Serialize};
+use std::fs::File;
+use std::io::{BufReader, BufWriter, Write};
 
+#[derive(Deserialize, Serialize, Debug)]
 pub struct BufferPool {
     // The physical directory on disk that data will be written to
-    pub physical_directory: Arc<Mutex<String>>,
+    pub physical_directory: String,
 }
 
 impl BufferPool {
     pub fn new(directory: &str) -> Self {
         BufferPool {
-            physical_directory: Arc::new(Mutex::new(directory.to_string())),
+            physical_directory: directory.to_string(),
         }
     }
 
@@ -26,12 +29,24 @@ impl BufferPool {
         todo!();
     }
 
-    pub fn save_state(&self) {}
+    pub fn save_state(&self) {
+        let hardcoded_filename = "./redoxdata/bufferpull.data";
+
+        let bufferpool_bytes: Vec<u8> = bincode::serialize(self).expect("Should serialize.");
+
+        let mut file = BufWriter::new(File::create(hardcoded_filename).expect("Should open file."));
+        file.write_all(&bufferpool_bytes)
+            .expect("Should serialize.");
+    }
 
     pub fn load_state(&self, directory: &str) -> BufferPool {
-        BufferPool {
-            physical_directory: Arc::new(Mutex::new(directory.to_string())),
-        }
+        let hardcoded_filename = "./redoxdata/bufferpull.data";
+
+        let file = BufReader::new(File::open(hardcoded_filename).expect("Should open file."));
+
+        let bufferpool: BufferPool = bincode::deserialize_from(file).expect("Should deserialize.");
+
+        return bufferpool;
     }
 }
 
@@ -48,8 +63,8 @@ mod tests {
         let new_b = b.load_state("/data");
 
         assert_eq!(
-            b.physical_directory.lock().unwrap().to_string(),
-            new_b.physical_directory.lock().unwrap().to_string()
+            b.physical_directory.to_string(),
+            new_b.physical_directory.to_string()
         );
     }
 
