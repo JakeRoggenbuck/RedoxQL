@@ -618,6 +618,37 @@ mod tests {
         );
     }
 
+    #[test]
+    fn merge_one_test() {
+        let mut db = RDatabase::new();
+        let table_ref = db.create_table(String::from("Grades"), 3, 0);
+        let mut q = RQuery::new(table_ref.clone());
+
+        // Insert initial record
+        q.insert(vec![1, 2, 3]);
+
+        // Make multiple updates
+        q.update(1, vec![Some(1), Some(4), Some(5)]); // Version 1
+        q.update(1, vec![Some(1), Some(6), Some(7)]); // Version 2
+        q.update(1, vec![Some(1), Some(8), Some(9)]); // Version 3
+
+        q = RQuery::new(table_ref);
+
+        let v = q.select(1, 0, vec![1, 1, 1]);
+        assert_eq!(
+            vec![
+                Some(3),
+                Some(0),
+                Some(2),
+                Some(0),
+                Some(1),
+                Some(8),
+                Some(9)
+            ],
+            v.unwrap()[0]
+        );
+    }
+
     /* Seems like M2 test wants us to delete the record if primary key is changed
 
     #[test]
