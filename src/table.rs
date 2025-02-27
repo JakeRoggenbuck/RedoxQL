@@ -459,13 +459,13 @@ mod tests {
         table.write(vec![0, 10, 12]);
 
         // Read and check
-        assert_eq!(table.read(0).unwrap(), vec![0, 0, 0, 0, 10, 12]);
+        assert_eq!(table.read(0).unwrap(), vec![0, 0, 0, 0, 0, 10, 12]);
 
         // Write
         table.write(vec![1, 20, 30]);
 
         // Read and check
-        assert_eq!(table.read(1).unwrap(), vec![1, 0, 1, 1, 20, 30]);
+        assert_eq!(table.read(1).unwrap(), vec![1, 0, 1, 1, 1, 20, 30]);
     }
 
     #[test]
@@ -478,13 +478,13 @@ mod tests {
         table.write(vec![0, 10, 12]);
 
         // Read and check
-        assert_eq!(table.read_base(0).unwrap(), vec![0, 0, 0, 0, 10, 12]);
+        assert_eq!(table.read_base(0).unwrap(), vec![0, 0, 0, 0, 0, 10, 12]);
 
         // Write
-        table.write(vec![1, 20, 30]);
+        table.write(vec![4, 20, 30]);
 
         // Read and check
-        assert_eq!(table.read_base(1).unwrap(), vec![1, 0, 1, 1, 20, 30]);
+        assert_eq!(table.read_base(4).unwrap(), vec![1, 0, 1, 1, 4, 20, 30]);
     }
 
     #[test]
@@ -517,7 +517,7 @@ mod tests {
         // Write
         table.write(vec![0, 10, 12]);
         // Read and check
-        assert_eq!(table.read_base(0).unwrap(), vec![0, 0, 0, 0, 10, 12]);
+        assert_eq!(table.read_base(0).unwrap(), vec![0, 0, 0, 0, 0, 10, 12]);
 
         // Delete
         table.delete(0);
