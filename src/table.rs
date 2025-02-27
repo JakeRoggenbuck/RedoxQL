@@ -1,16 +1,13 @@
-use crate::container::{ReservedColumns, NUM_RESERVED_COLUMNS};
-
+use super::filewriter::{BinaryFileWriter, Writer};
 use super::index::RIndex;
 use super::page::PhysicalPage;
 use super::pagerange::{PageRange, PageRangeMetadata};
 use super::record::{Record, RecordMetadata};
+use crate::container::{ReservedColumns, NUM_RESERVED_COLUMNS};
 use crate::index::RIndexHandle;
-use bincode;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::{BufReader, BufWriter, Write};
 use std::sync::{Arc, Mutex, RwLock};
 
 #[derive(Default, Clone, Serialize, Deserialize)]
@@ -45,8 +42,6 @@ impl PageDirectory {
     }
 
     fn load_state(page_range: &PageRange) -> PageDirectory {
-        let hardcoded_filename = "./redoxdata/page_directory.data";
-
         let base_phys_pages = &page_range.base_container.physical_pages;
         let tail_phys_pages = &page_range.tail_container.physical_pages;
 
@@ -66,10 +61,8 @@ impl PageDirectory {
             tail_pages.insert(m.column_index, page.clone());
         }
 
-        let file = BufReader::new(File::open(hardcoded_filename).expect("Should open file."));
-
-        let page_meta: PageDirectoryMetadata =
-            bincode::deserialize_from(file).expect("Should deserialize.");
+        let writer = Writer::new(Box::new(BinaryFileWriter::new()));
+        let page_meta: PageDirectoryMetadata = writer.read_file("./redoxdata/page_directory.data");
 
         let mut pd: PageDirectory = PageDirectory {
             directory: HashMap::new(),
@@ -87,8 +80,6 @@ impl PageDirectory {
     }
 
     fn save_state(&self) {
-        let hardcoded_filename = "./redoxdata/page_directory.data";
-
         let mut pd_meta = PageDirectoryMetadata {
             directory: HashMap::new(),
         };
@@ -98,10 +89,8 @@ impl PageDirectory {
             pd_meta.directory.insert(*rid, r);
         }
 
-        let table_bytes: Vec<u8> = bincode::serialize(&pd_meta).expect("Should serialize.");
-
-        let mut file = BufWriter::new(File::create(hardcoded_filename).expect("Should open file."));
-        file.write_all(&table_bytes).expect("Should serialize.");
+        let writer = Writer::new(Box::new(BinaryFileWriter::new()));
+        writer.write_file("./redoxdata/page_directory.data", &pd_meta);
     }
 }
 
@@ -118,11 +107,9 @@ pub struct RTableMetadata {
 
 pub trait StatePersistence {
     fn load_state(&self, table_num: i64) -> RTable {
-        let hardcoded_filename = format!("./redoxdata/{}-table.data", table_num);
-
-        let file = BufReader::new(File::open(hardcoded_filename).expect("Should open file."));
-        let table_meta: RTableMetadata =
-            bincode::deserialize_from(file).expect("Should deserialize.");
+        let filename = format!("./redoxdata/{}-table.data", table_num);
+        let writer = Writer::new(Box::new(BinaryFileWriter::new()));
+        let table_meta: RTableMetadata = writer.read_file(&filename);
 
         let pr = PageRange::load_state();
         let pd = PageDirectory::load_state(&pr);
@@ -330,8 +317,6 @@ impl RTable {
 
     /// Save the state of RTable in a file
     pub fn save_state(&self) {
-        let hardcoded_filename = format!("./redoxdata/{}-table.data", self.table_num);
-
         // Save the state of the page range
         self.page_range.save_state();
 
@@ -341,10 +326,9 @@ impl RTable {
 
         let table_meta = self.get_metadata();
 
-        let table_bytes: Vec<u8> = bincode::serialize(&table_meta).expect("Should serialize.");
-
-        let mut file = BufWriter::new(File::create(hardcoded_filename).expect("Should open file."));
-        file.write_all(&table_bytes).expect("Should serialize.");
+        let filename = format!("./redoxdata/{}-table.data", self.table_num);
+        let writer = Writer::new(Box::new(BinaryFileWriter::new()));
+        writer.write_file(&filename, &table_meta);
     }
 
     pub fn get_metadata(&self) -> RTableMetadata {
