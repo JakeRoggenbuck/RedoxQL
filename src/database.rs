@@ -1,4 +1,3 @@
-use crate::index;
 use crate::table::RTableHandle;
 
 use super::index::RIndex;
@@ -113,7 +112,7 @@ impl RDatabase {
         name: String,
         num_columns: i64,
         primary_key_column: i64,
-    ) -> PyResult<RTableHandle> {
+    ) -> RTableHandle {
         let table = RTable {
             name: name.clone(),
             page_range: PageRange::new(num_columns as i64),
@@ -147,21 +146,21 @@ impl RDatabase {
         // Map a name of a table to its index
         self.tables_hashmap.insert(name, i);
 
-        Ok(RTableHandle { table: arc_table })
+        RTableHandle { table: arc_table }
     }
 
-    fn get_table(&self, name: String) -> PyResult<RTableHandle> {
+    fn get_table(&self, name: String) -> RTableHandle {
         let i = self.tables_hashmap.get(&name).expect("Should exist");
 
-        Ok(RTableHandle {
+        RTableHandle {
             table: self.tables[*i].clone(),
-        })
+        }
     }
 
-    fn get_table_from_index(&self, i: i64) -> PyResult<RTableHandle> {
-        Ok(RTableHandle {
+    fn get_table_from_index(&self, i: i64) -> RTableHandle {
+        RTableHandle {
             table: self.tables[i as usize].clone(),
-        })
+        }
     }
 
     fn drop_table(&mut self, name: String) {
@@ -234,8 +233,7 @@ mod tests {
         assert_eq!(*db.tables_hashmap.get("users").unwrap(), 0);
 
         // Verify owner is set correctly for the index
-        let binding = table.unwrap();
-        let table_ = binding.table.read().unwrap();
+        let table_ = table.table.read().unwrap();
         let index = table_.index.read().unwrap();
         assert!(index.owner.is_some());
         if let Some(owner_weak) = &index.owner {
@@ -257,12 +255,11 @@ mod tests {
 
         // Create a table
         let table = db.create_table(String::from("users_to_drop"), 3, 0);
-        let tablebinding = table.unwrap();
 
         let weak_ref: Option<Weak<RwLock<RTable>>>;
         {
             // Save a weak reference to the table's owner
-            let table_ = tablebinding.table.read().unwrap();
+            let table_ = table.table.read().unwrap();
             let index = table_.index.read().unwrap();
             weak_ref = if let Some(owner) = &index.owner {
                 Some(owner.clone())
@@ -271,7 +268,7 @@ mod tests {
             };
         }
         // drop the table (so we aren't holding onto it manually when checking later)
-        drop(tablebinding);
+        drop(table);
 
         let weakrefb = weak_ref.as_ref().unwrap().clone();
         // Verify the weak reference can be upgraded before dropping
@@ -305,10 +302,9 @@ mod tests {
 
         // Create a table
         let table1 = db.create_table(String::from("users"), 3, 0);
-        let table1binding = table1.unwrap();
 
         {
-            table1binding.table.write().unwrap().write(vec![1, 2, 3]);
+            table1.table.write().unwrap().write(vec![1, 2, 3]);
         }
 
         // Verify table was added to the database
@@ -318,24 +314,23 @@ mod tests {
 
         // insert data into the table
         let table2 = db.get_table("users".to_string());
-        let table2binding = table2.unwrap();
         assert_eq!(
-            table1binding.table.read().unwrap().num_records.clone(),
-            table2binding.table.read().unwrap().num_records.clone()
+            table1.table.read().unwrap().num_records.clone(),
+            table2.table.read().unwrap().num_records.clone()
         );
 
         {
-            table2binding.table.write().unwrap().write(vec![1, 2, 3]);
+            table2.table.write().unwrap().write(vec![1, 2, 3]);
         }
 
         // check that the number of records is the same
         assert_eq!(
-            table1binding.table.read().unwrap().num_records.clone(),
-            table2binding.table.read().unwrap().num_records.clone()
+            table1.table.read().unwrap().num_records.clone(),
+            table2.table.read().unwrap().num_records.clone()
         );
 
         // Verify owner is set correctly for the index
-        let table3: std::sync::RwLockReadGuard<'_, RTable> = table1binding.table.read().unwrap();
+        let table3: std::sync::RwLockReadGuard<'_, RTable> = table1.table.read().unwrap();
         let index = table3.index.read().unwrap();
         assert!(index.owner.is_some());
         if let Some(owner_weak) = &index.owner {
