@@ -48,7 +48,7 @@ impl RecordMetadata {
     pub fn load_state(
         &self,
         base_pages: &HashMap<i64, Arc<Mutex<PhysicalPage>>>,
-        tail_pages: &HashMap<i64, Arc<Mutex<PhysicalPage>>>,
+        _tail_pages: &HashMap<i64, Arc<Mutex<PhysicalPage>>>,
     ) -> Record {
         let mut rec_addrs = Vec::new();
 
