@@ -1,9 +1,10 @@
+use crate::container::NUM_RESERVED_COLUMNS;
+
 use super::page::PhysicalPage;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use super::container::{BaseContainer, TailContainer};
 
 #[derive(Debug, Clone)]
 #[pyclass]
@@ -70,15 +71,9 @@ impl RecordMetadata {
 
         Record {
             rid: self.rid,
-            addresses: Arc::new(Mutex::new(rec_addrs)),
+            addresses: Arc::new(Mutex::new(rec_addrs))
         }
     }
-}
-
-#[derive(Debug, Clone)]
-pub enum RecordType {
-    Base,
-    Tail,
 }
 
 #[derive(Debug, Clone)]
@@ -89,9 +84,7 @@ pub struct Record {
     pub rid: i64,
     /// The Record keeps a Vector of the RecordAddress, which allow us to actually call
     /// RecordAddress.page.read() to get the value stored at the page using the offset
-    pub addresses: Arc<Mutex<Vec<RecordAddress>>>,
-
-    pub record_type: RecordType,
+    pub addresses: Arc<Mutex<Vec<RecordAddress>>>
 }
 
 impl Record {
@@ -153,12 +146,7 @@ impl Record {
     fn columns(&self) -> Vec<RecordAddress> {
         let addresses = self.addresses.lock().unwrap();
 
-        let offset = match &self.record_type {
-            RecordType::Base => BaseContainer::NUM_RESERVED_COLUMNS,
-            RecordType::Tail => TailContainer::NUM_RESERVED_COLUMNS,
-        };
-
-        addresses[(offset as usize)..].to_vec()
+        addresses[(NUM_RESERVED_COLUMNS as usize)..].to_vec()
     }
 
 

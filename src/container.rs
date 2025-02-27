@@ -1,5 +1,5 @@
 use super::page::PhysicalPage;
-use super::record::{Record, RecordAddress, RecordType};
+use super::record::{Record, RecordAddress};
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Write};
@@ -181,8 +181,7 @@ impl BaseContainer {
 
         Record {
             rid,
-            addresses: addresses.clone(),
-            record_type: RecordType::Base,
+            addresses: addresses.clone()
         }
     }
 
@@ -267,9 +266,6 @@ pub struct TailContainer {
 
 impl TailContainer {
 
-    // Static vars
-    pub const NUM_RESERVED_COLUMNS: i64 = 4;
-
     /// Creates a new `TailContainer` with the specified number of columns
     ///
     /// # Arguments
@@ -344,7 +340,7 @@ impl TailContainer {
 
     /// Returns a reference to the specified column page
     pub fn column_page(&self, col_idx: i64) -> Arc<Mutex<PhysicalPage>> {
-        self.physical_pages[(col_idx + TailContainer::NUM_RESERVED_COLUMNS) as usize].clone()
+        self.physical_pages[(col_idx + NUM_RESERVED_COLUMNS) as usize].clone()
     }
 
     pub fn insert_record(&mut self, rid: i64, indirection_rid: i64, base_rid: i64, values: Vec<i64>) -> Record {
@@ -411,8 +407,7 @@ impl TailContainer {
 
         Record {
             rid,
-            addresses: addresses.clone(),
-            record_type: RecordType::Tail,
+            addresses: addresses.clone()
         }
     }
 
@@ -493,10 +488,8 @@ mod tests {
         assert!(Arc::ptr_eq(&base.indirection_page(), &base.physical_pages[2]));
         assert!(Arc::ptr_eq(&base.base_rid_page(), &base.physical_pages[3]));
 
-        // The column_page method adds BaseContainer::NUM_RESERVED_COLUMNS (which is 3) to the col index.
-        // Thus column_page(0) returns physical_pages[3]. (This may be surprising,
-        // but it reflects the code’s current behavior.)
-        assert!(Arc::ptr_eq(&base.column_page(0), &base.physical_pages[3]));
+        assert!(Arc::ptr_eq(&base.column_page(0), &base.physical_pages[NUM_RESERVED_COLUMNS as usize]),
+            "Base container column page 0 should be at index 4");
     }
 
     #[test]

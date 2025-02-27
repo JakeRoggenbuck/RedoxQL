@@ -1,33 +1,31 @@
+use crate::container::NUM_RESERVED_COLUMNS;
 use crate::table::RTableHandle;
-
 use super::record::Record;
 use super::table::RTable;
 use pyo3::prelude::*;
 use std::iter::zip;
 use std::fmt;
 use super::container::ReservedColumns;
+use std::sync::{Arc, RwLock};
 
 #[pyclass]
 pub struct RQuery {
-    // pub table: RTable,
     pub handle: RTableHandle,
 }
 
-fn filter_projected(column_values: Vec<i64>, projected: Vec<i64>) -> Vec<Option<i64>> {
-    // Add the 3 columns used internally
-    let mut projected_cols: Vec<i64> = vec![1, 1, 1];
-    projected_cols.extend(projected.clone());
+/// Filters the given column values based on the projected flags. Internally, we
+/// prepend three flags (for reserved columns) to the provided projection.
+fn filter_projected(column_values: &[i64], projected: &[i64]) -> Vec<Option<i64>> {
+    let mut projected_flags = Vec::with_capacity(NUM_RESERVED_COLUMNS as usize + projected.len());
+    projected_flags.extend_from_slice(&[1, 1, 1, 1]);
+    projected_flags.extend_from_slice(projected);
 
-    let mut out: Vec<Option<i64>> = vec![];
-
-    for (a, b) in zip(column_values, projected_cols) {
-        out.push(match b {
-            1 => Some(a),
-            _ => None,
-        });
-    }
-
-    return out;
+    // For each value, if the corresponding flag is 1, include the value, else None.
+    column_values
+        .iter()
+        .zip(projected_flags.into_iter())
+        .map(|(&val, flag)| if flag == 1 { Some(val) } else { None })
+        .collect()
 }
 
 #[pymethods]
@@ -44,10 +42,12 @@ impl RQuery {
 
     pub fn insert(&mut self, values: Vec<i64>) -> Option<Record> {
         let mut table = self.handle.table.write().unwrap();
-        // check if primary key already exists
+
+        // Check if the primary key (assumed to be at index table.primary_key_column)
+        // already exists.
         {
             let index = table.index.read().unwrap();
-            if index.get(values[table.primary_key_column]) != None {
+            if index.get(values[table.primary_key_column]).is_some() {
                 return None;
             }
         }
@@ -63,49 +63,48 @@ impl RQuery {
     ) -> Option<Vec<Vec<Option<i64>>>> {
         let table = self.handle.table.read().unwrap();
 
-        // table.page_directory.display(); -> This shows the full page dir!!
-
-        // Case 1: Searching on the primary key column
+        // Case 1: Searching by primary key.
         if search_key_index == table.primary_key_column as i64 {
             if let Some(ret) = table.read(search_key) {
-                return Some(vec![filter_projected(ret, projected_columns_index)]);
+                return Some(vec![filter_projected(&ret, &projected_columns_index)]);
             } else {
                 return None;
             }
         }
-        // Case 2: Searching on a non-primary column
+        // Case 2: Searching by a non–primary column.
         else {
-            // If a secondary index exists, use it
             let index = table.index.read().unwrap();
             if let Some(sec_index) = index.secondary_indices.get(&search_key_index) {
                 if let Some(rids) = sec_index.get(&search_key) {
-                    let mut results = Vec::new();
-                    for &rid in rids {
-                        if let Some(record_data) = table.read_by_rid(rid) {
-                            results.push(filter_projected(
-                                record_data,
-                                projected_columns_index.clone(),
-                            ));
-                        }
-                    }
+                    let results: Vec<_> = rids
+                        .iter()
+                        .filter_map(|&rid| {
+                            table
+                                .read_by_rid(rid)
+                                .map(|record_data| filter_projected(&record_data, &projected_columns_index))
+                        })
+                        .collect();
                     return Some(results);
                 } else {
-                    return Some(vec![]); // No records match
+                    return Some(vec![]); // No matching records.
                 }
             }
-            // Otherwise, do a full scan
+            // If no secondary index exists, perform a full scan.
             else {
-                let mut results = Vec::new();
-                for (_rid, record) in table.page_directory.directory.iter() {
-                    if let Some(record_data) = table.page_range.read(record.clone()) {
-                        if record_data[(search_key_index + 3) as usize] == search_key {
-                            results.push(filter_projected(
-                                record_data,
-                                projected_columns_index.clone(),
-                            ));
-                        }
-                    }
-                }
+                let results: Vec<_> = table
+                    .page_directory
+                    .directory
+                    .iter()
+                    .filter_map(|(_rid, record)| {
+                        table.page_range.read(record.clone()).and_then(|record_data| {
+                            if record_data[(search_key_index + NUM_RESERVED_COLUMNS) as usize] == search_key {
+                                Some(filter_projected(&record_data, &projected_columns_index))
+                            } else {
+                                None
+                            }
+                        })
+                    })
+                    .collect();
                 return Some(results);
             }
         }
@@ -119,84 +118,68 @@ impl RQuery {
         relative_version: i64,
     ) -> Option<Vec<Option<i64>>> {
         let table = self.handle.table.read().unwrap();
-        let Some(ret) = table.read_relative(primary_key, relative_version) else {
-            return None;
-        };
-
-        Some(filter_projected(ret, projected_columns_index))
+        let ret = table.read_relative(primary_key, relative_version)?;
+        Some(filter_projected(&ret, &projected_columns_index))
     }
 
     pub fn update(&mut self, primary_key: i64, columns: Vec<Option<i64>>) -> bool {
         let mut table = self.handle.table.write().unwrap();
 
-        // This functin expects an expact number of columns as table has
         if columns.len() != table.num_columns {
             return false;
         }
 
-        let mut new_columns: Vec<i64>;
+        // Retrieve the record identifier (RID) for the given primary key.
+        let rid = {
+            let index = table.index.read().unwrap();
+            match index.get(primary_key) {
+                Some(rid) => *rid,
+                None => return false,
+            }
+        };
 
-        // Check if the record found by primary_key exists
-        let index = table.index.read().unwrap();
-        let Some(rid) = index.get(primary_key).cloned() else {
-                    return false;
-                };
-
-        // do not allow primary key to be changed to an existing primary key
-        if let Some(new_primary_key) = columns[table.primary_key_column as usize] {
-            if primary_key != new_primary_key && index.get(new_primary_key) != None {
+        // Disallow updating the primary key to an existing key.
+        if let Some(new_pk) = columns.get(table.primary_key_column as usize).and_then(|&v| v) {
+            if new_pk != primary_key && table.index.read().unwrap().get(new_pk).is_some() {
                 return false;
             }
         }
 
-        // Get record by RID
-        let record = match table.page_directory.directory.get(&rid).cloned() {
+        let record = match table.page_directory.directory.get(&rid) {
+            Some(rec) => rec.clone(),
+            None => return false,
+        };
+
+        let current_record = match table.page_range.read(record.clone()) {
             Some(r) => r,
             None => return false,
         };
-        drop(index);
 
-        let Some(result) = table.page_range.read(record.clone()) else {
-            return false;
-        };
+        let base_rid = current_record[ReservedColumns::RID as usize];
+        let base_schema_encoding = current_record[ReservedColumns::SchemaEncoding as usize];
+        let base_indirection_column = current_record[ReservedColumns::Indirection as usize];
 
-        // let base_cont = &table.page_range.base_container;
-        // let indirection_column = base_cont.
-
-        // Get values from record for the 3 internal columns
-        let base_rid = result[ReservedColumns::RID as usize];
-        let base_schema_encoding = result[ReservedColumns::SchemaEncoding as usize];
-        let base_indirection_column = result[ReservedColumns::Indirection as usize];
-
-        // base record addresses
         let addrs_base = record.addresses.lock().unwrap();
-
-        if base_rid == base_indirection_column {
-            // first update
+        let mut new_record_columns = if base_rid == base_indirection_column {
+            // First update: if schema encoding is zero, update it.
             if base_schema_encoding == 0 {
-                let mut base_schema_encoding = addrs_base
-                    [ReservedColumns::SchemaEncoding as usize]
+                let mut schema_encoding = addrs_base[ReservedColumns::SchemaEncoding as usize]
                     .page
                     .lock()
                     .unwrap();
-                base_schema_encoding.overwrite(
+                schema_encoding.overwrite(
                     addrs_base[ReservedColumns::SchemaEncoding as usize].offset as usize,
                     1,
                 );
             }
-
-            new_columns = result;
+            current_record
         } else {
-            // second and subsequent updates
-            let Some(existing_tail_record) =
-                table.page_directory.directory.get(&base_indirection_column)
-            else {
-                return false;
+            // Subsequent updates: adjust the tail record’s schema encoding.
+            let existing_tail_record = match table.page_directory.directory.get(&base_indirection_column) {
+                Some(r) => r.clone(),
+                None => return false,
             };
-
             {
-                let tail_cont = &table.page_range.tail_container;
-                // update schema encoding of the tail to be 1 (since record has changed)
                 let addrs_existing = existing_tail_record.addresses.lock().unwrap();
                 let mut schema_encoding = addrs_existing[ReservedColumns::SchemaEncoding as usize]
                     .page
@@ -207,51 +190,45 @@ impl RQuery {
                     1,
                 );
             }
+            match table.page_range.read(existing_tail_record.clone()) {
+                Some(r) => r,
+                None => return false,
+            }
+        };
 
-            let Some(result) = table.page_range.read(existing_tail_record.clone()) else {
-                return false;
-            };
+        let new_primary_key = columns
+            .get(table.primary_key_column as usize)
+            .and_then(|&v| v)
+            .unwrap_or(primary_key);
 
-            new_columns = result;
-        }
-        // drop(base_cont);
+        // Remove the reserved (internal) columns.
+        new_record_columns.drain(0..NUM_RESERVED_COLUMNS as usize);
 
-        // Extract the new primary key (if provided)
-        let mut new_primary_key = primary_key;
-        if let Some(pk) = columns[table.primary_key_column] {
-            new_primary_key = pk;
-        }
-
-        // drop first 3 columns (rid, schema_encoding, indirection)
-        new_columns.drain(0..3);
-
-        // overwrite columns values onto new_columns values (that unwrap successfully)
-        for i in 0..new_columns.len() {
-            if let Some(value) = columns[i] {
-                new_columns[i] = value;
+        // Overwrite the new record values with provided updates.
+        for i in 0..new_record_columns.len() {
+            if let Some(value) = columns.get(i).copied().flatten() {
+                new_record_columns[i] = value;
             }
         }
 
         let new_rid = table.num_records;
-
         let new_rec = table.page_range.tail_container.insert_record(
             new_rid,
             base_indirection_column,
             rid,
-            new_columns
+            new_record_columns,
         );
 
-        // update the page directory with the new record
         table.page_directory.directory.insert(new_rid, new_rec);
 
-        // update the index with the new primary key
+        // Update the primary key index if needed.
         if new_primary_key != primary_key {
             let mut index = table.index.write().unwrap();
             index.index.remove(&primary_key);
             index.index.insert(new_primary_key, new_rid);
         }
 
-        // update the indirection column of the base record
+        // Update the indirection column in the base record.
         let mut indirection_page = addrs_base[ReservedColumns::Indirection as usize]
             .page
             .lock()
@@ -262,8 +239,7 @@ impl RQuery {
         );
 
         table.num_records += 1;
-
-        return true;
+        true
     }
 
     pub fn sum(&mut self, start_primary_key: i64, end_primary_key: i64, col_index: i64) -> i64 {
@@ -279,34 +255,23 @@ impl RQuery {
         relative_version: i64,
     ) -> i64 {
         let mut table = self.handle.table.write().unwrap();
-        table.sum_version(
-            start_primary_key,
-            end_primary_key,
-            col_index,
-            relative_version,
-        )
+        table.sum_version(start_primary_key, end_primary_key, col_index, relative_version)
     }
 
     pub fn increment(&mut self, primary_key: i64, column: i64) -> bool {
-        let num_cols = {
-            let table = self.handle.table.read().unwrap();
-            table.num_columns
-        };
+        // Determine the number of user columns.
+        let num_cols = self.handle.table.read().unwrap().num_columns;
+        let select_flags = vec![1; num_cols];
 
-        // Select the value of the column before we increment
-        let cols = vec![1i64; num_cols];
-
-        let ret = self.select(primary_key, 0, cols);
-
-        if let Some(records) = ret {
+        if let Some(records) = self.select(primary_key, 0, select_flags) {
             let record = &records[0];
-            let current_value = record[(column + 3) as usize].unwrap();
-            let mut to_update: Vec<Option<i64>> = vec![None; num_cols];
-            to_update[column as usize] = Some(current_value + 1);
-            return self.update(primary_key, to_update);
+            let current_value = record[(column + NUM_RESERVED_COLUMNS) as usize].unwrap();
+            let mut update_values = vec![None; num_cols];
+            update_values[column as usize] = Some(current_value + 1);
+            self.update(primary_key, update_values)
+        } else {
+            false
         }
-
-        return false;
     }
 }
 
@@ -341,9 +306,6 @@ mod tests {
 
         // Increment the first user column (column 1)
         q.increment(1, 1);
-
-        // print vals
-        println!("{:?}", q.select(1, 0, vec![1, 1, 1]));
 
         let vals = q.select(1, 0, vec![1, 1, 1]); // Select entire row
         assert_eq!(
