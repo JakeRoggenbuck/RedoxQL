@@ -59,11 +59,11 @@ Deleting 10k records took:  			 0.002314741000000009
 ```
 
 ## Attribution
-- Keanu - page.rs and all the page stuff, index.rs and all of the index stuff
+- Keanu - Secondary indexes, page.rs and all the page stuff, index.rs and all of the index stuff
 - Lucas & Andrew - update
-- Lucas - select_version, sum_version, matching 
-- Abdulrasol - BaseContainer, TailContainer, PageDirectory, insert into containers, RecordAddress and Record
-- Jake - RTable, RDatabase, RQuery, new RIndex, python bindings, inserts and reads for all props
+- Lucas - Merge, select_version, sum_version, matching 
+- Abdulrasol - Merge, BaseContainer, TailContainer, PageDirectory, insert into containers, RecordAddress and Record
+- Jake - Persistence, RTable, RDatabase, RQuery, new RIndex, python bindings, inserts and reads for all props
 
 ## Structure
 
