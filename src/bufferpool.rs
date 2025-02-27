@@ -1,6 +1,8 @@
+use super::page::PhysicalPage;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Write};
+use std::sync::{Arc, Mutex};
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct BufferPool {
@@ -15,18 +17,14 @@ impl BufferPool {
         }
     }
 
-    pub fn write_page(_page_id: usize) {
-        // Figure out if the page is in memory or saved in a file
-        // ?? Keep track of where the physical memory should be if it needs to read it again
-        todo!();
+    pub fn write_page(page: Arc<Mutex<PhysicalPage>>, value: i64) {
+        let mut m = page.lock().unwrap();
+        m.write(value);
     }
 
-    pub fn read_page(_page_id: usize) {
-        // Figure out if the page is in memory or saved in a file
-        // If it's not in memory, we load it into memory (probably LRU)
-
-        // TODO: How does it know the page id? Page ID being a name for knowing where the page is
-        todo!();
+    pub fn read_page(page: Arc<Mutex<PhysicalPage>>, offset: i64) -> Option<i64> {
+        let m = page.lock().unwrap();
+        return m.read(offset as usize);
     }
 
     pub fn save_state(&self) {
@@ -39,7 +37,7 @@ impl BufferPool {
             .expect("Should serialize.");
     }
 
-    pub fn load_state(&self, directory: &str) -> BufferPool {
+    pub fn load_state(&self, _directory: &str) -> BufferPool {
         let hardcoded_filename = "./redoxdata/bufferpull.data";
 
         let file = BufReader::new(File::open(hardcoded_filename).expect("Should open file."));
