@@ -329,6 +329,8 @@ impl RTable {
 
         self.page_directory.save_state();
 
+        self.index.read().unwrap().save_state();
+
         let table_meta = self.get_metadata();
 
         let table_bytes: Vec<u8> = bincode::serialize(&table_meta).expect("Should serialize.");
