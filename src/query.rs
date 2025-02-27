@@ -6,11 +6,13 @@ use crate::{
 use super::record::Record;
 use pyo3::prelude::*;
 use std::iter::zip;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 #[pyclass]
 pub struct RQuery {
     // pub table: RTable,
     pub handle: RTableHandle,
+    merging: AtomicBool,
 }
 
 fn filter_projected(column_values: Vec<i64>, projected: Vec<i64>) -> Vec<Option<i64>> {
@@ -41,7 +43,11 @@ impl RQuery {
             t.merge();
             t.updates_since_merge = 0;
         }
-        RQuery { handle }
+
+        RQuery {
+            handle,
+            merging: AtomicBool::new(false),
+        }
     }
 
     pub fn delete(&mut self, primary_key: i64) {
@@ -139,12 +145,19 @@ impl RQuery {
         let mut table = self.handle.table.write().unwrap();
 
         {
-           if table.num_records > 0 && table.updates_since_merge > 10000 {
-               table.merge();
-               table.updates_since_merge = 0;
-           }
-        
-           table.updates_since_merge += 1;
+            if table.num_records > 0
+                && table.updates_since_merge > 10000
+                && !self.merging.load(Ordering::Relaxed)
+            {
+                self.merging.store(true, Ordering::Relaxed);
+
+                table.merge();
+                table.updates_since_merge = 0;
+
+                self.merging.store(false, Ordering::Relaxed);
+            }
+
+            table.updates_since_merge += 1;
         }
 
         // This functin expects an expact number of columns as table has
