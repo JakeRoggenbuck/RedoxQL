@@ -59,8 +59,10 @@ impl PageDirectory {
             directory: HashMap::new(),
         };
 
+        // Load records into page_directory
         for (rid, record_meta) in page_meta.directory {
-            pd.directory.insert(rid, record_meta.load_state());
+            pd.directory
+                .insert(rid, record_meta.load_state(&base_pages, &tail_pages));
         }
 
         return pd;
