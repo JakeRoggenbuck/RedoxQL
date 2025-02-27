@@ -218,7 +218,7 @@ impl RTable {
             return None;
         };
         let base_rid = result[ReservedColumns::RID as usize];
-        let base_indirection_column = result[ReservedColumns::RID as usize];
+        let base_indirection_column = result[ReservedColumns::Indirection as usize];
 
         if base_rid == base_indirection_column {
             return Some(result);

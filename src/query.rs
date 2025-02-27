@@ -68,7 +68,7 @@ impl RQuery {
     ) -> Option<Vec<Vec<Option<i64>>>> {
         let table = self.handle.table.read().unwrap();
 
-        // table.page_directory.display(); -> This shows the full page dir!!
+        // table.page_directory.display(); // -> This shows the full page dir!!
 
         // Case 1: Searching on the primary key column
         if search_key_index == table.primary_key_column as i64 {
@@ -347,21 +347,23 @@ mod tests {
         let vals = q.select(1, 0, vec![1, 1, 1]); // Select entire row
         assert_eq!(
             vals.unwrap()[0],
-            vec![Some(0), Some(1), Some(1), Some(0), Some(1), Some(3), Some(3)]
+            vec![Some(1), Some(0), Some(0), Some(0), Some(1), Some(3), Some(3)]
         );
 
         q.increment(1, 1);
+
         let vals2 = q.select(1, 0, vec![1, 1, 1]);
         assert_eq!(
             vals2.unwrap()[0],
-            vec![Some(2), Some(0), Some(0), Some(1), Some(1), Some(4), Some(3)]
+            vec![Some(2), Some(0), Some(1), Some(0), Some(1), Some(4), Some(3)]
         );
 
         q.increment(1, 1);
+
         let vals3 = q.select(1, 0, vec![1, 1, 1]);
         assert_eq!(
             vals3.unwrap()[0],
-            vec![Some(3), Some(0), Some(0), Some(2), Some(1), Some(5), Some(3)]
+            vec![Some(3), Some(0), Some(2), Some(0), Some(1), Some(5), Some(3)]
         );
     }
 
@@ -444,7 +446,7 @@ mod tests {
         let vals = q.select(1, 0, vec![1, 1, 1]);
         assert_eq!(
             vals.unwrap()[0],
-            vec![Some(3), Some(0), Some(2), Some(1), Some(8), Some(9)]
+            vec![Some(3), Some(0), Some(2), Some(0), Some(1), Some(8), Some(9)]
         );
     }
 
@@ -474,29 +476,30 @@ mod tests {
         q.update(1, vec![Some(1), Some(6), Some(7)]); // Version 2
         q.update(1, vec![Some(1), Some(8), Some(9)]); // Version 3
 
+
         // Test different versions
         let latest = q.select_version(1, 0, vec![1, 1, 1], 0);
         assert_eq!(
             latest.unwrap(),
-            vec![Some(3), Some(0), Some(2), Some(1), Some(8), Some(9)]
+            vec![Some(3), Some(0), Some(2), Some(0), Some(1), Some(8), Some(9)]
         ); // Most recent version
 
         let one_back = q.select_version(1, 0, vec![1, 1, 1], 1);
         assert_eq!(
             one_back.unwrap(),
-            vec![Some(2), Some(1), Some(1), Some(1), Some(6), Some(7)]
+            vec![Some(2), Some(1), Some(1), Some(0), Some(1), Some(6), Some(7)]
         ); // One version back
 
         let two_back = q.select_version(1, 0, vec![1, 1, 1], 2);
         assert_eq!(
             two_back.unwrap(),
-            vec![Some(1), Some(1), Some(0), Some(1), Some(4), Some(5)]
+            vec![Some(1), Some(1), Some(0), Some(0), Some(1), Some(4), Some(5)]
         ); // Two versions back
 
         let original = q.select_version(1, 0, vec![1, 1, 1], 3);
         assert_eq!(
             original.unwrap(),
-            vec![Some(0), Some(1), Some(3), Some(1), Some(2), Some(3)]
+            vec![Some(0), Some(1), Some(3), Some(0), Some(1), Some(2), Some(3)]
         ); // Original version
     }
 
