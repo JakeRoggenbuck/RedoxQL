@@ -17,7 +17,7 @@ class Query:
         Any query that crashes (due to exceptions) should return False
         """
         self.table = table
-        self.rquery = RQuery(table)
+        self.rquery = RQuery(self.table)
 
     def delete(self, primary_key: int):
         """Delete record

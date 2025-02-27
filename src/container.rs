@@ -23,6 +23,8 @@ pub enum ReservedColumns {
     BaseRID,
 }
 
+pub static NUM_RESERVED_COLUMNS: i64 = 4;
+
 impl BaseContainerMetadata {
     pub fn load_state(&self) -> BaseContainer {
         let mut base = BaseContainer::new(self.num_cols);
@@ -56,9 +58,6 @@ pub struct BaseContainer {
 
 impl BaseContainer {
 
-    pub const NUM_RESERVED_COLUMNS: i64 = 3;
-
-
     pub fn new(num_cols: i64) -> Self {
         BaseContainer {
             physical_pages: Vec::new(),
@@ -70,10 +69,10 @@ impl BaseContainer {
 
     pub fn initialize(&mut self) {
         // initialize reserved columns
-        let rid_page = PhysicalPage::new();
-        let schema_encoding_page = PhysicalPage::new();
-        let indirection_page = PhysicalPage::new();
-        let base_rid_page = PhysicalPage::new();
+        let rid_page = PhysicalPage::new(ReservedColumns::RID as i64);
+        let schema_encoding_page = PhysicalPage::new(ReservedColumns::SchemaEncoding as i64);
+        let indirection_page = PhysicalPage::new(ReservedColumns::Indirection as i64);
+        let base_rid_page = PhysicalPage::new(ReservedColumns::BaseRID as i64);
 
         self.physical_pages.push(Arc::new(Mutex::new(rid_page)));
         self.physical_pages
@@ -84,8 +83,8 @@ impl BaseContainer {
             .push(Arc::new(Mutex::new(base_rid_page)));
 
         // initialize the rest of the columns
-        for _ in 0..self.num_cols {
-            let new_page = PhysicalPage::new();
+        for i in 0..self.num_cols {
+            let new_page = PhysicalPage::new(NUM_RESERVED_COLUMNS + i);
             self.physical_pages.push(Arc::new(Mutex::new(new_page)));
         }
     }
@@ -303,10 +302,10 @@ impl TailContainer {
     /// ```
     pub fn initialize(&mut self) {
         // initialize the three reserved columns
-        let rid_page = PhysicalPage::new();
-        let schema_encoding_page = PhysicalPage::new();
-        let indirection_page = PhysicalPage::new();
-        let base_rid_page = PhysicalPage::new();
+        let rid_page = PhysicalPage::new(ReservedColumns::RID as i64);
+        let schema_encoding_page = PhysicalPage::new(ReservedColumns::SchemaEncoding as i64);
+        let indirection_page = PhysicalPage::new(ReservedColumns::Indirection as i64);
+        let base_rid_page = PhysicalPage::new(ReservedColumns::BaseRID as i64);
 
         self.physical_pages.push(Arc::new(Mutex::new(rid_page)));
         self.physical_pages
@@ -317,8 +316,8 @@ impl TailContainer {
             .push(Arc::new(Mutex::new(base_rid_page)));
 
         // initialize the rest of the columns
-        for _ in 0..self.num_cols {
-            let new_page = PhysicalPage::new();
+        for i in 0..self.num_cols {
+            let new_page = PhysicalPage::new(NUM_RESERVED_COLUMNS + i);
             self.physical_pages.push(Arc::new(Mutex::new(new_page)));
         }
     }
@@ -435,7 +434,7 @@ impl TailContainer {
         let tail_meta = self.get_metadata();
         let hardcoded_filename = "./redoxdata/tail_container.data";
 
-        let mut index = 0;
+        let mut index = self.physical_pages.len() as i64;
         // The Rust compiler suggested that I clone here but it's definitely way better to not copy
         // all of the data and just use a reference
         for p in &self.physical_pages {

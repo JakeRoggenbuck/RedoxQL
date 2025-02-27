@@ -1,37 +1,25 @@
-use super::table::RTable;
+use super::table::{PageDirectory, RTable};
 use pyo3::prelude::*;
-use std::{
-    collections::{BTreeMap, HashMap},
-    sync::{Arc, RwLock, Weak},
-};
+use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, HashMap};
+use std::fs::File;
+use std::io::{BufReader, BufWriter, Write};
+use std::sync::{Arc, RwLock, Weak};
 
 #[pyclass]
 #[derive(Clone, Default)]
-pub struct RIndex {
-    #[pyo3(get, set)]
-    pub index: BTreeMap<i64, i64>,
-    #[pyo3(get, set)]
-    pub secondary_indices: HashMap<i64, BTreeMap<i64, Vec<i64>>>,
-    // Using Arc<RwLock<>> pattern which is safer than raw pointers
-    // these fields are not python exposed
-    pub owner: Option<Weak<RwLock<RTable>>>,
-    // Keep strong reference to the table to prevent it from being dropped
-    pub table_ref: Option<Arc<RwLock<RTable>>>,
+pub struct RIndexHandle {
+    pub index: Arc<RwLock<RIndex>>,
 }
 
 #[pymethods]
-impl RIndex {
-    #[new]
-    pub fn new_py() -> Self {
-        Self::new()
-    }
-
-    /// When called from Python, create the secondary index for a given column
+impl RIndexHandle {
     pub fn create_index(&mut self, col_index: i64) {
-        if let Some(owner_weak) = &self.owner {
+        let mut index = self.index.write().unwrap();
+        if let Some(owner_weak) = &index.owner {
             if let Some(owner_arc) = owner_weak.upgrade() {
                 let table = owner_arc.read().unwrap();
-                self.create_index_internal(col_index, &table);
+                index.create_index_internal(col_index, &table);
             } else {
                 // Table was dropped, so this index should be considered invalid
                 panic!("Table reference no longer valid");
@@ -40,15 +28,16 @@ impl RIndex {
             panic!("Owner not set for RIndex");
         }
     }
-    /// When called from Python, drop the secondary index for a given column
+
     pub fn drop_index(&mut self, col_index: i64) {
-        self.drop_index_internal(col_index);
+        let mut index = self.index.write().unwrap();
+        index.drop_index_internal(col_index);
     }
 
-    // Debugging purposes
     pub fn get_secondary_indices(&self) -> HashMap<i64, Vec<(i64, Vec<i64>)>> {
+        let index = self.index.read().unwrap();
         let mut out = HashMap::new();
-        for (&col, tree) in self.secondary_indices.iter() {
+        for (&col, tree) in index.secondary_indices.iter() {
             let mut vec = Vec::new();
             for (&val, rids) in tree.iter() {
                 vec.push((val, rids.clone()));
@@ -59,22 +48,37 @@ impl RIndex {
     }
 }
 
+#[derive(Clone, Default, Deserialize, Serialize)]
+pub struct RIndexMetadata {
+    pub index: BTreeMap<i64, i64>,
+    pub secondary_indices: HashMap<i64, BTreeMap<i64, Vec<i64>>>,
+}
+
+#[pyclass]
+#[derive(Clone, Default)]
+pub struct RIndex {
+    #[pyo3(get, set)]
+    pub index: BTreeMap<i64, i64>,
+
+    #[pyo3(get, set)]
+    pub secondary_indices: HashMap<i64, BTreeMap<i64, Vec<i64>>>,
+    // Using Arc<RwLock<>> pattern which is safer than raw pointers
+    // these fields are not python exposed
+    pub owner: Option<Weak<RwLock<RTable>>>,
+}
+
 impl RIndex {
     pub fn new() -> RIndex {
         RIndex {
             index: BTreeMap::new(),
             secondary_indices: HashMap::new(),
             owner: None,
-            table_ref: None,
         }
     }
 
     // Set the owner (the table that "owns" this index)
-    pub fn set_owner(&mut self, table_arc: Arc<RwLock<RTable>>) {
-        // Store the Arc directly in table_ref
-        self.table_ref = Some(table_arc.clone());
-        // Generate weak reference when needed
-        self.owner = Some(Arc::downgrade(&table_arc));
+    pub fn set_owner(&mut self, table_arc: std::sync::Weak<RwLock<RTable>>) {
+        self.owner = Some(table_arc);
     }
 
     /// Create a mapping from primary_key to RID
@@ -90,7 +94,7 @@ impl RIndex {
     // Build a secondary index on a non-primary column. This is called by RTable.create_index
     pub fn create_index_internal(&mut self, col_index: i64, table: &RTable) {
         let mut sec_index: BTreeMap<i64, Vec<i64>> = BTreeMap::new();
-        for (&rid, record) in table.page_directory.iter() {
+        for (&rid, record) in table.page_directory.directory.iter() {
             if let Some(record_data) = table.page_range.read(record.clone()) {
                 if record_data.len() <= (col_index + 3) as usize {
                     // Skip if the record data is unexpectedly short.
@@ -142,6 +146,39 @@ impl RIndex {
             }
         }
     }
+
+    pub fn save_state(&self) {
+        let hardcoded_filename = "./redoxdata/index.data";
+
+        let index_meta = self.get_metadata();
+
+        let index_bytes: Vec<u8> = bincode::serialize(&index_meta).expect("Should serialize.");
+
+        let mut file = BufWriter::new(File::create(hardcoded_filename).expect("Should open file."));
+        file.write_all(&index_bytes).expect("Should serialize.");
+    }
+
+    pub fn get_metadata(&self) -> RIndexMetadata {
+        RIndexMetadata {
+            index: self.index.clone(),
+            secondary_indices: self.secondary_indices.clone(),
+        }
+    }
+
+    pub fn load_state(table_ref: Weak<RwLock<RTable>>) -> RIndex {
+        let hardcoded_filename = "./redoxdata/index.data";
+
+        let file = BufReader::new(File::open(hardcoded_filename).expect("Should open file."));
+
+        let index_meta: RIndexMetadata =
+            bincode::deserialize_from(file).expect("Should deserialize.");
+
+        RIndex {
+            index: index_meta.index,
+            secondary_indices: index_meta.secondary_indices,
+            owner: Some(table_ref),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -174,10 +211,10 @@ mod tests {
                 name: "dummy".to_string(),
                 primary_key_column: 0,
                 page_range: PageRange::new(3),
-                page_directory: HashMap::new(),
+                page_directory: PageDirectory::new(),
                 num_records: 0,
                 num_columns: 3,
-                index: RIndex::new(),
+                index: Arc::new(RwLock::new(RIndex::new())),
             };
 
             // Insert three records:
@@ -217,10 +254,10 @@ mod tests {
                 name: "dummy".to_string(),
                 primary_key_column: 0,
                 page_range: PageRange::new(3),
-                page_directory: HashMap::new(),
+                page_directory: PageDirectory::new(),
                 num_records: 0,
                 num_columns: 3,
-                index: RIndex::new(),
+                index: Arc::new(RwLock::new(RIndex::new())),
             };
 
             // Insert two records:
@@ -253,20 +290,18 @@ mod tests {
                 name: "dummy".to_string(),
                 primary_key_column: 0,
                 page_range: PageRange::new(3),
-                page_directory: HashMap::new(),
+                page_directory: PageDirectory::new(),
                 num_records: 0,
                 num_columns: 3,
-                index: RIndex::new(),
+                index: Arc::new(RwLock::new(RIndex::new())),
             };
+            let arc_table = Arc::new(RwLock::new(table));
 
             let mut index = RIndex::new();
 
             {
-                // Wrap the table in an Arc<RwLock<>>
-                let table_arc = Arc::new(RwLock::new(table));
-
-                // Create an index and set the owner
-                index.set_owner(table_arc);
+                // let mut table_guard = arc_table.write().unwrap();
+                index.set_owner(Arc::downgrade(&arc_table));
             }
 
             // Verify the owner is set by checking it can be upgraded

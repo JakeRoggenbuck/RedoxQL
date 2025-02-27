@@ -1,14 +1,109 @@
 use crate::container::ReservedColumns;
 
 use super::index::RIndex;
+use super::page::PhysicalPage;
 use super::pagerange::{PageRange, PageRangeMetadata};
-use super::record::Record;
+use super::record::{Record, RecordMetadata};
+use crate::index::RIndexHandle;
 use bincode;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Write};
+use std::sync::{Arc, Mutex, RwLock, Weak};
+
+#[derive(Default, Clone, Serialize, Deserialize)]
+pub struct PageDirectoryMetadata {
+    pub directory: HashMap<i64, RecordMetadata>,
+}
+
+#[derive(Default, Clone)]
+pub struct PageDirectory {
+    pub directory: HashMap<i64, Record>,
+}
+
+impl PageDirectory {
+    pub fn new() -> Self {
+        PageDirectory {
+            directory: HashMap::new(),
+        }
+    }
+
+    pub fn display(&self) {
+        for (rid, record) in self.directory.clone() {
+            print!("{rid} -> ");
+            let m = record.addresses;
+            let b = m.lock().unwrap();
+            let c = b.iter();
+
+            for addr in c {
+                println!("{:?}", addr);
+            }
+            print!("\n\n\n");
+        }
+    }
+
+    fn load_state(page_range: &PageRange) -> PageDirectory {
+        let hardcoded_filename = "./redoxdata/page_directory.data";
+
+        let base_phys_pages = &page_range.base_container.physical_pages;
+        let tail_phys_pages = &page_range.tail_container.physical_pages;
+
+        // Create a map of column_indexes to the physical pages there are stored in
+        let mut base_pages = HashMap::<i64, Arc<Mutex<PhysicalPage>>>::new();
+        let mut tail_pages = HashMap::<i64, Arc<Mutex<PhysicalPage>>>::new();
+
+        // Load the base pages into the map
+        for page in base_phys_pages {
+            let m = page.lock().unwrap();
+            base_pages.insert(m.column_index, page.clone());
+        }
+
+        // Load the tail pages into the map
+        for page in tail_phys_pages {
+            let m = page.lock().unwrap();
+            tail_pages.insert(m.column_index, page.clone());
+        }
+
+        let file = BufReader::new(File::open(hardcoded_filename).expect("Should open file."));
+
+        let page_meta: PageDirectoryMetadata =
+            bincode::deserialize_from(file).expect("Should deserialize.");
+
+        let mut pd: PageDirectory = PageDirectory {
+            directory: HashMap::new(),
+        };
+
+        // Load records into page_directory
+        for (rid, record_meta) in page_meta.directory {
+            let rec = record_meta.load_state(&base_pages, &tail_pages);
+            pd.directory.insert(rid, rec);
+        }
+
+        // pd.display();
+
+        return pd;
+    }
+
+    fn save_state(&self) {
+        let hardcoded_filename = "./redoxdata/page_directory.data";
+
+        let mut pd_meta = PageDirectoryMetadata {
+            directory: HashMap::new(),
+        };
+
+        for (rid, record) in &self.directory {
+            let r: RecordMetadata = record.get_metadata();
+            pd_meta.directory.insert(*rid, r);
+        }
+
+        let table_bytes: Vec<u8> = bincode::serialize(&pd_meta).expect("Should serialize.");
+
+        let mut file = BufWriter::new(File::create(hardcoded_filename).expect("Should open file."));
+        file.write_all(&table_bytes).expect("Should serialize.");
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RTableMetadata {
@@ -27,16 +122,29 @@ pub trait StatePersistence {
         let table_meta: RTableMetadata =
             bincode::deserialize_from(file).expect("Should deserialize.");
 
-        RTable {
+        let pr = PageRange::load_state();
+        let pd = PageDirectory::load_state(&pr);
+
+        let mut t = RTable {
             name: table_meta.name.clone(),
             primary_key_column: table_meta.primary_key_column,
             num_columns: table_meta.num_columns,
             num_records: table_meta.num_records,
 
-            page_range: PageRange::load_state(),
-            page_directory: HashMap::new(),
-            index: RIndex::new(),
-        }
+            page_range: pr,
+            page_directory: pd,
+            index: Arc::new(RwLock::new(RIndex::new())),
+        };
+
+        // It does not make sense to clone here
+        let arc_table = Arc::new(RwLock::new(t.clone()));
+        let weak_table = Arc::downgrade(&arc_table);
+
+        let index = RIndex::load_state(weak_table);
+
+        t.index = Arc::new(RwLock::new(index));
+
+        return t;
     }
 }
 
@@ -53,15 +161,14 @@ pub struct RTable {
     pub page_range: PageRange,
 
     // Map RIDs to Records
-    pub page_directory: HashMap<i64, Record>,
+    pub page_directory: PageDirectory,
 
     pub num_records: i64,
 
     #[pyo3(get)]
     pub num_columns: usize,
 
-    #[pyo3(get)]
-    pub index: RIndex,
+    pub index: Arc<RwLock<RIndex>>,
 }
 
 impl RTable {
@@ -70,12 +177,14 @@ impl RTable {
         let primary_key = values[self.primary_key_column];
 
         let rid = self.num_records;
-        self.index.add(primary_key, rid);
-
+        {
+            let mut index = self.index.write().unwrap();
+            index.add(primary_key, rid);
+        }
         let rec = self.page_range.write(rid, values);
 
         // Save the RID -> Record so it can later be read
-        self.page_directory.insert(rid, rec.clone());
+        self.page_directory.directory.insert(rid, rec.clone());
 
         self.num_records += 1;
         return rec;
@@ -83,10 +192,11 @@ impl RTable {
 
     pub fn read_base(&self, primary_key: i64) -> Option<Vec<i64>> {
         // Lookup RID from primary_key
-        let rid = self.index.get(primary_key);
+        let index = self.index.try_read().unwrap();
+        let rid = index.get(primary_key);
 
         if let Some(r) = rid {
-            let rec = self.page_directory.get(&r);
+            let rec = self.page_directory.directory.get(&r);
 
             // If the rec exists in the page_directory, return the read values
             match rec {
@@ -110,7 +220,7 @@ impl RTable {
             return Some(result);
         }
 
-        let Some(tail_record) = self.page_directory.get(&base_indirection_column) else {
+        let Some(tail_record) = self.page_directory.directory.get(&base_indirection_column) else {
             return None;
         };
 
@@ -119,7 +229,7 @@ impl RTable {
 
     // Given a RID, get the record's values
     pub fn read_by_rid(&self, rid: i64) -> Option<Vec<i64>> {
-        if let Some(record) = self.page_directory.get(&rid) {
+        if let Some(record) = self.page_directory.directory.get(&rid) {
             return self.page_range.read(record.clone());
         }
         None
@@ -141,7 +251,7 @@ impl RTable {
         let target_version = relative_version.abs() as i64;
 
         while versions_back < target_version {
-            let Some(current_record) = self.page_directory.get(&current_rid) else {
+            let Some(current_record) = self.page_directory.directory.get(&current_rid) else {
                 return None;
             };
 
@@ -165,7 +275,7 @@ impl RTable {
         }
 
         // read the final record we want
-        let Some(final_record) = self.page_directory.get(&current_rid) else {
+        let Some(final_record) = self.page_directory.directory.get(&current_rid) else {
             return None;
         };
 
@@ -174,10 +284,11 @@ impl RTable {
 
     pub fn delete(&mut self, primary_key: i64) {
         // Lookup RID from primary_key
-        let rid = self.index.get(primary_key);
+        let index = self.index.read().unwrap();
+        let rid = index.get(primary_key);
 
         if let Some(r) = rid {
-            self.page_directory.remove(&r);
+            self.page_directory.directory.remove(&r);
         }
     }
 
@@ -218,6 +329,10 @@ impl RTable {
         // Save the state of the page range
         self.page_range.save_state();
 
+        self.page_directory.save_state();
+
+        self.index.read().unwrap().save_state();
+
         let table_meta = self.get_metadata();
 
         let table_bytes: Vec<u8> = bincode::serialize(&table_meta).expect("Should serialize.");
@@ -241,6 +356,68 @@ impl RTable {
     }
 }
 
+#[derive(Default, Clone)]
+#[pyclass]
+pub struct RTableHandle {
+    pub table: Arc<RwLock<RTable>>,
+}
+
+#[pymethods]
+impl RTableHandle {
+    pub fn write(&self, values: Vec<i64>) {
+        let mut table = self.table.write().expect("Failed to acquire write lock");
+        table.write(values);
+    }
+
+    pub fn read(&self, primary_key: i64) -> Option<Vec<i64>> {
+        let table = self.table.read().expect("Failed to acquire read lock");
+        table.read(primary_key)
+    }
+
+    pub fn delete(&self, primary_key: i64) {
+        let mut table = self.table.write().expect("Failed to acquire write lock");
+        table.delete(primary_key);
+    }
+
+    pub fn debug_page_dir(&self) {
+        let t = self.table.read().unwrap();
+        t.page_directory.display();
+    }
+
+    // Allow access to properties
+    #[getter]
+    pub fn get_num_records(&self) -> i64 {
+        let table = self.table.read().expect("Failed to acquire read lock");
+        table.num_records
+    }
+
+    #[getter]
+    pub fn index(&self) -> RIndexHandle {
+        let table = self.table.read().expect("Failed to acquire read lock");
+        RIndexHandle {
+            index: table.index.clone(),
+        }
+    }
+
+    #[getter]
+    pub fn get_name(&self) -> String {
+        let table = self.table.read().expect("Failed to acquire read lock");
+        table.name.clone()
+    }
+
+    #[getter]
+    pub fn get_num_columns(&self) -> usize {
+        let table = self.table.read().expect("Failed to acquire read lock");
+        table.num_columns
+    }
+
+    #[getter]
+    pub fn get_primary_key_column(&self) -> usize {
+        let table = self.table.read().expect("Failed to acquire read lock");
+        table.primary_key_column
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -249,7 +426,8 @@ mod tests {
     #[test]
     fn load_and_save_test() {
         let mut db = RDatabase::new();
-        let mut table: RTable = db.create_table("Scores".to_string(), 3, 0);
+        let table_ref = db.create_table("Scores".to_string(), 3, 0);
+        let mut table = table_ref.table.write().unwrap();
 
         table.write(vec![0, 10, 12]);
         table.write(vec![0, 10, 12]);
@@ -271,7 +449,8 @@ mod tests {
     #[test]
     fn read_and_write_test() {
         let mut db = RDatabase::new();
-        let mut table: RTable = db.create_table("Scores".to_string(), 3, 0);
+        let table_ref = db.create_table("Scores".to_string(), 3, 0);
+        let mut table = table_ref.table.write().unwrap();
 
         // Write
         table.write(vec![0, 10, 12]);
@@ -289,7 +468,8 @@ mod tests {
     #[test]
     fn read_base_and_write_test() {
         let mut db = RDatabase::new();
-        let mut table: RTable = db.create_table("Scores".to_string(), 3, 0);
+        let table_ref = db.create_table("Scores".to_string(), 3, 0);
+        let mut table = table_ref.table.write().unwrap();
 
         // Write
         table.write(vec![0, 10, 12]);
@@ -307,7 +487,8 @@ mod tests {
     #[test]
     fn sum_test() {
         let mut db = RDatabase::new();
-        let mut table: RTable = db.create_table("Scores".to_string(), 2, 0);
+        let table_ref = db.create_table("Scores".to_string(), 2, 0);
+        let mut table = table_ref.table.write().unwrap();
 
         table.write(vec![0, 10]);
         table.write(vec![1, 20]);
@@ -327,7 +508,8 @@ mod tests {
     #[test]
     fn delete_test() {
         let mut db = RDatabase::new();
-        let mut table: RTable = db.create_table("Scores".to_string(), 3, 0);
+        let table_ref = db.create_table("Scores".to_string(), 3, 0);
+        let mut table = table_ref.table.write().unwrap();
 
         // Write
         table.write(vec![0, 10, 12]);
