@@ -360,7 +360,8 @@ impl RTable {
     }
 
     pub fn merge(&mut self) {
-        self.page_range.merge(Arc::new(Mutex::new(self.page_directory.clone())));
+        self.page_range
+            .merge(Arc::new(Mutex::new(self.page_directory.clone())));
     }
 }
 

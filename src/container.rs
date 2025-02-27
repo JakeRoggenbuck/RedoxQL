@@ -215,7 +215,7 @@ impl BaseContainer {
             let guard = rid_page.lock().unwrap();
             guard.data.clone()
         };
-    
+
         for (i, &value) in data.iter().enumerate() {
             if value == rid {
                 return i;
@@ -223,7 +223,6 @@ impl BaseContainer {
         }
         panic!("Could not find RID in RID page");
     }
-    
 
     pub fn save_state(&self) {
         let base_meta = self.get_metadata();
@@ -582,8 +581,6 @@ impl fmt::Display for TailContainer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
-    use std::sync::{Arc, Mutex};
 
     // Note: These tests assume that the implementations of PhysicalPage,
     // Record, RecordAddress, and RecordType behave as expected (e.g.:

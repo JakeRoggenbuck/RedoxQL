@@ -10,7 +10,7 @@ use std::collections::HashSet;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Write};
 use std::sync::{Arc, Mutex};
-use std::thread::{self, JoinHandle};
+use std::thread;
 
 #[derive(Clone, Default, Deserialize, Serialize, Debug)]
 pub struct PageRangeMetadata {
@@ -54,14 +54,14 @@ impl PageRange {
         let base_container = self.base_container.clone();
         let tail_container = self.tail_container.clone();
         let thread_pd = page_directory.clone();
-    
+
         // println!("Merge: Starting merge operation in a separate thread");
-    
+
         let handle = thread::spawn(move || {
             // println!("Thread: Merge thread started");
             let mut new_records: Vec<Record> = Vec::new();
             let mut seen_rids: HashSet<i64> = HashSet::new();
-    
+
             // println!("Thread: Locking tail_container.rid_page()");
             let tail_rid_page = tail_container.rid_page();
             let tail_rid_data = {
@@ -70,22 +70,22 @@ impl PageRange {
                 let data = rid_guard.data.clone();
                 data
             };
-    
+
             if tail_rid_data.is_empty() {
                 // println!("Thread: tail_rid_data is empty, returning early");
                 return (base_container, Vec::new());
             }
-    
+
             let mut tail_rids_to_process = tail_rid_data;
             tail_rids_to_process.reverse();
             // println!("Thread: Reversed tail_rids_to_process");
-    
+
             let mut new_base = base_container.deep_copy();
             let last_tail_rid = tail_rids_to_process[0];
-    
+
             for tail_rid in tail_rids_to_process {
                 // println!("Thread: Processing tail_rid: {}", tail_rid);
-    
+
                 // Check if we've seen all rids using new_base's RID page.
                 {
                     let new_base_rid_page = new_base.rid_page();
@@ -96,7 +96,7 @@ impl PageRange {
                         break;
                     }
                 }
-    
+
                 // println!("Thread: Locking page_directory to get tail_record for tail_rid: {}", tail_rid);
                 let tail_record = {
                     let pd_guard = thread_pd.lock().unwrap();
@@ -104,7 +104,7 @@ impl PageRange {
                     pd_guard.directory.get(&tail_rid).unwrap().clone()
                 };
                 // println!("Thread: Got tail_record for tail_rid: {}", tail_rid);
-    
+
                 let base_rid_address = tail_record.base_rid();
                 let base_rid = {
                     // println!("Thread: Locking base_rid_address.page for base_rid");
@@ -114,11 +114,11 @@ impl PageRange {
                     // println!("Thread: Retrieved base_rid: {}", brid);
                     brid
                 };
-    
+
                 if !seen_rids.contains(&base_rid) {
                     let offset = new_base.find_rid_offset(base_rid);
                     // println!("Thread: Found offset {} for base_rid: {}", offset, base_rid);
-    
+
                     {
                         // println!("Thread: Locking new_base.schema_encoding_page");
                         let schema_page = new_base.schema_encoding_page();
@@ -133,13 +133,13 @@ impl PageRange {
                         indir_guard.data[offset] = base_rid;
                         // println!("Thread: Updated indirection_page at offset {} with base_rid {}", offset, base_rid);
                     }
-    
+
                     // println!("Thread: Creating new record for base_rid: {}", base_rid);
                     let new_record = Record {
                         rid: base_rid,
                         addresses: Arc::new(Mutex::new(Vec::new())),
                     };
-    
+
                     {
                         let new_rid_page = new_base.rid_page();
                         let mut addr_guard = new_record.addresses.lock().unwrap();
@@ -176,7 +176,7 @@ impl PageRange {
                         });
                         // println!("Thread: Pushed base_rid address for record {}", base_rid);
                     }
-    
+
                     for i in 0..tail_record.columns().len() {
                         // println!("Thread: Processing column {} for tail_record with base_rid: {}", i, base_rid);
                         let tail_col_page = tail_record.columns()[i].page.clone();
@@ -186,7 +186,7 @@ impl PageRange {
                             // println!("Thread: Got column value {} for column {}", val, i);
                             val
                         };
-    
+
                         {
                             let new_col_page = new_base.column_page(i as i64);
                             let mut new_col_guard = new_col_page.lock().unwrap();
@@ -203,7 +203,7 @@ impl PageRange {
                             // println!("Thread: Pushed column address for column {} for record {}", i, base_rid);
                         }
                     }
-    
+
                     new_records.push(new_record);
                     // println!("Thread: New record for base_rid {} added", base_rid);
                     seen_rids.insert(base_rid);
@@ -214,18 +214,18 @@ impl PageRange {
             // println!("Thread: Merge thread complete, returning new_base and new_records");
             (new_base, new_records)
         });
-    
+
         let (new_base_container, new_records) = handle.join().unwrap();
         // println!("Main: Merge thread joined successfully");
-    
+
         self.base_container = new_base_container;
         // println!("Main: Updated self.base_container");
-    
+
         for record in new_records {
             // println!("Main: Processing record with rid: {}", record.rid);
             let mut pd_guard = page_directory.lock().unwrap();
             let current_record = pd_guard.directory.get(&record.rid).unwrap().clone();
-    
+
             let current_indir_val = {
                 // println!("Main: Locking current_record.indirection().page for record {}", record.rid);
                 let indirection_page = current_record.indirection().page.clone();
@@ -234,7 +234,7 @@ impl PageRange {
                 // println!("Main: Current indirection value for record {} is {}", record.rid, val);
                 val
             };
-    
+
             if current_indir_val > self.base_container.tail_page_sequence {
                 // println!("Main: Updating record {} indirection with value {}", record.rid, current_indir_val);
                 let record_indirection_page = record.indirection().page.clone();
@@ -246,10 +246,6 @@ impl PageRange {
             // println!("Main: Inserted record {} into page_directory", rid);
         }
     }
-    
-    
-    
-
 
     pub fn save_state(&self) {
         // Save the state of the two containers

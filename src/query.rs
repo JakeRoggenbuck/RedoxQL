@@ -224,7 +224,7 @@ impl RQuery {
             };
 
             {
-                let tail_cont = &table.page_range.tail_container;
+                let _tail_cont = &table.page_range.tail_container;
                 // update schema encoding of the tail to be 1 (since record has changed)
                 let addrs_existing = existing_tail_record.addresses.lock().unwrap();
                 let mut schema_encoding = addrs_existing[ReservedColumns::SchemaEncoding as usize]
