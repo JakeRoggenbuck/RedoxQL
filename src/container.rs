@@ -582,8 +582,6 @@ impl fmt::Display for TailContainer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
-    use std::sync::{Arc, Mutex};
 
     // Note: These tests assume that the implementations of PhysicalPage,
     // Record, RecordAddress, and RecordType behave as expected (e.g.:
