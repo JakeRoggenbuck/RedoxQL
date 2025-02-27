@@ -1,4 +1,4 @@
-use super::table::{PageDirectory, RTable};
+use super::table::RTable;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
@@ -202,7 +202,7 @@ mod tests {
         use super::*;
         use crate::pagerange::PageRange;
         use crate::table::RTable;
-        use std::collections::HashMap;
+        use crate::table::PageDirectory;
 
         #[test]
         fn test_create_and_drop_secondary_index_on_col1() {

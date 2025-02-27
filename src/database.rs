@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::fs::{create_dir_all, File};
 use std::io::{BufReader, BufWriter, Write};
 use std::path::Path;
-use std::sync::{Arc, RwLock, Weak};
+use std::sync::{Arc, RwLock};
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct RDatabaseMetadata {
@@ -193,6 +193,7 @@ impl RDatabase {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Weak;
 
     #[test]
     fn drop_table_test() {
