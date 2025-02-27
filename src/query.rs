@@ -65,17 +65,14 @@ impl RQuery {
 
         // Case 1: Searching on the primary key column
         if search_key_index == table.primary_key_column as i64 {
-            println!("CASE 1");
             if let Some(ret) = table.read(search_key) {
                 return Some(vec![filter_projected(ret, projected_columns_index)]);
             } else {
-                println!("NO WORKING READ");
                 return None;
             }
         }
         // Case 2: Searching on a non-primary column
         else {
-            println!("CASE 2");
             // If a secondary index exists, use it
             let index = table.index.read().unwrap();
             if let Some(sec_index) = index.secondary_indices.get(&search_key_index) {
@@ -91,7 +88,6 @@ impl RQuery {
                     }
                     return Some(results);
                 } else {
-                    println!("NO RECORDS MATCH");
                     return Some(vec![]); // No records match
                 }
             }
