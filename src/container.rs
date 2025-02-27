@@ -107,9 +107,12 @@ impl BaseContainer {
     ///
     pub fn initialize(&mut self) {
         // initialize the three reserved columns
-        let rid_page = PhysicalPage::new();
-        let schema_encoding_page = PhysicalPage::new();
-        let indirection_page = PhysicalPage::new();
+        let rid_page = PhysicalPage::new(0);
+        let schema_encoding_page = PhysicalPage::new(1);
+        let indirection_page = PhysicalPage::new(2);
+
+        // Currently we have 3 internal columns, but we are soon to have 4
+        let number_of_internal_columns = 3;
 
         self.physical_pages.push(Arc::new(Mutex::new(rid_page)));
         self.physical_pages
@@ -118,8 +121,8 @@ impl BaseContainer {
             .push(Arc::new(Mutex::new(indirection_page)));
 
         // initialize the rest of the columns
-        for _ in 0..self.num_cols {
-            let new_page = PhysicalPage::new();
+        for i in 0..self.num_cols {
+            let new_page = PhysicalPage::new(number_of_internal_columns + i);
             self.physical_pages.push(Arc::new(Mutex::new(new_page)));
         }
     }
@@ -352,9 +355,12 @@ impl TailContainer {
     /// ```
     pub fn initialize(&mut self) {
         // initialize the three reserved columns
-        let rid_page = PhysicalPage::new();
-        let schema_encoding_page = PhysicalPage::new();
-        let indirection_page = PhysicalPage::new();
+        let rid_page = PhysicalPage::new(0);
+        let schema_encoding_page = PhysicalPage::new(1);
+        let indirection_page = PhysicalPage::new(2);
+
+        // Currently we have 3 internal columns, but we are soon to have 4
+        let number_of_internal_columns = 3;
 
         self.physical_pages.push(Arc::new(Mutex::new(rid_page)));
         self.physical_pages
@@ -363,8 +369,8 @@ impl TailContainer {
             .push(Arc::new(Mutex::new(indirection_page)));
 
         // initialize the rest of the columns
-        for _ in 0..self.num_cols {
-            let new_page = PhysicalPage::new();
+        for i in 0..self.num_cols {
+            let new_page = PhysicalPage::new(number_of_internal_columns + i);
             self.physical_pages.push(Arc::new(Mutex::new(new_page)));
         }
     }

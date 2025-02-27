@@ -10,13 +10,15 @@ static MAX_SIZE_RECORD: i64 = i64::MAX;
 pub struct PhysicalPage {
     pub data: Vec<i64>,
     pub num_records: i64,
+    pub column_index: i64,
 }
 
 impl PhysicalPage {
-    pub fn new() -> Self {
+    pub fn new(column_index: i64) -> Self {
         PhysicalPage {
             data: Vec::<i64>::new(),
             num_records: 0,
+            column_index,
         }
     }
 
@@ -64,7 +66,7 @@ mod tests {
 
     #[test]
     fn write_page_test() {
-        let mut phys_page = PhysicalPage::new();
+        let mut phys_page = PhysicalPage::new(0);
 
         phys_page.write(10);
         assert_eq!(phys_page.read(0).unwrap(), 10);
@@ -74,8 +76,8 @@ mod tests {
     fn save_load_test() {
         // Scope so that page_one and page_two get unallocated and leave scope
         {
-            let mut page_one = PhysicalPage::new();
-            let mut page_two = PhysicalPage::new();
+            let mut page_one = PhysicalPage::new(0);
+            let mut page_two = PhysicalPage::new(1);
 
             // Write to page_one
             page_one.write(100);
@@ -114,7 +116,7 @@ mod tests {
 
     #[test]
     fn many_writes_page_test() {
-        let mut phys_page = PhysicalPage::new();
+        let mut phys_page = PhysicalPage::new(0);
 
         for x in 0..1000 {
             phys_page.write(x * 10);
