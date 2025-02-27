@@ -51,7 +51,7 @@ impl RecordMetadata {
     pub fn load_state(
         &self,
         base_pages: &HashMap<i64, Arc<Mutex<PhysicalPage>>>,
-        tail_pages: &HashMap<i64, Arc<Mutex<PhysicalPage>>>,
+        _tail_pages: &HashMap<i64, Arc<Mutex<PhysicalPage>>>,
     ) -> Record {
         let mut rec_addrs = Vec::new();
 
@@ -60,10 +60,6 @@ impl RecordMetadata {
         // calls all the way to PageDirectory
         let mut index = 0;
         for rec_addr in &self.addresses {
-            // TODO: Choose if it's supposed to be a base page or a tail page
-            // Maybe I can use schema_encoding for this
-            // TODO: Should I try to do a .get for a tail page and use the base page if it's not
-            // found? That might be a great way of doing this!
             let p = base_pages.get(&index).expect("Should be a page here.");
             rec_addrs.push(rec_addr.load_state(p.clone()));
             index += 1;

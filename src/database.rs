@@ -1,15 +1,15 @@
-use crate::table::RTableHandle;
-
+use super::bufferpool::BufferPool;
 use super::index::RIndex;
 use super::pagerange::PageRange;
 use super::table::{PageDirectory, RTable, RTableMetadata, StatePersistence};
+use crate::table::RTableHandle;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::{create_dir_all, File};
 use std::io::{BufReader, BufWriter, Write};
 use std::path::Path;
-use std::sync::{Arc, RwLock, Weak};
+use std::sync::{Arc, RwLock};
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct RDatabaseMetadata {
@@ -26,6 +26,8 @@ pub struct RDatabase {
     tables_hashmap: HashMap<String, usize>,
 
     db_filepath: Option<String>,
+
+    pub buffer_pool: BufferPool,
 }
 
 #[pymethods]
@@ -36,6 +38,7 @@ impl RDatabase {
             tables: vec![],
             tables_hashmap: HashMap::new(),
             db_filepath: None,
+            buffer_pool: BufferPool::new("./"),
         }
     }
 
@@ -66,7 +69,7 @@ impl RDatabase {
         // Load each table metadata into this current databases' tables
         let mut index = 0;
         for table in &db_meta.tables {
-            let l = table.load_state();
+            let l = table.load_state(table.table_num);
             // l.page_directory.display();
 
             self.tables.push(Arc::new(RwLock::new(l)));
@@ -124,6 +127,7 @@ impl RDatabase {
             num_columns: num_columns as usize,
             num_records: 0,
             index: Arc::new(RwLock::new(RIndex::new())),
+            table_num: self.tables.len() as i64,
         };
 
         let arc_table = Arc::new(RwLock::new(table));
@@ -193,6 +197,7 @@ impl RDatabase {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Weak;
 
     #[test]
     fn drop_table_test() {

@@ -1,6 +1,6 @@
 use crate::container::NUM_RESERVED_COLUMNS;
-
 use super::table::{PageDirectory, RTable};
+use super::table::RTable;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
@@ -203,8 +203,8 @@ mod tests {
     mod secondary_index_tests {
         use super::*;
         use crate::pagerange::PageRange;
+        use crate::table::PageDirectory;
         use crate::table::RTable;
-        use std::collections::HashMap;
 
         #[test]
         fn test_create_and_drop_secondary_index_on_col1() {
@@ -217,6 +217,7 @@ mod tests {
                 num_records: 0,
                 num_columns: 3,
                 index: Arc::new(RwLock::new(RIndex::new())),
+                table_num: 0,
             };
 
             // Insert three records:
@@ -260,6 +261,7 @@ mod tests {
                 num_records: 0,
                 num_columns: 3,
                 index: Arc::new(RwLock::new(RIndex::new())),
+                table_num: 0,
             };
 
             // Insert two records:
@@ -296,6 +298,7 @@ mod tests {
                 num_records: 0,
                 num_columns: 3,
                 index: Arc::new(RwLock::new(RIndex::new())),
+                table_num: 0,
             };
             let arc_table = Arc::new(RwLock::new(table));
 
