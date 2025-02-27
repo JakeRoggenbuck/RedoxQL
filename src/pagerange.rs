@@ -47,7 +47,6 @@ impl PageRange {
 
     /// Merge the two containers in a separate thread
     pub fn merge(&mut self, page_directory: PageDirectory) {
-        panic!("NO MERGE");
         let base_container = self.base_container.clone();
         let tail_container = self.tail_container.clone();
 
