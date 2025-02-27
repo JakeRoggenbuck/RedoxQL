@@ -35,9 +35,11 @@ impl RQuery {
     #[new]
     pub fn new(handle: RTableHandle) -> Self {
         if handle.table.write().unwrap().num_records > 0
-            && handle.table.write().unwrap().num_records % 200 == 0
+            && handle.table.write().unwrap().updates_since_merge > 500
         {
-            handle.table.write().unwrap().merge();
+            let mut t = handle.table.write().unwrap();
+            t.merge();
+            t.updates_since_merge = 0;
         }
         RQuery { handle }
     }
@@ -134,6 +136,14 @@ impl RQuery {
     }
 
     pub fn update(&mut self, primary_key: i64, columns: Vec<Option<i64>>) -> bool {
+        if self.handle.table.write().unwrap().num_records > 0
+            && self.handle.table.write().unwrap().updates_since_merge > 500
+        {
+            let mut t = self.handle.table.write().unwrap();
+            t.merge();
+            t.updates_since_merge = 0;
+        }
+
         let mut table = self.handle.table.write().unwrap();
 
         // This functin expects an expact number of columns as table has
@@ -644,6 +654,36 @@ mod tests {
                 Some(1),
                 Some(8),
                 Some(9)
+            ],
+            v.unwrap()[0]
+        );
+    }
+
+    #[test]
+    fn merge_two_test() {
+        let mut db = RDatabase::new();
+        let table_ref = db.create_table(String::from("Grades"), 3, 0);
+        let mut q = RQuery::new(table_ref.clone());
+
+        // Insert initial record
+        q.insert(vec![1, 2, 3]);
+
+        for _ in 0..600 {
+            q.update(1, vec![Some(1), Some(4), Some(5)]); // Version 1
+        }
+
+        q = RQuery::new(table_ref.clone());
+
+        let v = q.select(1, 0, vec![1, 1, 1]);
+        assert_eq!(
+            vec![
+                Some(600),
+                Some(0),
+                Some(599),
+                Some(0),
+                Some(1),
+                Some(4),
+                Some(5)
             ],
             v.unwrap()[0]
         );
