@@ -148,7 +148,12 @@ impl PageRange {
         self.base_container = new_base_container;
 
         for record in new_records {
-            page_directory.lock().unwrap().directory.insert(record.rid, record);
+            let mut pd_guard = page_directory.lock().unwrap();
+            let current_record = pd_guard.directory.get(&record.rid).unwrap();
+            if current_record.indirection().page.lock().unwrap().data[current_record.indirection().offset as usize] > self.base_container.tail_page_sequence {
+                record.indirection().page.lock().unwrap().data[record.indirection().offset as usize] = current_record.indirection().page.lock().unwrap().data[current_record.indirection().offset as usize];
+            }
+            pd_guard.directory.insert(record.rid, record);
         }
     }
 
