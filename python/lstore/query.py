@@ -6,6 +6,9 @@ class ReturnRecord:
     def __init__(self, columns: List[int]):
         self.columns = columns[3:]
 
+    def __str__(self):
+        return f"Record({self.columns})"
+
 
 class Query:
     def __init__(self, table: RTable):
@@ -48,7 +51,7 @@ class Query:
         Returns a list of Record objects upon success
         Returns False if record locked by TPL
         Assume that select will never be called on a key that doesn't exist
-        
+
         return [
             ReturnRecord(
                 list(
@@ -137,7 +140,9 @@ class Query:
         Returns the summation of the given range upon success
         Returns False if no record exists in the given range
         """
-        return self.rquery.sum_version(start_range, end_range, aggregate_column_index, relative_version)
+        return self.rquery.sum_version(
+            start_range, end_range, aggregate_column_index, relative_version
+        )
 
     def increment(self, key: int, column: int) -> bool:
         """Incremenets one column of the record this implementation should work
