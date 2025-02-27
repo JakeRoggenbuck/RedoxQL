@@ -28,7 +28,7 @@ impl PageDirectory {
         }
     }
 
-    fn load_state(page_range: PageRange) -> PageDirectory {
+    fn load_state(page_range: &PageRange) -> PageDirectory {
         let hardcoded_filename = "./redoxdata/page_directory.data";
 
         let file = BufReader::new(File::open(hardcoded_filename).expect("Should open file."));
@@ -82,8 +82,8 @@ pub trait StatePersistence {
         let table_meta: RTableMetadata =
             bincode::deserialize_from(file).expect("Should deserialize.");
 
-
         let pr = PageRange::load_state();
+        let pd = PageDirectory::load_state(&pr);
 
         RTable {
             name: table_meta.name.clone(),
@@ -92,7 +92,7 @@ pub trait StatePersistence {
             num_records: table_meta.num_records,
 
             page_range: pr,
-            page_directory: PageDirectory::load_state(&pr),
+            page_directory: pd,
             index: Arc::new(RwLock::new(RIndex::new())),
         }
     }
