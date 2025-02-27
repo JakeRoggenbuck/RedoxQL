@@ -1,4 +1,4 @@
-use super::table::{PageDirectory, RTable};
+use super::table::RTable;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
