@@ -28,6 +28,20 @@ impl PageDirectory {
         }
     }
 
+    pub fn display(&self) {
+        for (rid, record) in self.directory.clone() {
+            print!("{rid} -> ");
+            let m = record.addresses;
+            let b = m.lock().unwrap();
+            let c = b.iter();
+
+            for addr in c {
+                println!("{:?}", addr);
+            }
+            print!("\n\n\n");
+        }
+    }
+
     fn load_state(page_range: &PageRange) -> PageDirectory {
         let hardcoded_filename = "./redoxdata/page_directory.data";
 
@@ -65,17 +79,7 @@ impl PageDirectory {
             pd.directory.insert(rid, rec);
         }
 
-        for (rid, record) in pd.directory.clone() {
-            print!("{rid} -> ");
-            let m = record.addresses;
-            let b = m.lock().unwrap();
-            let c = b.iter();
-
-            for addr in c {
-                println!("{:?}", addr);
-            }
-            print!("\n\n\n");
-        }
+        // pd.display();
 
         return pd;
     }
@@ -359,6 +363,11 @@ impl RTableHandle {
     pub fn delete(&self, primary_key: i64) {
         let mut table = self.table.write().expect("Failed to acquire write lock");
         table.delete(primary_key);
+    }
+
+    pub fn debug_page_dir(&self) {
+        let t = self.table.read().unwrap();
+        t.page_directory.display();
     }
 
     // Allow access to properties

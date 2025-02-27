@@ -66,7 +66,10 @@ impl RDatabase {
         // Load each table metadata into this current databases' tables
         let mut index = 0;
         for table in &db_meta.tables {
-            self.tables.push(Arc::new(RwLock::new(table.load_state())));
+            let l = table.load_state();
+            // l.page_directory.display();
+
+            self.tables.push(Arc::new(RwLock::new(l)));
             self.tables_hashmap.insert(table.name.clone(), index);
             index += 1;
         }
@@ -152,9 +155,9 @@ impl RDatabase {
     fn get_table(&self, name: String) -> RTableHandle {
         let i = self.tables_hashmap.get(&name).expect("Should exist");
 
-        RTableHandle {
-            table: self.tables[*i].clone(),
-        }
+        let t = self.tables[*i].clone();
+
+        RTableHandle { table: t }
     }
 
     fn get_table_from_index(&self, i: i64) -> RTableHandle {

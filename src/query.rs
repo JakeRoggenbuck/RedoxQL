@@ -61,6 +61,8 @@ impl RQuery {
     ) -> Option<Vec<Vec<Option<i64>>>> {
         let table = self.handle.table.read().unwrap();
 
+        // table.page_directory.display(); -> This shows the full page dir!!
+
         // Case 1: Searching on the primary key column
         if search_key_index == table.primary_key_column as i64 {
             if let Some(ret) = table.read(search_key) {
