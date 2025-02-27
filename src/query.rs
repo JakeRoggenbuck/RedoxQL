@@ -43,10 +43,12 @@ impl RQuery {
     pub fn insert(&mut self, values: Vec<i64>) -> Option<Record> {
         let mut table = self.handle.table.write().unwrap();
         // check if primary key already exists
-        {let index = table.index.read().unwrap();
-        if index.get(values[table.primary_key_column]) != None {
-            return None;
-        }}
+        {
+            let index = table.index.read().unwrap();
+            if index.get(values[table.primary_key_column]) != None {
+                return None;
+            }
+        }
 
         Some(table.write(values))
     }
