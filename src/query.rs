@@ -39,7 +39,7 @@ impl RQuery {
         let binding = handle.table.clone();
         let mut t = binding.write().unwrap();
 
-        if t.num_records > 0 && t.updates_since_merge > 10000 {
+        if t.num_records > 0 && t.updates_since_merge > 100000 {
             t.merge();
             t.updates_since_merge = 0;
         }
@@ -146,7 +146,7 @@ impl RQuery {
 
         {
             if table.num_records > 0
-                && table.updates_since_merge > 10000
+                && table.updates_since_merge > 100000
                 && !self.merging.load(Ordering::Relaxed)
             {
                 self.merging.store(true, Ordering::Relaxed);
