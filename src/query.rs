@@ -146,6 +146,8 @@ impl RQuery {
 
         let mut table = self.handle.table.write().unwrap();
 
+        table.updates_since_merge += 1;
+
         // This functin expects an expact number of columns as table has
         if columns.len() != table.num_columns {
             return false;
