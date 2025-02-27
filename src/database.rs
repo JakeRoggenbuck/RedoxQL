@@ -193,6 +193,7 @@ impl RDatabase {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Weak;
 
     #[test]
     fn drop_table_test() {
