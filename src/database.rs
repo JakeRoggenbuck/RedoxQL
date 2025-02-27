@@ -69,7 +69,7 @@ impl RDatabase {
         // Load each table metadata into this current databases' tables
         let mut index = 0;
         for table in &db_meta.tables {
-            let l = table.load_state();
+            let l = table.load_state(table.table_num);
             // l.page_directory.display();
 
             self.tables.push(Arc::new(RwLock::new(l)));
@@ -127,6 +127,7 @@ impl RDatabase {
             num_columns: num_columns as usize,
             num_records: 0,
             index: Arc::new(RwLock::new(RIndex::new())),
+            table_num: self.tables.len() as i64,
         };
 
         let arc_table = Arc::new(RwLock::new(table));
