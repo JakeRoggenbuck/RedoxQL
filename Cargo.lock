@@ -464,6 +464,7 @@ dependencies = [
  "pyo3",
  "redoxql",
  "serde",
+ "serde_json",
 ]
 
 [[package]]

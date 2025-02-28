@@ -7,6 +7,7 @@ use table::{RTable, RTableHandle};
 pub mod bufferpool;
 pub mod container;
 pub mod database;
+pub mod filewriter;
 pub mod index;
 pub mod page;
 pub mod pagerange;
