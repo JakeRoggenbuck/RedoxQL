@@ -2,7 +2,7 @@ from lstore.db import Database
 from lstore.query import Query
 import timeit
 
-counts = [10, 100, 1000, 10_000, 100_000, 1_000_000, 10_000_000]
+counts = [10, 100, 1000, 10_000, 100_000, 1_000_000]
 
 
 def run_inserts(amount: int):

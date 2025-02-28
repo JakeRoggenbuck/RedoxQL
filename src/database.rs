@@ -4,6 +4,7 @@ use super::index::RIndex;
 use super::pagerange::PageRange;
 use super::table::{PageDirectory, RTable, RTableMetadata, StatePersistence};
 use crate::table::RTableHandle;
+use log::info;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -34,6 +35,8 @@ pub struct RDatabase {
 impl RDatabase {
     #[new]
     pub fn new() -> Self {
+        let _ = env_logger::try_init();
+
         RDatabase {
             tables: vec![],
             tables_hashmap: HashMap::new(),
@@ -43,6 +46,8 @@ impl RDatabase {
     }
 
     fn open(&mut self, path: String) {
+        info!("Database opened!");
+
         if self.db_filepath.is_none() {
             self.db_filepath = Some(path.clone());
         }
