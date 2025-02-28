@@ -106,15 +106,25 @@ impl<T: Serialize + for<'de> Deserialize<'de>> Writer<T> {
 /// Build a Writer<T> with a binary output format
 /// This function implements the builder pattern
 ///
+/// # Example of build_binary_writer
+///
 /// ```
 /// use redoxql::filewriter::{build_binary_writer, Writer};
 /// use redoxql::page::PhysicalPage;
+///
+/// // Write a data file
 ///
 /// let page = PhysicalPage::new(0);
 ///
 /// let writer: Writer<PhysicalPage> = build_binary_writer();
 ///
-/// writer.write_file("page.data", &page);
+/// writer.write_file("./test-outputs/page.data", &page);
+///
+/// // Read a data file
+///
+/// let writer: Writer<PhysicalPage> = build_binary_writer();
+///
+/// let page: PhysicalPage = writer.read_file("./test-outputs/page.data");
 /// ```
 pub fn build_binary_writer<T: Serialize + for<'de> Deserialize<'de>>() -> Writer<T> {
     let bin_writer = BinaryFileWriter::new();
@@ -125,6 +135,27 @@ pub fn build_binary_writer<T: Serialize + for<'de> Deserialize<'de>>() -> Writer
 
 /// Build a Writer<T> with a json output format
 /// This function implements the builder pattern
+///
+/// # Example of build_json_writer
+///
+/// ```
+/// use redoxql::filewriter::{build_json_writer, Writer};
+/// use redoxql::page::PhysicalPage;
+///
+/// // Write a json file
+///
+/// let page = PhysicalPage::new(0);
+///
+/// let writer: Writer<PhysicalPage> = build_json_writer();
+///
+/// writer.write_file("./test-outputs/page.json", &page);
+///
+/// // Read a json file
+///
+/// let writer: Writer<PhysicalPage> = build_json_writer();
+///
+/// let page: PhysicalPage = writer.read_file("./test-outputs/page.json");
+/// ```
 pub fn build_json_writer<T: Serialize + for<'de> Deserialize<'de>>() -> Writer<T> {
     let json_writer = BinaryFileWriter::new();
     let writer = Writer::new(Box::new(json_writer));
