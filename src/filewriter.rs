@@ -11,12 +11,14 @@ pub trait WriterStrategy<T: Serialize + for<'de> Deserialize<'de>> {
 pub struct BinaryFileWriter {}
 impl<T: Serialize + for<'de> Deserialize<'de>> WriterStrategy<T> for BinaryFileWriter {
     /// Write a binary file
+    #[inline(always)]
     fn write_file(&self, path: &str, object: &T) {
         let obj_bytes: Vec<u8> = bincode::serialize(&object).expect("Should serialize.");
         let mut file = BufWriter::new(File::create(path).expect("Should open file."));
         file.write_all(&obj_bytes).expect("Should write.");
     }
-    // Read a binary file
+    /// Read a binary file
+    #[inline(always)]
     fn read_file(&self, path: &str) -> T {
         let file = BufReader::new(File::open(path).expect("Should open file."));
 
@@ -26,6 +28,7 @@ impl<T: Serialize + for<'de> Deserialize<'de>> WriterStrategy<T> for BinaryFileW
 }
 
 impl BinaryFileWriter {
+    #[inline(always)]
     pub fn new() -> Self {
         BinaryFileWriter {}
     }
@@ -33,13 +36,16 @@ impl BinaryFileWriter {
 
 pub struct JSONFileWriter {}
 impl<T: Serialize + for<'de> Deserialize<'de>> WriterStrategy<T> for JSONFileWriter {
-    // Write a JSON file
+    /// Write a JSON file
+    #[inline(always)]
     fn write_file(&self, path: &str, object: &T) {
         let json = serde_json::to_string_pretty(&object).expect("Should serialize.");
         let mut file = File::create(path).expect("Should open file.");
         file.write_all(json.as_bytes()).expect("Should write.");
     }
-    // Read a JSON file
+
+    /// Read a JSON file
+    #[inline(always)]
     fn read_file(&self, path: &str) -> T {
         let json = read_to_string(path).expect("Should open file.");
         let object: T = serde_json::from_str(&json).expect("Should deserialize.");
@@ -48,6 +54,7 @@ impl<T: Serialize + for<'de> Deserialize<'de>> WriterStrategy<T> for JSONFileWri
 }
 
 impl JSONFileWriter {
+    #[inline(always)]
     pub fn new() -> Self {
         JSONFileWriter {}
     }
@@ -70,13 +77,13 @@ pub struct Writer<T> {
 /// let mut writer = Writer::new(Box::new(json_writer));
 ///
 /// let data = vec![1, 2, 3];
-/// writer.write_file("out.json", &data);
+/// writer.write_file("./test-outputs/out.json", &data);
 ///
 /// let binary_writer = BinaryFileWriter::new();
 /// writer.set_strategy(Box::new(binary_writer));
 ///
 /// let data2 = vec![1, 2, 3];
-/// writer.write_file("out.data", &data2);
+/// writer.write_file("./test-outputs/out.data", &data2);
 /// ```
 impl<T: Serialize + for<'de> Deserialize<'de>> Writer<T> {
     pub fn new(strategy: Box<dyn WriterStrategy<T>>) -> Self {
@@ -94,4 +101,64 @@ impl<T: Serialize + for<'de> Deserialize<'de>> Writer<T> {
     pub fn read_file(&self, path: &str) -> T {
         self.strategy.read_file(path)
     }
+}
+
+/// Build a Writer<T> with a binary output format
+/// This function implements the builder pattern
+///
+/// # Example of build_binary_writer
+///
+/// ```
+/// use redoxql::filewriter::{build_binary_writer, Writer};
+/// use redoxql::page::PhysicalPage;
+///
+/// // Write a data file
+///
+/// let page = PhysicalPage::new(0);
+///
+/// let writer: Writer<PhysicalPage> = build_binary_writer();
+///
+/// writer.write_file("./test-outputs/page.data", &page);
+///
+/// // Read a data file
+///
+/// let writer: Writer<PhysicalPage> = build_binary_writer();
+///
+/// let page: PhysicalPage = writer.read_file("./test-outputs/page.data");
+/// ```
+pub fn build_binary_writer<T: Serialize + for<'de> Deserialize<'de>>() -> Writer<T> {
+    let bin_writer = BinaryFileWriter::new();
+    let writer = Writer::new(Box::new(bin_writer));
+
+    return writer;
+}
+
+/// Build a Writer<T> with a json output format
+/// This function implements the builder pattern
+///
+/// # Example of build_json_writer
+///
+/// ```
+/// use redoxql::filewriter::{build_json_writer, Writer};
+/// use redoxql::page::PhysicalPage;
+///
+/// // Write a json file
+///
+/// let page = PhysicalPage::new(0);
+///
+/// let writer: Writer<PhysicalPage> = build_json_writer();
+///
+/// writer.write_file("./test-outputs/page.json", &page);
+///
+/// // Read a json file
+///
+/// let writer: Writer<PhysicalPage> = build_json_writer();
+///
+/// let page: PhysicalPage = writer.read_file("./test-outputs/page.json");
+/// ```
+pub fn build_json_writer<T: Serialize + for<'de> Deserialize<'de>>() -> Writer<T> {
+    let json_writer = BinaryFileWriter::new();
+    let writer = Writer::new(Box::new(json_writer));
+
+    return writer;
 }

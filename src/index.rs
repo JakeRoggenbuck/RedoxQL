@@ -1,10 +1,9 @@
+use super::filewriter::{build_binary_writer, Writer};
 use super::table::RTable;
 use crate::container::NUM_RESERVED_COLUMNS;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
-use std::fs::File;
-use std::io::{BufReader, BufWriter, Write};
 use std::sync::{Arc, RwLock, Weak};
 
 #[pyclass]
@@ -149,14 +148,10 @@ impl RIndex {
     }
 
     pub fn save_state(&self) {
-        let hardcoded_filename = "./redoxdata/index.data";
-
         let index_meta = self.get_metadata();
 
-        let index_bytes: Vec<u8> = bincode::serialize(&index_meta).expect("Should serialize.");
-
-        let mut file = BufWriter::new(File::create(hardcoded_filename).expect("Should open file."));
-        file.write_all(&index_bytes).expect("Should serialize.");
+        let writer: Writer<RIndexMetadata> = build_binary_writer();
+        writer.write_file("./redoxdata/index.data", &index_meta);
     }
 
     pub fn get_metadata(&self) -> RIndexMetadata {
@@ -167,12 +162,8 @@ impl RIndex {
     }
 
     pub fn load_state(table_ref: Weak<RwLock<RTable>>) -> RIndex {
-        let hardcoded_filename = "./redoxdata/index.data";
-
-        let file = BufReader::new(File::open(hardcoded_filename).expect("Should open file."));
-
-        let index_meta: RIndexMetadata =
-            bincode::deserialize_from(file).expect("Should deserialize.");
+        let writer: Writer<RIndexMetadata> = build_binary_writer();
+        let index_meta = writer.read_file("./redoxdata/index.data");
 
         RIndex {
             index: index_meta.index,

@@ -1,4 +1,4 @@
-use super::filewriter::{BinaryFileWriter, Writer};
+use super::filewriter::{build_binary_writer, Writer};
 use super::page::PhysicalPage;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
@@ -27,12 +27,12 @@ impl BufferPool {
     }
 
     pub fn save_state(&self) {
-        let writer = Writer::new(Box::new(BinaryFileWriter::new()));
+        let writer: Writer<BufferPool> = build_binary_writer();
         writer.write_file("./redoxdata/bufferpull.data", self);
     }
 
     pub fn load_state(&self, _directory: &str) -> BufferPool {
-        let writer = Writer::new(Box::new(BinaryFileWriter::new()));
+        let writer: Writer<BufferPool> = build_binary_writer();
         writer.read_file("./redoxdata/bufferpull.data")
     }
 }

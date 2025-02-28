@@ -84,3 +84,4 @@ tests/perf.data.old
 # ----------------#
 
 redoxdata/
+test-outputs/

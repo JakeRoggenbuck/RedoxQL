@@ -1,4 +1,5 @@
 use super::bufferpool::BufferPool;
+use super::filewriter::{build_binary_writer, Writer};
 use super::index::RIndex;
 use super::pagerange::PageRange;
 use super::table::{PageDirectory, RTable, RTableMetadata, StatePersistence};
@@ -6,8 +7,7 @@ use crate::table::RTableHandle;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fs::{create_dir_all, File};
-use std::io::{BufReader, BufWriter, Write};
+use std::fs::create_dir_all;
 use std::path::Path;
 use std::sync::{Arc, RwLock};
 
@@ -61,10 +61,8 @@ impl RDatabase {
             }
         }
 
-        // Read the metadata of the database
-        let file = BufReader::new(File::open(path).expect("Should open file."));
-        let db_meta: RDatabaseMetadata =
-            bincode::deserialize_from(file).expect("Should deserialize.");
+        let writer: Writer<RDatabaseMetadata> = build_binary_writer();
+        let db_meta: RDatabaseMetadata = writer.read_file(&path);
 
         // Load each table metadata into this current databases' tables
         let mut index = 0;
@@ -97,12 +95,10 @@ impl RDatabase {
             table.read().unwrap().save_state();
         }
 
-        let table_bytes: Vec<u8> = bincode::serialize(&database_meta).expect("Should serialize.");
-
         match &self.db_filepath {
             Some(p) => {
-                let mut file = BufWriter::new(File::create(p).expect("Should open file."));
-                file.write_all(&table_bytes).expect("Should serialize.");
+                let writer: Writer<RDatabaseMetadata> = build_binary_writer();
+                writer.write_file(&p, &database_meta);
             }
             None => {
                 // This actually happens in testM1.py when .close() gets called even though there
