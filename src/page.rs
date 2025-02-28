@@ -41,15 +41,13 @@ impl PhysicalPage {
     }
 
     pub fn save_state(&self, id: i64) {
-        let filename = format!("./redoxdata/{}-page.data", id);
         let writer: Writer<PhysicalPage> = build_binary_writer();
-        writer.write_file(&filename, self);
+        writer.write_file(&format!("./redoxdata/{}-page.data", id), self);
     }
 
     pub fn load_state(id: i64) -> PhysicalPage {
-        let filename = format!("./redoxdata/{}-page.data", id);
         let writer: Writer<PhysicalPage> = build_binary_writer();
-        writer.read_file(&filename)
+        writer.read_file(&format!("./redoxdata/{}-page.data", id))
     }
 }
 
