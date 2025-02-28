@@ -7,8 +7,6 @@ use crate::record::RecordAddress;
 use crate::table::PageDirectory;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
-use std::fs::File;
-use std::io::{BufReader, BufWriter, Write};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
