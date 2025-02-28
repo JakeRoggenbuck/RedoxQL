@@ -1,8 +1,6 @@
 use super::filewriter::{build_binary_writer, Writer};
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::fs::File;
-use std::io::{BufReader, BufWriter, Write};
 
 static MAX_SIZE_RECORD: i64 = i64::MAX;
 
@@ -44,18 +42,14 @@ impl PhysicalPage {
 
     pub fn save_state(&self, id: i64) {
         let filename = format!("./redoxdata/{}-page.data", id);
-
         let writer: Writer<PhysicalPage> = build_binary_writer();
         writer.write_file(&filename, self);
     }
 
     pub fn load_state(id: i64) -> PhysicalPage {
-        let hardcoded_filename = format!("./redoxdata/{}-page.data", id);
-
-        let file = BufReader::new(File::open(hardcoded_filename).expect("Should open file."));
-        let page: PhysicalPage = bincode::deserialize_from(file).expect("Should deserialize.");
-
-        return page;
+        let filename = format!("./redoxdata/{}-page.data", id);
+        let writer: Writer<PhysicalPage> = build_binary_writer();
+        writer.read_file(&filename)
     }
 }
 

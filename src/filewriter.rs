@@ -11,12 +11,14 @@ pub trait WriterStrategy<T: Serialize + for<'de> Deserialize<'de>> {
 pub struct BinaryFileWriter {}
 impl<T: Serialize + for<'de> Deserialize<'de>> WriterStrategy<T> for BinaryFileWriter {
     /// Write a binary file
+    #[inline(always)]
     fn write_file(&self, path: &str, object: &T) {
         let obj_bytes: Vec<u8> = bincode::serialize(&object).expect("Should serialize.");
         let mut file = BufWriter::new(File::create(path).expect("Should open file."));
         file.write_all(&obj_bytes).expect("Should write.");
     }
-    // Read a binary file
+    /// Read a binary file
+    #[inline(always)]
     fn read_file(&self, path: &str) -> T {
         let file = BufReader::new(File::open(path).expect("Should open file."));
 
@@ -26,6 +28,7 @@ impl<T: Serialize + for<'de> Deserialize<'de>> WriterStrategy<T> for BinaryFileW
 }
 
 impl BinaryFileWriter {
+    #[inline(always)]
     pub fn new() -> Self {
         BinaryFileWriter {}
     }
@@ -33,13 +36,16 @@ impl BinaryFileWriter {
 
 pub struct JSONFileWriter {}
 impl<T: Serialize + for<'de> Deserialize<'de>> WriterStrategy<T> for JSONFileWriter {
-    // Write a JSON file
+    /// Write a JSON file
+    #[inline(always)]
     fn write_file(&self, path: &str, object: &T) {
         let json = serde_json::to_string_pretty(&object).expect("Should serialize.");
         let mut file = File::create(path).expect("Should open file.");
         file.write_all(json.as_bytes()).expect("Should write.");
     }
-    // Read a JSON file
+
+    /// Read a JSON file
+    #[inline(always)]
     fn read_file(&self, path: &str) -> T {
         let json = read_to_string(path).expect("Should open file.");
         let object: T = serde_json::from_str(&json).expect("Should deserialize.");
@@ -48,6 +54,7 @@ impl<T: Serialize + for<'de> Deserialize<'de>> WriterStrategy<T> for JSONFileWri
 }
 
 impl JSONFileWriter {
+    #[inline(always)]
     pub fn new() -> Self {
         JSONFileWriter {}
     }
