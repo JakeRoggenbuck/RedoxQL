@@ -1,10 +1,10 @@
-use crate::record::RecordAddress;
-use crate::table::PageDirectory;
-
 use super::container::{
     BaseContainer, BaseContainerMetadata, TailContainer, TailContainerMetadata,
 };
+use super::filewriter::{build_binary_writer, Writer};
 use super::record::Record;
+use crate::record::RecordAddress;
+use crate::table::PageDirectory;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs::File;
@@ -252,22 +252,15 @@ impl PageRange {
         self.base_container.save_state();
         self.tail_container.save_state();
 
-        let hardcoded_filename = "./redoxdata/pagerange.data";
-
         let pr_meta = self.get_metadata();
 
-        let pr_bytes: Vec<u8> = bincode::serialize(&pr_meta).expect("Should serialize.");
-
-        let mut file = BufWriter::new(File::create(hardcoded_filename).expect("Should open file."));
-        file.write_all(&pr_bytes).expect("Should serialize.");
+        let writer: Writer<PageRangeMetadata> = build_binary_writer();
+        writer.write_file("./redoxdata/pagerange.data", &pr_meta);
     }
 
     pub fn load_state() -> PageRange {
-        let hardcoded_filename = "./redoxdata/pagerange.data";
-
-        let file = BufReader::new(File::open(hardcoded_filename).expect("Should open file."));
-        let pr_meta: PageRangeMetadata =
-            bincode::deserialize_from(file).expect("Should deserialize.");
+        let writer: Writer<PageRangeMetadata> = build_binary_writer();
+        let pr_meta: PageRangeMetadata = writer.read_file("./redoxdata/pagerange.data");
 
         PageRange {
             base_container: pr_meta.base_container.load_state(),
