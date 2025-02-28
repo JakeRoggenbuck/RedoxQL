@@ -95,3 +95,17 @@ impl<T: Serialize + for<'de> Deserialize<'de>> Writer<T> {
         self.strategy.read_file(path)
     }
 }
+
+pub fn build_binary_writer<T: Serialize + for<'de> Deserialize<'de>>() -> Writer<T> {
+    let bin_writer = BinaryFileWriter::new();
+    let writer = Writer::new(Box::new(bin_writer));
+
+    return writer;
+}
+
+pub fn build_json_writer<T: Serialize + for<'de> Deserialize<'de>>() -> Writer<T> {
+    let json_writer = BinaryFileWriter::new();
+    let writer = Writer::new(Box::new(json_writer));
+
+    return writer;
+}

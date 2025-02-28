@@ -1,3 +1,4 @@
+use super::filewriter::{build_binary_writer, Writer};
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
@@ -42,12 +43,10 @@ impl PhysicalPage {
     }
 
     pub fn save_state(&self, id: i64) {
-        let hardcoded_filename = format!("./redoxdata/{}-page.data", id);
+        let filename = format!("./redoxdata/{}-page.data", id);
 
-        let table_bytes: Vec<u8> = bincode::serialize(&self).expect("Should serialize.");
-
-        let mut file = BufWriter::new(File::create(hardcoded_filename).expect("Should open file."));
-        file.write_all(&table_bytes).expect("Should serialize.");
+        let writer: Writer<PhysicalPage> = build_binary_writer();
+        writer.write_file(&filename, self);
     }
 
     pub fn load_state(id: i64) -> PhysicalPage {
