@@ -5,6 +5,7 @@ use super::filewriter::{build_binary_writer, Writer};
 use super::record::Record;
 use crate::record::RecordAddress;
 use crate::table::PageDirectory;
+use log::info;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
@@ -47,6 +48,8 @@ impl PageRange {
 
     /// Merge the two containers in a separate thread
     pub fn merge(&mut self, page_directory: Arc<Mutex<PageDirectory>>) {
+        info!("Starting merge!");
+
         // println!("Merge: Pre-starting merge operation in a separate thread");
 
         let base_container = self.base_container.clone();
@@ -243,6 +246,8 @@ impl PageRange {
             pd_guard.directory.insert(rid, record);
             // println!("Main: Inserted record {} into page_directory", rid);
         }
+
+        info!("Merge finished!");
     }
 
     pub fn save_state(&self) {
