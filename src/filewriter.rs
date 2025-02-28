@@ -1,4 +1,3 @@
-use log::debug;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::fs::{read_to_string, File};
