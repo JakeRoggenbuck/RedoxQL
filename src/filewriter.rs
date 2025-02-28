@@ -96,6 +96,8 @@ impl<T: Serialize + for<'de> Deserialize<'de>> Writer<T> {
     }
 }
 
+/// Build a Writer<T> with a binary output format
+/// This function implements the builder pattern
 pub fn build_binary_writer<T: Serialize + for<'de> Deserialize<'de>>() -> Writer<T> {
     let bin_writer = BinaryFileWriter::new();
     let writer = Writer::new(Box::new(bin_writer));
@@ -103,6 +105,8 @@ pub fn build_binary_writer<T: Serialize + for<'de> Deserialize<'de>>() -> Writer
     return writer;
 }
 
+/// Build a Writer<T> with a json output format
+/// This function implements the builder pattern
 pub fn build_json_writer<T: Serialize + for<'de> Deserialize<'de>>() -> Writer<T> {
     let json_writer = BinaryFileWriter::new();
     let writer = Writer::new(Box::new(json_writer));
