@@ -304,7 +304,7 @@ fn bench_mixed_workload(c: &mut Criterion) {
                                 );
                             }
                             3 => {
-                                let _ = query.delete(black_box(i as i64 / 2));
+                                query.delete(black_box(i as i64 / 2));
                             }
                             _ => unreachable!(),
                         }
