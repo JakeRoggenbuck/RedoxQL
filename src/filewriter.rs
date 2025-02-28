@@ -105,6 +105,17 @@ impl<T: Serialize + for<'de> Deserialize<'de>> Writer<T> {
 
 /// Build a Writer<T> with a binary output format
 /// This function implements the builder pattern
+///
+/// ```
+/// use redoxql::filewriter::{build_binary_writer, Writer};
+/// use redoxql::page::PhysicalPage;
+///
+/// let page = PhysicalPage::new(0);
+///
+/// let writer: Writer<PhysicalPage> = build_binary_writer();
+///
+/// writer.write_file("page.data", &page);
+/// ```
 pub fn build_binary_writer<T: Serialize + for<'de> Deserialize<'de>>() -> Writer<T> {
     let bin_writer = BinaryFileWriter::new();
     let writer = Writer::new(Box::new(bin_writer));
