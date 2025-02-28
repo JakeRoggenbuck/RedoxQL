@@ -162,3 +162,45 @@ pub fn build_json_writer<T: Serialize + for<'de> Deserialize<'de>>() -> Writer<T
 
     return writer;
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::page::PhysicalPage;
+
+    #[test]
+    fn build_write_and_read_json_test() {
+        let mut page = PhysicalPage::new(0);
+        page.write(101);
+        page.write(202);
+        page.write(303);
+
+        let writer: Writer<PhysicalPage> = build_json_writer();
+        writer.write_file("./test-outputs/test-page.json", &page);
+
+        let writer: Writer<PhysicalPage> = build_json_writer();
+        let page: PhysicalPage = writer.read_file("./test-outputs/test-page.json");
+
+        assert_eq!(page.read(0), Some(101));
+        assert_eq!(page.read(1), Some(202));
+        assert_eq!(page.read(2), Some(303));
+    }
+
+    #[test]
+    fn build_write_and_read_bit_test() {
+        let mut page = PhysicalPage::new(0);
+        page.write(401);
+        page.write(402);
+        page.write(403);
+
+        let writer: Writer<PhysicalPage> = build_json_writer();
+        writer.write_file("./test-outputs/test-page.data", &page);
+
+        let writer: Writer<PhysicalPage> = build_json_writer();
+        let page: PhysicalPage = writer.read_file("./test-outputs/test-page.data");
+
+        assert_eq!(page.read(0), Some(401));
+        assert_eq!(page.read(1), Some(402));
+        assert_eq!(page.read(2), Some(403));
+    }
+}
