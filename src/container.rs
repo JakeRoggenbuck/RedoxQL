@@ -1,8 +1,7 @@
+use super::filewriter::{build_binary_writer, Writer};
 use super::page::PhysicalPage;
 use super::record::{Record, RecordAddress};
 use serde::{Deserialize, Serialize};
-use std::fs::File;
-use std::io::{BufWriter, Write};
 use std::sync::{Arc, Mutex};
 
 #[derive(Clone, Default, Deserialize, Serialize, Debug)]
@@ -226,7 +225,6 @@ impl BaseContainer {
 
     pub fn save_state(&self) {
         let base_meta = self.get_metadata();
-        let hardcoded_filename = "./redoxdata/base_container.data";
 
         let mut index = 0;
         // The Rust compiler suggested that I clone here but it's definitely way better to not copy
@@ -238,10 +236,11 @@ impl BaseContainer {
             index += 1;
         }
 
-        let base_bytes: Vec<u8> = bincode::serialize(&base_meta).expect("Should serialize.");
-
-        let mut file = BufWriter::new(File::create(hardcoded_filename).expect("Should open file."));
-        file.write_all(&base_bytes).expect("Should serialize.");
+        // It looks like we don't actually load the metadata of base container because we just save
+        // each page individually and we know how many pages there will be from other places. We
+        // likely don't need need to save this even in future version
+        let writer: Writer<BaseContainerMetadata> = build_binary_writer();
+        writer.write_file("./redoxdata/base_container.data", &base_meta);
     }
 
     pub fn get_metadata(&self) -> BaseContainerMetadata {
@@ -503,7 +502,6 @@ impl TailContainer {
 
     pub fn save_state(&self) {
         let tail_meta = self.get_metadata();
-        let hardcoded_filename = "./redoxdata/tail_container.data";
 
         let mut index = 0;
         // The Rust compiler suggested that I clone here but it's definitely way better to not copy
@@ -519,10 +517,8 @@ impl TailContainer {
             index += 1;
         }
 
-        let tail_bytes: Vec<u8> = bincode::serialize(&tail_meta).expect("Should serialize.");
-
-        let mut file = BufWriter::new(File::create(hardcoded_filename).expect("Should open file."));
-        file.write_all(&tail_bytes).expect("Should serialize.");
+        let writer: Writer<TailContainerMetadata> = build_binary_writer();
+        writer.write_file("./redoxdata/tail_container.data", &tail_meta);
     }
 
     pub fn get_metadata(&self) -> TailContainerMetadata {
