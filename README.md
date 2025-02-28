@@ -253,3 +253,9 @@ sys     0m0.014s
 
 ### Running with debug or info logging
 
+To use the logger, import the debug, error, or info macro from the log crate.
+Then you can add the macros to code like `debug!("Start database!");`.
+When you go to run the code, you can set the env var `RUST_LOG=debug`.
+Docs: https://docs.rs/env_logger/latest/env_logger/.
+
+![image](https://github.com/user-attachments/assets/1fb2f55f-f21b-4b2d-8301-88e44e0a9260)
