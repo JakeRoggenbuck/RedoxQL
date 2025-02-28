@@ -21,7 +21,6 @@ impl<T: Serialize + for<'de> Deserialize<'de>> WriterStrategy<T> for BinaryFileW
     #[inline(always)]
     fn read_file(&self, path: &str) -> T {
         let file = BufReader::new(File::open(path).expect("Should open file."));
-
         let object: T = bincode::deserialize_from(file).expect("Should deserialize.");
         return object;
     }
@@ -49,6 +48,7 @@ impl<T: Serialize + for<'de> Deserialize<'de>> WriterStrategy<T> for JSONFileWri
     fn read_file(&self, path: &str) -> T {
         let json = read_to_string(path).expect("Should open file.");
         let object: T = serde_json::from_str(&json).expect("Should deserialize.");
+
         return object;
     }
 }

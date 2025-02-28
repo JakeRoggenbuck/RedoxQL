@@ -4,6 +4,7 @@ use super::index::RIndex;
 use super::pagerange::PageRange;
 use super::table::{PageDirectory, RTable, RTableMetadata, StatePersistence};
 use crate::table::RTableHandle;
+use log::info;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -30,10 +31,24 @@ pub struct RDatabase {
     pub buffer_pool: BufferPool,
 }
 
+/// Setup env logging
+///
+/// To use the logger, import the debug, error, or info macro from the log crate
+///
+/// Then you can add the macros to code like debug!("Start database!");
+/// When you go to run the code, you can set the env var RUST_LOG=debug
+/// Docs: https://docs.rs/env_logger/latest/env_logger/
+#[inline]
+fn init_logging() {
+    let _ = env_logger::try_init();
+}
+
 #[pymethods]
 impl RDatabase {
     #[new]
     pub fn new() -> Self {
+        init_logging();
+
         RDatabase {
             tables: vec![],
             tables_hashmap: HashMap::new(),
@@ -74,6 +89,8 @@ impl RDatabase {
             self.tables_hashmap.insert(table.name.clone(), index);
             index += 1;
         }
+
+        info!("Database opened!");
     }
 
     fn close(&self) {
@@ -107,6 +124,8 @@ impl RDatabase {
                 // nothing.
             }
         }
+
+        info!("Database closed!");
     }
 
     pub fn create_table(
