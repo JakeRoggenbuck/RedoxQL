@@ -2,13 +2,13 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use redoxql::page::PhysicalPage;
 
 fn bench_new_page(c: &mut Criterion) {
-    c.bench_function("new page", |b| b.iter(|| PhysicalPage::new()));
+    c.bench_function("new page", |b| b.iter(|| PhysicalPage::new(0)));
 }
 
 fn bench_single_write(c: &mut Criterion) {
     c.bench_function("single write", |b| {
         b.iter_with_setup(
-            || PhysicalPage::new(),
+            || PhysicalPage::new(0),
             |mut page| {
                 page.write(black_box(42));
             },
@@ -20,7 +20,7 @@ fn bench_single_read(c: &mut Criterion) {
     c.bench_function("single read", |b| {
         b.iter_with_setup(
             || {
-                let mut page = PhysicalPage::new();
+                let mut page = PhysicalPage::new(0);
                 page.write(42);
                 page
             },
@@ -38,7 +38,7 @@ fn bench_sequential_writes(c: &mut Criterion) {
     for size in sizes.iter() {
         group.bench_with_input(format!("{} writes", size), size, |b, &size| {
             b.iter_with_setup(
-                || PhysicalPage::new(),
+                || PhysicalPage::new(0),
                 |mut page| {
                     for i in 0..size {
                         page.write(black_box(i));
@@ -58,7 +58,7 @@ fn bench_sequential_reads(c: &mut Criterion) {
         group.bench_with_input(format!("{} reads", size), size, |b, &size| {
             b.iter_with_setup(
                 || {
-                    let mut page = PhysicalPage::new();
+                    let mut page = PhysicalPage::new(0);
                     for i in 0..size {
                         page.write(i);
                     }
@@ -82,7 +82,7 @@ fn bench_mixed_workload(c: &mut Criterion) {
     for size in sizes.iter() {
         group.bench_with_input(format!("{} operations", size), size, |b, &size| {
             b.iter_with_setup(
-                || PhysicalPage::new(),
+                || PhysicalPage::new(0),
                 |mut page| {
                     for i in 0..size {
                         if i % 2 == 0 {
@@ -101,7 +101,7 @@ fn bench_mixed_workload(c: &mut Criterion) {
 fn bench_capacity_check(c: &mut Criterion) {
     c.bench_function("capacity check", |b| {
         b.iter_with_setup(
-            || PhysicalPage::new(),
+            || PhysicalPage::new(0),
             |page| {
                 black_box(page.has_capacity());
             },
