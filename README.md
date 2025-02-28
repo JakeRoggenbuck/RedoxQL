@@ -250,3 +250,6 @@ real    0m0.268s
 user    0m0.254s
 sys     0m0.014s
 ```
+
+### Running with debug or info logging
+
