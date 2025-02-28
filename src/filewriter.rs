@@ -77,13 +77,13 @@ pub struct Writer<T> {
 /// let mut writer = Writer::new(Box::new(json_writer));
 ///
 /// let data = vec![1, 2, 3];
-/// writer.write_file("out.json", &data);
+/// writer.write_file("./test-outputs/out.json", &data);
 ///
 /// let binary_writer = BinaryFileWriter::new();
 /// writer.set_strategy(Box::new(binary_writer));
 ///
 /// let data2 = vec![1, 2, 3];
-/// writer.write_file("out.data", &data2);
+/// writer.write_file("./test-outputs/out.data", &data2);
 /// ```
 impl<T: Serialize + for<'de> Deserialize<'de>> Writer<T> {
     pub fn new(strategy: Box<dyn WriterStrategy<T>>) -> Self {
