@@ -54,6 +54,9 @@ impl PageRange {
 
         let base_container = self.base_container.clone();
         let tail_container = self.tail_container.clone();
+
+        info!("Finished first clone of base_container and tail_container.");
+
         let thread_pd = page_directory.clone();
 
         // println!("Merge: Starting merge operation in a separate thread");
@@ -216,15 +219,20 @@ impl PageRange {
             (new_base, new_records)
         });
 
+        // TODO: WOW! The code gets to here really really quickly
+        // The speed issue is below this section
+        info!("Finished first loop section.");
+
         let (new_base_container, new_records) = handle.join().unwrap();
         // println!("Main: Merge thread joined successfully");
 
         self.base_container = new_base_container;
         // println!("Main: Updated self.base_container");
 
+        let mut pd_guard = page_directory.lock().unwrap();
+
         for record in new_records {
             // println!("Main: Processing record with rid: {}", record.rid);
-            let mut pd_guard = page_directory.lock().unwrap();
             let current_record = pd_guard.directory.get(&record.rid).unwrap();
 
             let current_indir_val = {
