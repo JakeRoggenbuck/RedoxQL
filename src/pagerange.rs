@@ -87,6 +87,11 @@ impl PageRange {
             let mut new_base = base_container.clone();
             let last_tail_rid = tail_rids_to_process[0];
 
+            info!(
+                "Starting loop over tail_rids_to_process with len = {}.",
+                tail_rids_to_process.len()
+            );
+
             for tail_rid in tail_rids_to_process {
                 // println!("Thread: Processing tail_rid: {}", tail_rid);
 

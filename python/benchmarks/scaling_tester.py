@@ -16,6 +16,8 @@ def run_inserts(amount: int):
 
 def run_updates(amount: int):
     db = Database()
+    # TODO: Make sure this doesn't save data between runs.
+    # I don't think it does, but I need to check
     grades_table = db.create_table('Grades', 5, 0)
     query = Query(grades_table)
 
