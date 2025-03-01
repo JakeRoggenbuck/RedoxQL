@@ -5,6 +5,7 @@ use super::filewriter::{build_binary_writer, Writer};
 use super::record::Record;
 use crate::record::RecordAddress;
 use crate::table::PageDirectory;
+use log::info;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
@@ -47,6 +48,8 @@ impl PageRange {
 
     /// Merge the two containers in a separate thread
     pub fn merge(&mut self, page_directory: Arc<Mutex<PageDirectory>>) {
+        info!("Starting merge!");
+
         // println!("Merge: Pre-starting merge operation in a separate thread");
 
         let base_container = self.base_container.clone();
@@ -106,7 +109,7 @@ impl PageRange {
                 let base_rid_address = tail_record.base_rid();
                 let base_rid = {
                     // println!("Thread: Locking base_rid_address.page for base_rid");
-                    let base_rid_page = base_rid_address.page.clone();
+                    let base_rid_page = base_rid_address.page;
                     let page_guard = base_rid_page.lock().unwrap();
                     let brid = page_guard.data[base_rid_address.offset as usize];
                     // println!("Thread: Retrieved base_rid: {}", brid);
@@ -177,7 +180,7 @@ impl PageRange {
 
                     for i in 0..tail_record.columns().len() {
                         // println!("Thread: Processing column {} for tail_record with base_rid: {}", i, base_rid);
-                        let tail_col_page = tail_record.columns()[i].page.clone();
+                        let tail_col_page = &tail_record.columns()[i].page;
                         let col_value = {
                             let col_guard = tail_col_page.lock().unwrap();
                             let val = col_guard.data[tail_record.columns()[i].offset as usize];
@@ -222,11 +225,11 @@ impl PageRange {
         for record in new_records {
             // println!("Main: Processing record with rid: {}", record.rid);
             let mut pd_guard = page_directory.lock().unwrap();
-            let current_record = pd_guard.directory.get(&record.rid).unwrap().clone();
+            let current_record = pd_guard.directory.get(&record.rid).unwrap();
 
             let current_indir_val = {
                 // println!("Main: Locking current_record.indirection().page for record {}", record.rid);
-                let indirection_page = current_record.indirection().page.clone();
+                let indirection_page = current_record.indirection().page;
                 let indir_guard = indirection_page.lock().unwrap();
                 let val = indir_guard.data[current_record.indirection().offset as usize];
                 // println!("Main: Current indirection value for record {} is {}", record.rid, val);
@@ -235,7 +238,7 @@ impl PageRange {
 
             if current_indir_val > self.base_container.tail_page_sequence {
                 // println!("Main: Updating record {} indirection with value {}", record.rid, current_indir_val);
-                let record_indirection_page = record.indirection().page.clone();
+                let record_indirection_page = record.indirection().page;
                 let mut rec_indir_guard = record_indirection_page.lock().unwrap();
                 rec_indir_guard.data[record.indirection().offset as usize] = current_indir_val;
             }
@@ -243,6 +246,8 @@ impl PageRange {
             pd_guard.directory.insert(rid, record);
             // println!("Main: Inserted record {} into page_directory", rid);
         }
+
+        info!("Merge finished!");
     }
 
     pub fn save_state(&self) {
