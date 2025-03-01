@@ -84,7 +84,7 @@ impl PageRange {
             tail_rids_to_process.reverse();
             // println!("Thread: Reversed tail_rids_to_process");
 
-            let mut new_base = base_container.deep_copy();
+            let mut new_base = base_container.clone();
             let last_tail_rid = tail_rids_to_process[0];
 
             for tail_rid in tail_rids_to_process {
@@ -219,17 +219,22 @@ impl PageRange {
             (new_base, new_records)
         });
 
-        // TODO: WOW! The code gets to here really really quickly
-        // The speed issue is below this section
-        info!("Finished first loop section.");
-
         let (new_base_container, new_records) = handle.join().unwrap();
         // println!("Main: Merge thread joined successfully");
+
+        // TODO: ~~WOW! The code gets to here really really quickly~~
+        // ~~The speed issue is below this section~~
+        // Unfortunately, I was wrong, and I didn't see the handle.join() that waits until the
+        // above loop is done. If the code in the thread is the problem, I wonder if we can use 1
+        // thread per column? This would definitely speed things up if we can.
+        info!("Finished first loop section.");
 
         self.base_container = new_base_container;
         // println!("Main: Updated self.base_container");
 
         let mut pd_guard = page_directory.lock().unwrap();
+
+        info!("About to get from and insert into page_directory {} times. Which are both O(log n). As well as reading and writing O(n) pages.", new_records.len());
 
         for record in new_records {
             // println!("Main: Processing record with rid: {}", record.rid);
