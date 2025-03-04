@@ -95,18 +95,18 @@ impl PageRange {
                     }
                 }
 
+                let pd_guard = thread_pd.lock().unwrap();
                 // println!("Thread: Locking page_directory to get tail_record for tail_rid: {}", tail_rid);
                 let tail_record = {
-                    let pd_guard = thread_pd.lock().unwrap();
                     // println!("Thread: Acquired page_directory lock for tail_rid: {}", tail_rid);
-                    pd_guard.directory.get(&tail_rid).unwrap().clone()
+                    pd_guard.directory.get(&tail_rid).unwrap()
                 };
                 // println!("Thread: Got tail_record for tail_rid: {}", tail_rid);
 
                 let base_rid_address = tail_record.base_rid();
                 let base_rid = {
                     // println!("Thread: Locking base_rid_address.page for base_rid");
-                    let base_rid_page = base_rid_address.page.clone();
+                    let base_rid_page = base_rid_address.page;
                     let page_guard = base_rid_page.lock().unwrap();
                     let brid = page_guard.data[base_rid_address.offset as usize];
                     // println!("Thread: Retrieved base_rid: {}", brid);
@@ -304,11 +304,11 @@ impl PageRange {
                     }
                 }
 
+                let pd_guard = thread_pd.lock().unwrap();
                 // println!("Thread: Locking page_directory to get tail_record for tail_rid: {}", tail_rid);
                 let tail_record = {
-                    let pd_guard = thread_pd.lock().unwrap();
                     // println!("Thread: Acquired page_directory lock for tail_rid: {}", tail_rid);
-                    pd_guard.directory.get(&tail_rid).unwrap().clone()
+                    pd_guard.directory.get(&tail_rid).unwrap()
                 };
                 // println!("Thread: Got tail_record for tail_rid: {}", tail_rid);
 
