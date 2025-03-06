@@ -1,3 +1,5 @@
 colorama
 pytest
 maturin
+py-spy
+ruff
