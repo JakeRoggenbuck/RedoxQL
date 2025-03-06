@@ -259,3 +259,24 @@ When you go to run the code, you can set the env var `RUST_LOG=debug`.
 Docs: https://docs.rs/env_logger/latest/env_logger/.
 
 ![image](https://github.com/user-attachments/assets/1fb2f55f-f21b-4b2d-8301-88e44e0a9260)
+
+### We tried Pypy
+
+We started to try using Pypy which is a runtime for Python that is supposedly faster. Because of [Amdahl's law](https://en.wikipedia.org/wiki/Amdahl%27s_law), we actually can't get all that much performance out of it. We also found that the newest version of Pypy cannot use the newest version of Pyo3, so future work is needed to get them to run together.
+
+Future questions:
+- How much time does the Python part take up?
+- How do we measure the improvement from Python to Pypy
+- How do we downgrade Pypy to work with Py03
+
+### Profiling Python
+
+We use `py-spy` to profile Python and we got expected results. It shows that the main use of Python is just the update function when testM2.py is run.
+
+Here is how we ran it:
+
+```
+py-spy record -o profile.svg -- python3 testM2.py
+```
+
+[profile](./profile.svg)
