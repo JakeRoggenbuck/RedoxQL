@@ -7,7 +7,7 @@ counts = [10, 100, 1000, 10_000, 100_000, 1_000_000]
 
 def run_inserts(amount: int):
     db = Database()
-    grades_table = db.create_table('Grades', 5, 0)
+    grades_table = db.create_table("Grades", 5, 0)
     query = Query(grades_table)
 
     for i in range(0, amount):
@@ -18,7 +18,7 @@ def run_updates(amount: int):
     db = Database()
     # TODO: Make sure this doesn't save data between runs.
     # I don't think it does, but I need to check
-    grades_table = db.create_table('Grades', 5, 0)
+    grades_table = db.create_table("Grades", 5, 0)
     query = Query(grades_table)
 
     for i in range(0, amount):
