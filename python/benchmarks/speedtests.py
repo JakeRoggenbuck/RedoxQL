@@ -1,7 +1,6 @@
 import matplotlib.pyplot as plt
 from matplotlib import colors
 import seaborn as sns
-import numpy as np
 import pandas as pd
 
 """
