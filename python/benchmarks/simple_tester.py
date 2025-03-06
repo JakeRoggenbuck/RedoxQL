@@ -5,7 +5,7 @@ from lstore import print_logo
 print_logo()
 
 db = Database()
-grades_table = db.create_table('Grades', 5, 0)
+grades_table = db.create_table("Grades", 5, 0)
 query = Query(grades_table)
 
 recs = []
