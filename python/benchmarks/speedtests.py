@@ -83,7 +83,8 @@ df_operations = pd.DataFrame(
     {
         "Operation": operations * 2,
         "Time (s)": release_times + debug_times,
-        "Mode": ["Release Mode"] * len(release_times) + ["Debug Mode"] * len(debug_times),
+        "Mode": ["Release Mode"] * len(release_times)
+        + ["Debug Mode"] * len(debug_times),
     }
 )
 
@@ -91,7 +92,8 @@ df_tests = pd.DataFrame(
     {
         "Test": tests * 2,
         "Time (s)": release_tests + debug_tests,
-        "Mode": ["Release Mode"] * len(release_tests) + ["Debug Mode"] * len(debug_tests),
+        "Mode": ["Release Mode"] * len(release_tests)
+        + ["Debug Mode"] * len(debug_tests),
     }
 )
 
@@ -131,7 +133,7 @@ plt.xticks(
     ha="right",
     color="#DDD",
 )
-ax.tick_params(axis='y', colors='#DDD')
+ax.tick_params(axis="y", colors="#DDD")
 ax.legend(title="Mode")
 
 ax.set_facecolor("#222222")
@@ -170,7 +172,7 @@ ax.set_title(
     color="#DDD",
 )
 plt.xticks(range(len(tests)), tests, rotation=30, ha="right", color="#DDD")
-ax.tick_params(axis='y', colors='#DDD')
+ax.tick_params(axis="y", colors="#DDD")
 ax.legend(title="Mode")
 
 ax.set_facecolor("#222222")

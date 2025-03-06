@@ -2,7 +2,7 @@ from lstore.db import Database
 from lstore.query import Query
 
 db = Database()
-table = db.create_table('Count', 3, 0)
+table = db.create_table("Count", 3, 0)
 query = Query(table)
 
 rec = query.insert(0, 10, 20)

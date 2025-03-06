@@ -1,6 +1,7 @@
 from typing import Final
 from .lstore import RDatabase, RTable, hello_from_rust, RTableHandle
 
+
 def print_logo():
     logo = r"""
     ______         _           _____ _
@@ -19,6 +20,7 @@ def print_logo():
     """
 
     print(logo)
+
 
 __all__: Final[list[str]] = [
     "lstore",
