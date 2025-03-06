@@ -268,3 +268,15 @@ Future questions:
 - How much time does the Python part take up?
 - How do we measure the improvement from Python to Pypy
 - How do we downgrade Pypy to work with Py03
+
+### Profiling Python
+
+We use `py-spy` to profile Python and we got expected results. It shows that the main use of Python is just the update function when testM2.py is run.
+
+Here is how we ran it:
+
+```
+py-spy record -o profile.svg -- python3 testM2.py
+```
+
+[profile](./profile.svg)
