@@ -2,14 +2,6 @@ from typing import Any, List
 from .lstore import RQuery, RTable
 
 
-class ReturnRecord:
-    def __init__(self, columns: List[int]):
-        self.columns = columns[4:]
-
-    def __str__(self):
-        return f"Record({self.columns})"
-
-
 class Query:
     def __init__(self, table: RTable):
         """Creates a Query object that can perform different queries on the
@@ -51,22 +43,8 @@ class Query:
         Returns a list of Record objects upon success
         Returns False if record locked by TPL
         Assume that select will never be called on a key that doesn't exist
-
-        return [
-            ReturnRecord(
-                list(
-                    self.rquery.select(
-                        search_key,
-                        search_key_index,
-                        projected_columns_index,
-                    )
-                )
-            )
-        ]
         """
-        res = self.rquery.select(search_key, search_key_index, projected_columns_index)
-        # If res is not None, it should be a list of records.
-        return [ReturnRecord(r) for r in res] if res is not None else []
+        return self.rquery.select(search_key, search_key_index, projected_columns_index)
 
     def select_version(
         self,
@@ -84,18 +62,12 @@ class Query:
         Returns False if record locked by TPL
         Assume that select will never be called on a key that doesn't exist
         """
-        return [
-            ReturnRecord(
-                list(
-                    self.rquery.select_version(
-                        search_key,
-                        search_key_index,
-                        projected_columns_index,
-                        relative_version,
-                    )
-                )
-            )
-        ]
+        return self.rquery.select_version(
+            search_key,
+            search_key_index,
+            projected_columns_index,
+            relative_version,
+        )
 
     def update(self, primary_key: int, *columns):
         """Update a record with specified key and columns
