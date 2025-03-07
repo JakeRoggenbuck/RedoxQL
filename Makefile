@@ -3,11 +3,7 @@ all:
 
 release:
 	maturin build --release
-	# C Python version
-	pip install --force-reinstall target/wheels/lstore-0.1.0-cp312*
-
-	# Pypy version
-	# pip install --force-reinstall target/wheels/lstore-0.1.0-pp311*
+	pip install --force-reinstall target/wheels/lstore-0.1.0-c*
 
 test:
 	cargo test
