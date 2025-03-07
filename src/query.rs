@@ -7,6 +7,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 #[pyclass]
 pub struct RReturnRecord {
+    #[pyo3(get)]
     columns: Vec<Option<i64>>,
 }
 
@@ -75,7 +76,7 @@ impl RQuery {
         search_key: i64,
         search_key_index: i64,
         projected_columns_index: Vec<i64>,
-    ) -> Option<Vec<Vec<Option<i64>>>> {
+    ) -> Option<Vec<Option<RReturnRecord>>> {
         // Cut off the first 4 columns
         let ret = self.internal_select(search_key, search_key_index, projected_columns_index);
 
@@ -89,10 +90,10 @@ impl RQuery {
                     out.push(Some(RReturnRecord { columns: a }))
                 }
             }
-            None => out.push(None)
+            None => out.push(None),
         }
 
-        return out;
+        return Some(out);
     }
 
     fn internal_select(
@@ -154,6 +155,24 @@ impl RQuery {
     }
 
     pub fn select_version(
+        &mut self,
+        primary_key: i64,
+        _search_key_index: i64,
+        projected_columns_index: Vec<i64>,
+        relative_version: i64,
+    ) -> Option<RReturnRecord> {
+        match self.internal_select_version(
+            primary_key,
+            0,
+            projected_columns_index,
+            relative_version,
+        ) {
+            Some(columns) => Some(RReturnRecord { columns }),
+            None => None,
+        }
+    }
+
+    pub fn internal_select_version(
         &mut self,
         primary_key: i64,
         _search_key_index: i64,
@@ -584,7 +603,7 @@ mod tests {
         q.update(1, vec![Some(1), Some(8), Some(9)]); // Version 3
 
         // Test different versions
-        let latest = q.select_version(1, 0, vec![1, 1, 1], 0);
+        let latest = q.internal_select_version(1, 0, vec![1, 1, 1], 0);
         assert_eq!(
             latest.unwrap(),
             vec![
@@ -598,7 +617,7 @@ mod tests {
             ]
         ); // Most recent version
 
-        let one_back = q.select_version(1, 0, vec![1, 1, 1], 1);
+        let one_back = q.internal_select_version(1, 0, vec![1, 1, 1], 1);
         assert_eq!(
             one_back.unwrap(),
             vec![
@@ -612,7 +631,7 @@ mod tests {
             ]
         ); // One version back
 
-        let two_back = q.select_version(1, 0, vec![1, 1, 1], 2);
+        let two_back = q.internal_select_version(1, 0, vec![1, 1, 1], 2);
         assert_eq!(
             two_back.unwrap(),
             vec![
@@ -626,7 +645,7 @@ mod tests {
             ]
         ); // Two versions back
 
-        let original = q.select_version(1, 0, vec![1, 1, 1], 3);
+        let original = q.internal_select_version(1, 0, vec![1, 1, 1], 3);
         assert_eq!(
             original.unwrap(),
             vec![

@@ -43,21 +43,8 @@ class Query:
         Returns a list of Record objects upon success
         Returns False if record locked by TPL
         Assume that select will never be called on a key that doesn't exist
-
-        return [
-            ReturnRecord(
-                list(
-                    self.rquery.select(
-                        search_key,
-                        search_key_index,
-                        projected_columns_index,
-                    )
-                )
-            )
-        ]
         """
-        res = self.rquery.select(search_key, search_key_index, projected_columns_index)
-        return res
+        return self.rquery.select(search_key, search_key_index, projected_columns_index)
 
     def select_version(
         self,
@@ -75,18 +62,12 @@ class Query:
         Returns False if record locked by TPL
         Assume that select will never be called on a key that doesn't exist
         """
-        return [
-            ReturnRecord(
-                list(
-                    self.rquery.select_version(
-                        search_key,
-                        search_key_index,
-                        projected_columns_index,
-                        relative_version,
-                    )
-                )
-            )
-        ]
+        return self.rquery.select_version(
+            search_key,
+            search_key_index,
+            projected_columns_index,
+            relative_version,
+        )
 
     def update(self, primary_key: int, *columns):
         """Update a record with specified key and columns
