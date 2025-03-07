@@ -280,3 +280,35 @@ py-spy record -o profile.svg -- python3 testM2.py
 ```
 
 [profile](./profile.svg)
+
+### Moving everything possible to Rust
+
+We used to make a ReturnRecord object for every single row! We also would turn the result of rquery into a list, wrap each in ReturnRecord and then make that back into a new list. ReturnRecord would also do list truncation each time it was initialized (for each row). We moved all of this logic into Rust can simply return what the Rust function returns.
+
+```diff
+-   class ReturnRecord:
+-       def __init__(self, columns: List[int]):
+-           self.columns = columns[4:]
+-
+-       def __str__(self):
+-           return f"Record({self.columns})"
+
+-   return [
+-       ReturnRecord(
+-           list(
+-               self.rquery.select_version(
+-                   search_key,
+-                   search_key_index,
+-                   projected_columns_index,
+-                   relative_version,
+-               )
+-           )
+-       )
+-   ]
++   return self.rquery.select_version(
++       search_key,
++       search_key_index,
++       projected_columns_index,
++       relative_version,
++   )
+```
