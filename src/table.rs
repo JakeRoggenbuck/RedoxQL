@@ -186,11 +186,7 @@ impl RTable {
         return rec;
     }
 
-    pub fn read_base(
-        &self,
-        primary_key: i64,
-        projected_columns_index: &Vec<i64>,
-    ) -> Option<Vec<i64>> {
+    pub fn read_base(&self, primary_key: i64) -> Option<Vec<i64>> {
         // Lookup RID from primary_key
         let index = self.index.try_read().unwrap();
         let rid = index.get(primary_key);
@@ -200,7 +196,7 @@ impl RTable {
 
             // If the rec exists in the page_directory, return the read values
             match rec {
-                Some(r) => return self.page_range.read(r.clone(), projected_columns_index),
+                Some(r) => return self.page_range.read(r.clone()),
                 None => return None,
             }
         }
@@ -208,11 +204,10 @@ impl RTable {
         None
     }
 
-    pub fn read(&self, primary_key: i64, projected_columns_index: &Vec<i64>) -> Option<Vec<i64>> {
-        let Some(result) = self.read_base(primary_key as i64, &projected_columns_index) else {
+    pub fn read(&self, primary_key: i64) -> Option<Vec<i64>> {
+        let Some(result) = self.read_base(primary_key as i64) else {
             return None;
         };
-
         let base_rid = result[ReservedColumns::RID as usize];
         let base_indirection_column = result[ReservedColumns::Indirection as usize];
 
@@ -224,28 +219,19 @@ impl RTable {
             return None;
         };
 
-        return self
-            .page_range
-            .read(tail_record.clone(), &projected_columns_index);
+        return self.page_range.read(tail_record.clone());
     }
 
     // Given a RID, get the record's values
-    pub fn read_by_rid(&self, rid: i64, projected_columns_index: &Vec<i64>) -> Option<Vec<i64>> {
+    pub fn read_by_rid(&self, rid: i64) -> Option<Vec<i64>> {
         if let Some(record) = self.page_directory.directory.get(&rid) {
-            return self
-                .page_range
-                .read(record.clone(), &projected_columns_index);
+            return self.page_range.read(record.clone());
         }
         None
     }
 
-    pub fn read_relative(
-        &self,
-        primary_key: i64,
-        relative_version: i64,
-        projected_columns_index: &Vec<i64>,
-    ) -> Option<Vec<i64>> {
-        let Some(base) = self.read_base(primary_key as i64, projected_columns_index) else {
+    pub fn read_relative(&self, primary_key: i64, relative_version: i64) -> Option<Vec<i64>> {
+        let Some(base) = self.read_base(primary_key as i64) else {
             return None;
         };
         let base_rid = base[ReservedColumns::RID as usize];
@@ -264,7 +250,7 @@ impl RTable {
             };
 
             // read the current record
-            let Some(record_data) = self.page_range.read(current_record.clone(), projected_columns_index) else {
+            let Some(record_data) = self.page_range.read(current_record.clone()) else {
                 return None;
             };
 
@@ -286,7 +272,7 @@ impl RTable {
             return None;
         };
 
-        return self.page_range.read(final_record.clone(), projected_columns_index);
+        return self.page_range.read(final_record.clone());
     }
 
     pub fn delete(&mut self, primary_key: i64) {
@@ -301,10 +287,9 @@ impl RTable {
 
     pub fn sum(&mut self, start_primary_key: i64, end_primary_key: i64, col_index: i64) -> i64 {
         let mut agg = 0i64;
-        let projected_columns_index = vec![1; (end_primary_key - start_primary_key) as usize];
 
         for primary_key in start_primary_key..end_primary_key + 1 {
-            if let Some(v) = self.read(primary_key, &projected_columns_index) {
+            if let Some(v) = self.read(primary_key) {
                 agg += v[(col_index + NUM_RESERVED_COLUMNS) as usize] as i64;
             }
         }
@@ -321,10 +306,8 @@ impl RTable {
     ) -> i64 {
         let mut agg = 0i64;
 
-        let projected_columns_index = vec![1; (end_primary_key - start_primary_key) as usize];
-
         for primary_key in start_primary_key..end_primary_key + 1 {
-            if let Some(v) = self.read_relative(primary_key, relative_version, &projected_columns_index) {
+            if let Some(v) = self.read_relative(primary_key, relative_version) {
                 agg += v[(col_index + NUM_RESERVED_COLUMNS) as usize] as i64;
             }
         }

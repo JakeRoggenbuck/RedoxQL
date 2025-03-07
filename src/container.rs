@@ -2,7 +2,6 @@ use super::filewriter::{build_binary_writer, Writer};
 use super::page::PhysicalPage;
 use super::record::{Record, RecordAddress};
 use serde::{Deserialize, Serialize};
-use std::iter::zip;
 use std::sync::{Arc, Mutex};
 
 #[derive(Clone, Default, Deserialize, Serialize, Debug)]
@@ -195,21 +194,15 @@ impl BaseContainer {
         }
     }
 
-    pub fn read_record(&self, record: Record, projected_columns_index: Option<&Vec<i64>>) -> Vec<i64> {
+    pub fn read_record(&self, record: Record) -> Vec<i64> {
         let mut values = Vec::<i64>::new();
 
         let addrs = record.addresses.lock().unwrap();
         let addrs_clone = addrs.clone();
-
-        for (addr, should_read) in zip(addrs_clone, projected_columns_index) {
-            if *should_read == 1 {
-                let a = addr.page.lock().unwrap();
-                let b = a.read(addr.offset as usize);
-                values.push(b.expect("Value should be there"));
-            } else {
-                // We don't read the value, so we don't really care
-                values.push(-1);
-            }
+        for addr in addrs_clone {
+            let a = addr.page.lock().unwrap();
+            let b = a.read(addr.offset as usize);
+            values.push(b.expect("Value should be there"));
         }
 
         values
