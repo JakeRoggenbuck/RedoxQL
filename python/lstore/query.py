@@ -27,8 +27,7 @@ class Query:
         Return True upon succesful insertion
         Returns False if insert fails for whatever reason
         """
-        res = self.rquery.insert(columns)
-        return False if res == None else True
+        return self.rquery.insert(columns)
 
     def select(
         self,
@@ -75,8 +74,7 @@ class Query:
         Returns False if no records exist with given key or if the target
         record cannot be accessed due to 2PL locking
         """
-        res = self.rquery.update(primary_key, columns)
-        return False if res == None else True
+        return self.rquery.update(primary_key, columns)
 
     def sum(
         self,

@@ -312,3 +312,5 @@ We used to make a ReturnRecord object for every single row! We also would turn t
 +       relative_version,
 +   )
 ```
+
+This includes `insert` and `update`.
