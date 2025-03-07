@@ -265,9 +265,11 @@ Docs: https://docs.rs/env_logger/latest/env_logger/.
 We started to try using Pypy which is a runtime for Python that is supposedly faster. Because of [Amdahl's law](https://en.wikipedia.org/wiki/Amdahl%27s_law), we actually can't get all that much performance out of it. We also found that the newest version of Pypy cannot use the newest version of Pyo3, so future work is needed to get them to run together.
 
 Future questions:
-- How much time does the Python part take up?
-- How do we measure the improvement from Python to Pypy
-- How do we downgrade Pypy to work with Py03
+- [ ] How much time does the Python part take up?
+- [x] How do we measure the improvement from Python to Pypy
+- [x] How do we downgrade Pypy to work with Py03
+
+We opted to go for C Python because it's much faster in this use case. We show the results of some tests [here](./python/py-opt/cpython-vs-pypy.md).
 
 ### Profiling Python
 
