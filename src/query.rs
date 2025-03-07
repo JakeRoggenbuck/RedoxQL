@@ -84,7 +84,9 @@ impl RQuery {
         search_key_index: i64,
         projected_columns_index: Vec<i64>,
     ) -> Option<Vec<Option<RReturnRecord>>> {
-        let ret = self.internal_select(search_key, search_key_index, projected_columns_index);
+        let mut p = vec![1, 1, 1, 1];
+        p.extend(projected_columns_index);
+        let ret = self.internal_select(search_key, search_key_index, p);
 
         let mut out = vec![];
 
