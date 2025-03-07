@@ -94,8 +94,10 @@ impl RIndex {
     // Build a secondary index on a non-primary column. This is called by RTable.create_index
     pub fn create_index_internal(&mut self, col_index: i64, table: &RTable) {
         let mut sec_index: BTreeMap<i64, Vec<i64>> = BTreeMap::new();
+        let projected_columns_index = vec![1; table.num_columns];
+
         for (&rid, record) in table.page_directory.directory.iter() {
-            if let Some(record_data) = table.page_range.read(record.clone()) {
+            if let Some(record_data) = table.page_range.read(record.clone(), &projected_columns_index) {
                 if record_data.len() <= (col_index + NUM_RESERVED_COLUMNS) as usize {
                     // Skip if the record data is unexpectedly short.
                     continue;

@@ -117,7 +117,7 @@ impl RQuery {
 
         // Case 1: Searching on the primary key column
         if search_key_index == table.primary_key_column as i64 {
-            if let Some(ret) = table.read(search_key) {
+            if let Some(ret) = table.read(search_key, &projected_columns_index) {
                 return Some(vec![filter_projected(ret, projected_columns_index)]);
             } else {
                 return None;
@@ -131,7 +131,7 @@ impl RQuery {
                 if let Some(rids) = sec_index.get(&search_key) {
                     let mut results = Vec::new();
                     for &rid in rids {
-                        if let Some(record_data) = table.read_by_rid(rid) {
+                        if let Some(record_data) = table.read_by_rid(rid, &projected_columns_index) {
                             results.push(filter_projected(
                                 record_data,
                                 projected_columns_index.clone(),
@@ -147,7 +147,7 @@ impl RQuery {
             else {
                 let mut results = Vec::new();
                 for (_rid, record) in table.page_directory.directory.iter() {
-                    if let Some(record_data) = table.page_range.read(record.clone()) {
+                    if let Some(record_data) = table.page_range.read(record.clone(), &projected_columns_index) {
                         if record_data[(search_key_index + NUM_RESERVED_COLUMNS) as usize]
                             == search_key
                         {
@@ -172,7 +172,7 @@ impl RQuery {
         relative_version: i64,
     ) -> Option<Vec<Option<i64>>> {
         let table = self.handle.table.read().unwrap();
-        let Some(ret) = table.read_relative(primary_key, relative_version) else {
+        let Some(ret) = table.read_relative(primary_key, relative_version, &projected_columns_index) else {
             return None;
         };
 
@@ -244,7 +244,7 @@ impl RQuery {
         };
         drop(index);
 
-        let Some(result) = table.page_range.read(record.clone()) else {
+        let Some(result) = table.page_range.read(record.clone(), None) else {
             return false;
         };
 

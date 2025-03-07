@@ -42,8 +42,8 @@ impl PageRange {
         self.base_container.insert_record(new_rid, values)
     }
 
-    pub fn read(&self, record: Record) -> Option<Vec<i64>> {
-        Some(self.base_container.read_record(record))
+    pub fn read(&self, record: Record, projected_columns_index: &Vec<i64>) -> Option<Vec<i64>> {
+        Some(self.base_container.read_record(record, projected_columns_index))
     }
 
     pub fn merge(&mut self, page_directory: Arc<Mutex<PageDirectory>>) {
