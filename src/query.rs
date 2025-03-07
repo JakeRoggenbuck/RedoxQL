@@ -18,7 +18,10 @@ pub struct RQuery {
     merging: AtomicBool,
 }
 
+/// Use the projected vector to decide which columns to set to None
 fn filter_projected(column_values: Vec<i64>, projected: Vec<i64>) -> Vec<Option<i64>> {
+    // TODO: HUGE SPEED IMPROVEMENT AVAILABLE - Don't read columns that will be None anyway!!!
+
     // Add the 4 columns used internally
     let mut projected_cols: Vec<i64> = vec![1, 1, 1, 1];
     projected_cols.extend(projected.clone());
@@ -77,7 +80,6 @@ impl RQuery {
         search_key_index: i64,
         projected_columns_index: Vec<i64>,
     ) -> Option<Vec<Option<RReturnRecord>>> {
-        // Cut off the first 4 columns
         let ret = self.internal_select(search_key, search_key_index, projected_columns_index);
 
         let mut out = vec![];
@@ -86,7 +88,9 @@ impl RQuery {
             Some(rows) => {
                 for row in rows {
                     let mut a = row;
+                    // Remove the first 4 columns that are used only internally
                     a.drain(0..4);
+                    // Return the columns encased in the RReturnRecord struct
                     out.push(Some(RReturnRecord { columns: a }))
                 }
             }
@@ -96,6 +100,7 @@ impl RQuery {
         return Some(out);
     }
 
+    /// Formerly just `select` does a select on the database
     fn internal_select(
         &mut self,
         search_key: i64,
@@ -154,6 +159,22 @@ impl RQuery {
         }
     }
 
+    /// Formerly just `select_version` does a select and picks which version of the record
+    fn internal_select_version(
+        &mut self,
+        primary_key: i64,
+        _search_key_index: i64,
+        projected_columns_index: Vec<i64>,
+        relative_version: i64,
+    ) -> Option<Vec<Option<i64>>> {
+        let table = self.handle.table.read().unwrap();
+        let Some(ret) = table.read_relative(primary_key, relative_version) else {
+            return None;
+        };
+
+        Some(filter_projected(ret, projected_columns_index))
+    }
+
     pub fn select_version(
         &mut self,
         primary_key: i64,
@@ -167,24 +188,10 @@ impl RQuery {
             projected_columns_index,
             relative_version,
         ) {
+            // Return the columns encased in the RReturnRecord struct
             Some(columns) => Some(RReturnRecord { columns }),
             None => None,
         }
-    }
-
-    pub fn internal_select_version(
-        &mut self,
-        primary_key: i64,
-        _search_key_index: i64,
-        projected_columns_index: Vec<i64>,
-        relative_version: i64,
-    ) -> Option<Vec<Option<i64>>> {
-        let table = self.handle.table.read().unwrap();
-        let Some(ret) = table.read_relative(primary_key, relative_version) else {
-            return None;
-        };
-
-        Some(filter_projected(ret, projected_columns_index))
     }
 
     pub fn update(&mut self, primary_key: i64, columns: Vec<Option<i64>>) -> bool {
