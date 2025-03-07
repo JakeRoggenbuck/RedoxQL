@@ -669,7 +669,7 @@ mod tests {
         expected.push(rid); // base RID page
         expected.extend(values);
 
-        let read_values = base.read_record(record);
+        let read_values = base.read_record(record, None);
         assert_eq!(
             read_values, expected,
             "Read values do not match inserted values"

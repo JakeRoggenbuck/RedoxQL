@@ -147,7 +147,10 @@ impl RQuery {
             else {
                 let mut results = Vec::new();
                 for (_rid, record) in table.page_directory.directory.iter() {
-                    if let Some(record_data) = table.page_range.read(record.clone(), Some(&projected_columns_index)) {
+                    if let Some(record_data) = table
+                        .page_range
+                        .read(record.clone(), Some(&projected_columns_index))
+                    {
                         if record_data[(search_key_index + NUM_RESERVED_COLUMNS) as usize]
                             == search_key
                         {
@@ -244,7 +247,7 @@ impl RQuery {
         };
         drop(index);
 
-        let Some(result) = table.page_range.read(record.clone()) else {
+        let Some(result) = table.page_range.read(record.clone(), None) else {
             return false;
         };
 
@@ -294,7 +297,7 @@ impl RQuery {
                 );
             }
 
-            let Some(result) = table.page_range.read(existing_tail_record.clone()) else {
+            let Some(result) = table.page_range.read(existing_tail_record.clone(), None) else {
                 return false;
             };
 
@@ -377,7 +380,7 @@ impl RQuery {
         };
 
         // Select the value of the column before we increment
-        let cols = vec![1i64; num_cols];
+        let cols = vec![1i64; num_cols + 3];
 
         let ret = self.internal_select(primary_key, 0, cols);
 
@@ -407,7 +410,7 @@ mod tests {
         q.internal_insert(vec![1, 2, 3]);
 
         // Use primary_key of 1
-        let vals = q.internal_select(1, 0, vec![1, 1, 1]);
+        let vals = q.internal_select(1, 0, vec![1, 1, 1, 1, 1, 1, 1]);
         assert_eq!(
             vals.unwrap()[0],
             vec![
@@ -433,7 +436,7 @@ mod tests {
         // Increment the first user column (column 1)
         q.increment(1, 1);
 
-        let vals = q.internal_select(1, 0, vec![1, 1, 1]); // Select entire row
+        let vals = q.internal_select(1, 0, vec![1, 1, 1, 1, 1, 1, 1]); // Select entire row
         assert_eq!(
             vals.unwrap()[0],
             vec![
@@ -449,7 +452,7 @@ mod tests {
 
         q.increment(1, 1);
 
-        let vals2 = q.internal_select(1, 0, vec![1, 1, 1]);
+        let vals2 = q.internal_select(1, 0, vec![1, 1, 1, 1, 1, 1, 1]);
         assert_eq!(
             vals2.unwrap()[0],
             vec![
@@ -465,7 +468,7 @@ mod tests {
 
         q.increment(1, 1);
 
-        let vals3 = q.internal_select(1, 0, vec![1, 1, 1]);
+        let vals3 = q.internal_select(1, 0, vec![1, 1, 1, 1, 1, 1, 1]);
         assert_eq!(
             vals3.unwrap()[0],
             vec![
@@ -515,7 +518,7 @@ mod tests {
         q.insert(vec![1, 2, 3]);
 
         // Use primary_key of 1
-        let vals = q.internal_select(1, 0, vec![1, 1, 1]);
+        let vals = q.internal_select(1, 0, vec![1, 1, 1, 1, 1, 1, 1]);
         assert_eq!(
             vals.unwrap()[0],
             vec![
@@ -532,7 +535,7 @@ mod tests {
         let success = q.update(1, vec![Some(1), Some(5), Some(6)]);
         assert!(success);
 
-        let vals2 = q.internal_select(1, 0, vec![1, 1, 1]);
+        let vals2 = q.internal_select(1, 0, vec![1, 1, 1, 1, 1, 1, 1]);
         assert_eq!(
             vals2.unwrap()[0],
             vec![
@@ -572,7 +575,7 @@ mod tests {
         q.update(1, vec![Some(1), Some(6), Some(7)]);
         q.update(1, vec![Some(1), Some(8), Some(9)]);
 
-        let vals = q.internal_select(1, 0, vec![1, 1, 1]);
+        let vals = q.internal_select(1, 0, vec![1, 1, 1, 1, 1, 1, 1]);
         assert_eq!(
             vals.unwrap()[0],
             vec![
@@ -596,7 +599,7 @@ mod tests {
         q.internal_insert(vec![1, 2, 3]);
         q.delete(1);
 
-        assert_eq!(q.internal_select(1, 0, vec![1, 1, 1]), None);
+        assert_eq!(q.internal_select(1, 0, vec![1, 1, 1, 1, 1, 1, 1]), None);
     }
 
     #[test]
@@ -614,7 +617,7 @@ mod tests {
         q.update(1, vec![Some(1), Some(8), Some(9)]); // Version 3
 
         // Test different versions
-        let latest = q.internal_select_version(1, 0, vec![1, 1, 1], 0);
+        let latest = q.internal_select_version(1, 0, vec![1, 1, 1, 1, 1, 1, 1], 0);
         assert_eq!(
             latest.unwrap(),
             vec![
@@ -628,7 +631,7 @@ mod tests {
             ]
         ); // Most recent version
 
-        let one_back = q.internal_select_version(1, 0, vec![1, 1, 1], 1);
+        let one_back = q.internal_select_version(1, 0, vec![1, 1, 1, 1, 1, 1, 1], 1);
         assert_eq!(
             one_back.unwrap(),
             vec![
@@ -642,7 +645,7 @@ mod tests {
             ]
         ); // One version back
 
-        let two_back = q.internal_select_version(1, 0, vec![1, 1, 1], 2);
+        let two_back = q.internal_select_version(1, 0, vec![1, 1, 1, 1, 1, 1, 1], 2);
         assert_eq!(
             two_back.unwrap(),
             vec![
@@ -656,7 +659,7 @@ mod tests {
             ]
         ); // Two versions back
 
-        let original = q.internal_select_version(1, 0, vec![1, 1, 1], 3);
+        let original = q.internal_select_version(1, 0, vec![1, 1, 1, 1, 1, 1, 1], 3);
         assert_eq!(
             original.unwrap(),
             vec![
@@ -684,7 +687,7 @@ mod tests {
         assert!(result.is_none());
 
         // Verify that the original record is still intact
-        let vals = q.internal_select(1, 0, vec![1, 1, 1]);
+        let vals = q.internal_select(1, 0, vec![1, 1, 1, 1, 1, 1, 1]);
         assert_eq!(
             vals.unwrap()[0],
             vec![
@@ -715,7 +718,7 @@ mod tests {
 
         q = RQuery::new(table_ref);
 
-        let v = q.internal_select(1, 0, vec![1, 1, 1]);
+        let v = q.internal_select(1, 0, vec![1, 1, 1, 1, 1, 1, 1]);
         assert_eq!(
             vec![
                 Some(3),
@@ -745,7 +748,7 @@ mod tests {
 
         q = RQuery::new(table_ref.clone());
 
-        let v = q.internal_select(1, 0, vec![1, 1, 1]);
+        let v = q.internal_select(1, 0, vec![1, 1, 1, 1, 1, 1, 1]);
         assert_eq!(
             vec![
                 Some(600),
