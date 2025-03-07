@@ -27,8 +27,7 @@ class Query:
         Return True upon succesful insertion
         Returns False if insert fails for whatever reason
         """
-        res = self.rquery.insert(columns)
-        return False if res == None else True
+        return self.rquery.insert(columns)
 
     def select(
         self,

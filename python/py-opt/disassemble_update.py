@@ -15,7 +15,7 @@ query = Query(grades_table)
         + """
 for i in range(0, amount):
     v = query.select(10 + i, 0, [1, 1, 1, 1, 1])[0]
-    print(a.columns)
+    print(v.columns)
 """
     )
 )

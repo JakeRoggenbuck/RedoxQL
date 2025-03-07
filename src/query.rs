@@ -61,7 +61,11 @@ impl RQuery {
         table.delete(primary_key);
     }
 
-    pub fn insert(&mut self, values: Vec<i64>) -> Option<Record> {
+    pub fn insert(&mut self, values: Vec<i64>) -> bool {
+        self.internal_insert(values).is_some()
+    }
+
+    fn internal_insert(&mut self, values: Vec<i64>) -> Option<Record> {
         let mut table = self.handle.table.write().unwrap();
         // check if primary key already exists
         {
@@ -395,12 +399,12 @@ mod tests {
     use crate::database::RDatabase;
 
     #[test]
-    fn test_insert_and_read_test() {
+    fn test_internal_insert_and_read_test() {
         let mut db = RDatabase::new();
         let table_ref = db.create_table(String::from("Grades"), 3, 0);
         let mut q = RQuery::new(table_ref);
 
-        q.insert(vec![1, 2, 3]);
+        q.internal_insert(vec![1, 2, 3]);
 
         // Use primary_key of 1
         let vals = q.internal_select(1, 0, vec![1, 1, 1]);
@@ -424,7 +428,7 @@ mod tests {
         let table_ref = db.create_table(String::from("Counts"), 3, 0);
         let mut q = RQuery::new(table_ref);
 
-        q.insert(vec![1, 2, 3]); // Insert [Primary Key: 1, Col1: 2, Col2: 3]
+        q.internal_insert(vec![1, 2, 3]); // Insert [Primary Key: 1, Col1: 2, Col2: 3]
 
         // Increment the first user column (column 1)
         q.increment(1, 1);
@@ -483,7 +487,7 @@ mod tests {
         let t = db.create_table(String::from("Counts"), 3, 0);
         let mut q = RQuery::new(t);
 
-        q.insert(vec![1, 2, 3]); // Insert [Primary Key: 1, Col1: 2, Col2: 3]
+        q.internal_insert(vec![1, 2, 3]); // Insert [Primary Key: 1, Col1: 2, Col2: 3]
 
         // Increment the first user column (column 1)
         q.increment(1, 1);
@@ -550,7 +554,7 @@ mod tests {
     //     let t = db.create_table(String::from("Grades"), 3, 0);
     //     let mut q = RQuery::new(t);
 
-    //     q.insert(vec![1, 2, 3]);
+    //     q.internal_insert(vec![1, 2, 3]);
 
     //     // Try to update primary key from 1 to 2
     //     q.update(1, vec![Some(2), Some(5), Some(6)]);
@@ -562,7 +566,7 @@ mod tests {
         let table_ref = db.create_table(String::from("Grades"), 3, 0);
         let mut q = RQuery::new(table_ref);
 
-        q.insert(vec![1, 2, 3]);
+        q.internal_insert(vec![1, 2, 3]);
 
         q.update(1, vec![Some(1), Some(4), Some(5)]);
         q.update(1, vec![Some(1), Some(6), Some(7)]);
@@ -589,7 +593,7 @@ mod tests {
         let table_ref = db.create_table(String::from("Grades"), 3, 0);
         let mut q = RQuery::new(table_ref);
 
-        q.insert(vec![1, 2, 3]);
+        q.internal_insert(vec![1, 2, 3]);
         q.delete(1);
 
         assert_eq!(q.internal_select(1, 0, vec![1, 1, 1]), None);
@@ -602,7 +606,7 @@ mod tests {
         let mut q = RQuery::new(table_ref);
 
         // Insert initial record
-        q.insert(vec![1, 2, 3]);
+        q.internal_insert(vec![1, 2, 3]);
 
         // Make multiple updates
         q.update(1, vec![Some(1), Some(4), Some(5)]); // Version 1
@@ -668,15 +672,15 @@ mod tests {
     }
 
     #[test]
-    fn test_insert_existing_primary_key() {
+    fn test_internal_insert_existing_primary_key() {
         let mut db = RDatabase::new();
         let table_ref = db.create_table("Grades".to_string(), 3, 0);
         let mut q = RQuery::new(table_ref);
 
-        q.insert(vec![1, 2, 3]);
+        q.internal_insert(vec![1, 2, 3]);
 
-        // Attempt to insert a record with an existing primary key
-        let result = q.insert(vec![1, 4, 5]);
+        // Attempt to internal_insert a record with an existing primary key
+        let result = q.internal_insert(vec![1, 4, 5]);
         assert!(result.is_none());
 
         // Verify that the original record is still intact
@@ -702,7 +706,7 @@ mod tests {
         let mut q = RQuery::new(table_ref.clone());
 
         // Insert initial record
-        q.insert(vec![1, 2, 3]);
+        q.internal_insert(vec![1, 2, 3]);
 
         // Make multiple updates
         q.update(1, vec![Some(1), Some(4), Some(5)]); // Version 1
@@ -733,7 +737,7 @@ mod tests {
         let mut q = RQuery::new(table_ref.clone());
 
         // Insert initial record
-        q.insert(vec![1, 2, 3]);
+        q.internal_insert(vec![1, 2, 3]);
 
         for _ in 0..600 {
             q.update(1, vec![Some(1), Some(4), Some(5)]); // Version 1
@@ -764,8 +768,8 @@ mod tests {
         let t = db.create_table(String::from("Grades"), 3, 0);
         let mut q = RQuery::new(t);
 
-        q.insert(vec![1, 2, 3]);
-        q.insert(vec![4, 5, 6]);
+        q.internal_insert(vec![1, 2, 3]);
+        q.internal_insert(vec![4, 5, 6]);
 
         // Attempt to update the primary key of the first record to an existing primary key
         let result = q.update(1, vec![Some(4), Some(7), Some(8)]);
