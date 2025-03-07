@@ -117,7 +117,7 @@ impl RQuery {
 
         // Case 1: Searching on the primary key column
         if search_key_index == table.primary_key_column as i64 {
-            if let Some(ret) = table.read(search_key) {
+            if let Some(ret) = table.read(search_key, Some(&projected_columns_index)) {
                 return Some(vec![filter_projected(ret, projected_columns_index)]);
             } else {
                 return None;
@@ -147,7 +147,7 @@ impl RQuery {
             else {
                 let mut results = Vec::new();
                 for (_rid, record) in table.page_directory.directory.iter() {
-                    if let Some(record_data) = table.page_range.read(record.clone()) {
+                    if let Some(record_data) = table.page_range.read(record.clone(), Some(&projected_columns_index)) {
                         if record_data[(search_key_index + NUM_RESERVED_COLUMNS) as usize]
                             == search_key
                         {

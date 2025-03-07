@@ -186,7 +186,7 @@ impl RTable {
         return rec;
     }
 
-    pub fn read_base(&self, primary_key: i64) -> Option<Vec<i64>> {
+    pub fn read_base(&self, primary_key: i64, projected_columns_index: Option<&Vec<i64>>) -> Option<Vec<i64>> {
         // Lookup RID from primary_key
         let index = self.index.try_read().unwrap();
         let rid = index.get(primary_key);
@@ -196,7 +196,7 @@ impl RTable {
 
             // If the rec exists in the page_directory, return the read values
             match rec {
-                Some(r) => return self.page_range.read(r.clone()),
+                Some(r) => return self.page_range.read(r.clone(), projected_columns_index),
                 None => return None,
             }
         }
@@ -204,8 +204,8 @@ impl RTable {
         None
     }
 
-    pub fn read(&self, primary_key: i64) -> Option<Vec<i64>> {
-        let Some(result) = self.read_base(primary_key as i64) else {
+    pub fn read(&self, primary_key: i64, projected_columns_index: Option<&Vec<i64>>) -> Option<Vec<i64>> {
+        let Some(result) = self.read_base(primary_key as i64, projected_columns_index) else {
             return None;
         };
         let base_rid = result[ReservedColumns::RID as usize];
