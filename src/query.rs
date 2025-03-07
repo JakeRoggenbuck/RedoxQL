@@ -382,7 +382,7 @@ impl RQuery {
         };
 
         // Select the value of the column before we increment
-        let cols = vec![1i64; num_cols + 3];
+        let cols = vec![1i64; num_cols + NUM_RESERVED_COLUMNS as usize];
 
         let ret = self.internal_select(primary_key, 0, cols);
 
