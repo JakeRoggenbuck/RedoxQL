@@ -1,15 +1,9 @@
 use super::container::{ReservedColumns, NUM_RESERVED_COLUMNS};
-use super::record::Record;
+use super::record::{Record, RReturnRecord};
 use super::table::RTableHandle;
 use pyo3::prelude::*;
 use std::iter::zip;
 use std::sync::atomic::{AtomicBool, Ordering};
-
-#[pyclass]
-pub struct RReturnRecord {
-    #[pyo3(get)]
-    columns: Vec<Option<i64>>,
-}
 
 #[pyclass]
 pub struct RQuery {
@@ -98,7 +92,7 @@ impl RQuery {
                     out.push(Some(RReturnRecord { columns: a }))
                 }
             }
-            None => out.push(None),
+            None => {},
         }
 
         return Some(out);
