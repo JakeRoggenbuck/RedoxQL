@@ -40,7 +40,3 @@ debug = true
 lto = "fat"
 codegen-units = 1
 opt-level = 3
-
-# This makes prod SLOWER! For testing only
-# Change this to run flamegraph
-# debug = true

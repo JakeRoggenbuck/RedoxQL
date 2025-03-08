@@ -186,7 +186,7 @@ impl RTable {
         return rec;
     }
 
-    pub fn read_base(&self, primary_key: i64, projected_columns_index: Option<&Vec<i64>>) -> Option<Vec<i64>> {
+    pub fn read_base(&self, primary_key: i64) -> Option<Vec<i64>> {
         // Lookup RID from primary_key
         let index = self.index.try_read().unwrap();
         let rid = index.get(primary_key);
@@ -196,7 +196,7 @@ impl RTable {
 
             // If the rec exists in the page_directory, return the read values
             match rec {
-                Some(r) => return self.page_range.read(r.clone(), projected_columns_index),
+                Some(r) => return self.page_range.read(r.clone()),
                 None => return None,
             }
         }
@@ -204,8 +204,8 @@ impl RTable {
         None
     }
 
-    pub fn read(&self, primary_key: i64, projected_columns_index: Option<&Vec<i64>>) -> Option<Vec<i64>> {
-        let Some(result) = self.read_base(primary_key as i64, projected_columns_index) else {
+    pub fn read(&self, primary_key: i64) -> Option<Vec<i64>> {
+        let Some(result) = self.read_base(primary_key as i64) else {
             return None;
         };
         let base_rid = result[ReservedColumns::RID as usize];
@@ -219,19 +219,19 @@ impl RTable {
             return None;
         };
 
-        return self.page_range.read(tail_record.clone(), projected_columns_index);
+        return self.page_range.read(tail_record.clone());
     }
 
     // Given a RID, get the record's values
     pub fn read_by_rid(&self, rid: i64) -> Option<Vec<i64>> {
         if let Some(record) = self.page_directory.directory.get(&rid) {
-            return self.page_range.read(record.clone(), None);
+            return self.page_range.read(record.clone());
         }
         None
     }
 
     pub fn read_relative(&self, primary_key: i64, relative_version: i64) -> Option<Vec<i64>> {
-        let Some(base) = self.read_base(primary_key as i64, None) else {
+        let Some(base) = self.read_base(primary_key as i64) else {
             return None;
         };
         let base_rid = base[ReservedColumns::RID as usize];
@@ -250,7 +250,7 @@ impl RTable {
             };
 
             // read the current record
-            let Some(record_data) = self.page_range.read(current_record.clone(), None) else {
+            let Some(record_data) = self.page_range.read(current_record.clone()) else {
                 return None;
             };
 
@@ -272,7 +272,7 @@ impl RTable {
             return None;
         };
 
-        return self.page_range.read(final_record.clone(), None);
+        return self.page_range.read(final_record.clone());
     }
 
     pub fn delete(&mut self, primary_key: i64) {
@@ -289,7 +289,7 @@ impl RTable {
         let mut agg = 0i64;
 
         for primary_key in start_primary_key..end_primary_key + 1 {
-            if let Some(v) = self.read(primary_key, None) {
+            if let Some(v) = self.read(primary_key) {
                 agg += v[(col_index + NUM_RESERVED_COLUMNS) as usize] as i64;
             }
         }
@@ -364,7 +364,7 @@ impl RTableHandle {
 
     pub fn read(&self, primary_key: i64) -> Option<Vec<i64>> {
         let table = self.table.read().expect("Failed to acquire read lock");
-        table.read(primary_key, None)
+        table.read(primary_key)
     }
 
     pub fn delete(&self, primary_key: i64) {
@@ -449,13 +449,13 @@ mod tests {
         table.write(vec![0, 10, 12]);
 
         // Read and check
-        assert_eq!(table.read(0, None).unwrap(), vec![0, 0, 0, 0, 0, 10, 12]);
+        assert_eq!(table.read(0).unwrap(), vec![0, 0, 0, 0, 0, 10, 12]);
 
         // Write
         table.write(vec![1, 20, 30]);
 
         // Read and check
-        assert_eq!(table.read(1, None).unwrap(), vec![1, 0, 1, 1, 1, 20, 30]);
+        assert_eq!(table.read(1).unwrap(), vec![1, 0, 1, 1, 1, 20, 30]);
     }
 
     #[test]
@@ -468,13 +468,13 @@ mod tests {
         table.write(vec![0, 10, 12]);
 
         // Read and check
-        assert_eq!(table.read_base(0, None).unwrap(), vec![0, 0, 0, 0, 0, 10, 12]);
+        assert_eq!(table.read_base(0).unwrap(), vec![0, 0, 0, 0, 0, 10, 12]);
 
         // Write
         table.write(vec![4, 20, 30]);
 
         // Read and check
-        assert_eq!(table.read_base(4, None).unwrap(), vec![1, 0, 1, 1, 4, 20, 30]);
+        assert_eq!(table.read_base(4).unwrap(), vec![1, 0, 1, 1, 4, 20, 30]);
     }
 
     #[test]
@@ -507,11 +507,11 @@ mod tests {
         // Write
         table.write(vec![0, 10, 12]);
         // Read and check
-        assert_eq!(table.read_base(0, None).unwrap(), vec![0, 0, 0, 0, 0, 10, 12]);
+        assert_eq!(table.read_base(0).unwrap(), vec![0, 0, 0, 0, 0, 10, 12]);
 
         // Delete
         table.delete(0);
         // Read and find None
-        assert_eq!(table.read_base(0, None), None);
+        assert_eq!(table.read_base(0), None);
     }
 }

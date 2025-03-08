@@ -2,7 +2,6 @@ use super::filewriter::{build_binary_writer, Writer};
 use super::page::PhysicalPage;
 use super::record::{Record, RecordAddress};
 use serde::{Deserialize, Serialize};
-use std::iter::zip;
 use std::sync::{Arc, Mutex};
 
 #[derive(Clone, Default, Deserialize, Serialize, Debug)]
@@ -195,42 +194,18 @@ impl BaseContainer {
         }
     }
 
-    pub fn read_record(
-        &self,
-        record: Record,
-        projected_columns_index: Option<&Vec<i64>>,
-    ) -> Vec<i64> {
+    pub fn read_record(&self, record: Record) -> Vec<i64> {
         let mut values = Vec::<i64>::new();
 
-        match projected_columns_index {
-            Some(proj) => {
-                let addrs = record.addresses.lock().unwrap();
-                let addrs_clone = addrs.clone();
-                for (addr, should_read) in zip(addrs_clone, proj) {
-                    if *should_read == 1 {
-                        let a = addr.page.lock().unwrap();
-                        let b = a.read(addr.offset as usize);
-                        values.push(b.expect("Value should be there"));
-                    } else {
-                        // We do not read this value anyway
-                        values.push(0x1F680); // Push magic value
-                    }
-                }
-
-                return values;
-            }
-            None => {
-                let addrs = record.addresses.lock().unwrap();
-                let addrs_clone = addrs.clone();
-                for addr in addrs_clone {
-                    let a = addr.page.lock().unwrap();
-                    let b = a.read(addr.offset as usize);
-                    values.push(b.expect("Value should be there"));
-                }
-
-                return values;
-            }
+        let addrs = record.addresses.lock().unwrap();
+        let addrs_clone = addrs.clone();
+        for addr in addrs_clone {
+            let a = addr.page.lock().unwrap();
+            let b = a.read(addr.offset as usize);
+            values.push(b.expect("Value should be there"));
         }
+
+        values
     }
 
     pub fn find_rid_offset(&mut self, rid: i64) -> usize {
@@ -669,7 +644,7 @@ mod tests {
         expected.push(rid); // base RID page
         expected.extend(values);
 
-        let read_values = base.read_record(record, None);
+        let read_values = base.read_record(record);
         assert_eq!(
             read_values, expected,
             "Read values do not match inserted values"
