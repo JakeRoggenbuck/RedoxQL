@@ -92,7 +92,7 @@ impl RQuery {
                     out.push(Some(RReturnRecord { columns: a }))
                 }
             }
-            None => out.push(None),
+            None => {},
         }
 
         return Some(out);
