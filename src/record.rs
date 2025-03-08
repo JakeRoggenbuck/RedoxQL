@@ -1,10 +1,28 @@
-use crate::container::{ReservedColumns, NUM_RESERVED_COLUMNS};
-
 use super::page::PhysicalPage;
+use crate::container::{ReservedColumns, NUM_RESERVED_COLUMNS};
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+
+/// This is the Python object that we return in `select` and `select_version`
+/// Making this in Rust improved speed by 30%
+#[pyclass]
+pub struct RReturnRecord {
+    #[pyo3(get)]
+    pub columns: Vec<Option<i64>>,
+}
+
+#[pymethods]
+impl RReturnRecord {
+    fn __str__(&self) -> String {
+        format!("RReturnRecord(columns={:?})", self.columns)
+    }
+
+    fn __repr__(&self) -> String {
+        self.__str__()
+    }
+}
 
 #[derive(Debug, Clone)]
 #[pyclass]
