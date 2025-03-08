@@ -5,6 +5,8 @@ use record::Record;
 use table::{RTable, RTableHandle};
 
 pub mod bufferpool;
+pub mod transaction;
+pub mod transaction_worker;
 pub mod container;
 pub mod database;
 pub mod filewriter;

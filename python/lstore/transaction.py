@@ -1,6 +1,4 @@
-from lstore.table import Table, Record
-from lstore.index import Index
-
+from .lstore import RDatabase, RTable, RQuery
 
 class Transaction:
     """

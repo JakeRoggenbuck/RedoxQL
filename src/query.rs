@@ -759,28 +759,4 @@ mod tests {
             v.unwrap()[0]
         );
     }
-
-    /* Seems like M2 test wants us to delete the record if primary key is changed
-
-    #[test]
-    fn test_update_existing_primary_key() {
-        let mut db = RDatabase::new();
-        let t = db.create_table(String::from("Grades"), 3, 0);
-        let mut q = RQuery::new(t);
-
-        q.internal_insert(vec![1, 2, 3]);
-        q.internal_insert(vec![4, 5, 6]);
-
-        // Attempt to update the primary key of the first record to an existing primary key
-        let result = q.update(1, vec![Some(4), Some(7), Some(8)]);
-        assert!(!result);
-
-        // Verify that the original records are still intact
-        let vals1 = q.select(1, 0, vec![1, 1, 1]);
-        assert_eq!(vals1.unwrap()[0], vec![Some(0), Some(0), Some(0), Some(1), Some(2), Some(3)]);
-
-        let vals2 = q.select(4, 0, vec![1, 1, 1]);
-        assert_eq!(vals2.unwrap()[0], vec![Some(1), Some(0), Some(1), Some(4), Some(5), Some(6)]);
-    }
-    */
 }

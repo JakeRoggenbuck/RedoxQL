@@ -155,16 +155,8 @@ impl RDatabase {
             index_guard.set_owner(Arc::downgrade(&arc_table));
         }
 
-        // PREVIOUS IMPLEMENTATION
-        // let i = self.tables.len();
-
-        // Map a name of a table to it's index on the self.tables field
-        // self.tables_hashmap.insert(name, i);
-
-        // self.tables.push(t);
-
-        // Push t into the tables vector so its address becomes stable.
         self.tables.push(arc_table.clone());
+        
         let i = self.tables.len() - 1;
         // Map a name of a table to its index
         self.tables_hashmap.insert(name, i);
