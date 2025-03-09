@@ -9,7 +9,9 @@ enum QueryFunctions {
     Delete,
     Insert,
     Update,
+    Sum,
     SumVersion,
+    Increment,
     None,
 }
 
@@ -39,7 +41,9 @@ impl RTransaction {
             "delete" => QueryFunctions::Delete,
             "insert" => QueryFunctions::Insert,
             "update" => QueryFunctions::Update,
+            "sum" => QueryFunctions::Sum,
             "sum_version" => QueryFunctions::SumVersion,
+            "increment" => QueryFunctions::Increment,
             _ => QueryFunctions::None,
         };
 
@@ -97,6 +101,23 @@ impl RTransaction {
                         }
                     }
                 }
+                QueryFunctions::Sum => {
+                    let args_clone = q.args.clone();
+                    if args_clone.len() == 3 {
+                        let start = args_clone[0];
+                        let end = args_clone[1];
+                        let col = args_clone[2];
+
+                        match (start, end, col) {
+                            (Some(s), Some(e), Some(c)) => {
+                                query.sum(s, e, c);
+                            }
+                            _ => {
+                                debug!("Wrong args for sum.");
+                            }
+                        }
+                    }
+                }
                 QueryFunctions::SumVersion => {
                     let args_clone = q.args.clone();
                     if args_clone.len() > 4 {
@@ -123,7 +144,25 @@ impl RTransaction {
                             (Some(s), Some(e), Some(c), Some(v)) => {
                                 query.select_version(s, e, c, v);
                             }
-                            _ => {}
+                            _ => {
+                                debug!("Wrong args for sum_version.");
+                            }
+                        }
+                    }
+                }
+                QueryFunctions::Increment => {
+                    let args_clone = q.args.clone();
+                    if args_clone.len() == 2 {
+                        let key = args_clone[0];
+                        let col = args_clone[1];
+
+                        match (key, col) {
+                            (Some(k), Some(c)) => {
+                                query.increment(k, c);
+                            }
+                            _ => {
+                                debug!("Wrong args for increment.");
+                            }
                         }
                     }
                 }
