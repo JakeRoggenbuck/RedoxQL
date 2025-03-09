@@ -162,7 +162,7 @@ impl RTransaction {
                                 query.increment(k, c);
                             }
                             _ => {
-                                debug!("Wrong args for sum.");
+                                debug!("Wrong args for increment.");
                             }
                         }
                     }
