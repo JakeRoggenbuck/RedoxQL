@@ -4,7 +4,6 @@ use super::table::RTableHandle;
 use pyo3::prelude::*;
 use std::iter::zip;
 use std::sync::atomic::{AtomicBool, Ordering};
-use log::debug;
 
 #[pyclass]
 pub struct RQuery {

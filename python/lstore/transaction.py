@@ -20,7 +20,8 @@ class Transaction:
     def add_query(self, query, table, *args):
         function_name = query.__name__
 
-        self.transaction.add_query(function_name, table, list(args))
+        print(type(args))
+        self.transaction.add_query(function_name, table, args)
 
     # If you choose to implement this differently this method must still return
     # True if transaction commits or False on abort
