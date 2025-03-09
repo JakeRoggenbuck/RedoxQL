@@ -1,5 +1,4 @@
-from lstore.table import Table, Record
-from lstore.index import Index
+from .lstore import RTransactionWorker
 
 
 class TransactionWorker:
@@ -8,36 +7,42 @@ class TransactionWorker:
     """
 
     def __init__(self, transactions=[]):
+        self.transaction_worker = RTransactionWorker()
+
+        for t in transactions:
+            self.transaction_worker.add_transaction(t)
+
         self.stats = []
-        self.transactions = transactions
         self.result = 0
-        pass
 
     """
     Appends t to transactions
     """
 
     def add_transaction(self, t):
-        self.transactions.append(t)
+        self.transaction_worker.add_transaction(t)
 
     """
     Runs all transaction as a thread
     """
 
     def run(self):
-        pass
-        # here you need to create a thread and call __run
+        self.transaction_worker.run()
 
     """
     Waits for the worker to finish
     """
 
     def join(self):
-        pass
+        self.transaction_worker.join()
+
 
     def __run(self):
+        """
         for transaction in self.transactions:
             # each transaction returns True if committed or False if aborted
             self.stats.append(transaction.run())
         # stores the number of transactions that committed
         self.result = len(list(filter(lambda x: x, self.stats)))
+        """
+        pass

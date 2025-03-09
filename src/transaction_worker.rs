@@ -18,4 +18,12 @@ impl RTransactionWorker {
     pub fn add_transaction(&mut self, t: RTransaction) {
         self.transactions.push(t);
     }
+
+    pub fn run(&mut self) {
+        // TODO: Make a new thread!
+    }
+
+    pub fn join(&mut self) {
+        // TODO: Wait until the transaction is done running
+    }
 }
