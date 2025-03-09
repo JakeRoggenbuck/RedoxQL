@@ -36,7 +36,6 @@ class TransactionWorker:
     def join(self):
         self.transaction_worker.join()
 
-
     def __run(self):
         """
         for transaction in self.transactions:
