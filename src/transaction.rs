@@ -23,6 +23,7 @@ struct SingleQuery {
 }
 
 #[pyclass]
+#[derive(Clone)]
 pub struct RTransaction {
     queries: VecDeque<SingleQuery>,
 }
@@ -161,7 +162,7 @@ impl RTransaction {
                                 query.increment(k, c);
                             }
                             _ => {
-                                debug!("Wrong args for increment.");
+                                debug!("Wrong args for sum.");
                             }
                         }
                     }
