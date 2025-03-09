@@ -187,7 +187,10 @@ impl RQuery {
             relative_version,
         ) {
             // Return the columns encased in the RReturnRecord struct
-            Some(columns) => Some(vec![Some(RReturnRecord { columns })]),
+            Some(mut columns) => {
+                columns.drain(0..4);
+                Some(vec![Some(RReturnRecord { columns })])
+            }
             None => None,
         }
     }
