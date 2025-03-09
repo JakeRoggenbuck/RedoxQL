@@ -1,13 +1,13 @@
 use super::query::RQuery;
-use super::table::{RTable, RTableHandle};
+use super::table::RTableHandle;
 use log::debug;
 use pyo3::prelude::*;
-use pyo3::types::PyAny;
 use std::collections::VecDeque;
 
 #[derive(Debug, Clone)]
 enum QueryFunctions {
     Insert,
+    None,
 }
 
 #[derive(Clone)]
@@ -32,6 +32,11 @@ impl RTransaction {
     }
 
     pub fn add_query(&mut self, function_name: &str, table: RTableHandle, args: Vec<i64>) {
+        let func = match function_name {
+            "insert" => QueryFunctions::Insert,
+            _ => QueryFunctions::None,
+        };
+
         let q = SingleQuery {
             func: QueryFunctions::Insert,
             table,
@@ -57,6 +62,9 @@ impl RTransaction {
                     if q.args.len() > 0 {
                         query.insert(q.args.clone());
                     }
+                }
+                QueryFunctions::None => {
+                    debug!("Something went wrong.")
                 }
             }
         }
