@@ -7,6 +7,7 @@ use std::collections::VecDeque;
 #[derive(Debug, Clone)]
 enum QueryFunctions {
     Insert,
+    Update,
     None,
 }
 
@@ -14,7 +15,7 @@ enum QueryFunctions {
 struct SingleQuery {
     func: QueryFunctions,
     table: RTableHandle,
-    args: Vec<i64>,
+    args: Vec<Option<i64>>,
 }
 
 #[pyclass]
@@ -31,9 +32,10 @@ impl RTransaction {
         }
     }
 
-    pub fn add_query(&mut self, function_name: &str, table: RTableHandle, args: Vec<i64>) {
+    pub fn add_query(&mut self, function_name: &str, table: RTableHandle, args: Vec<Option<i64>>) {
         let func = match function_name {
             "insert" => QueryFunctions::Insert,
+            "update" => QueryFunctions::Update,
             _ => QueryFunctions::None,
         };
 
@@ -55,8 +57,30 @@ impl RTransaction {
 
             match q.func {
                 QueryFunctions::Insert => {
-                    if q.args.len() > 0 {
-                        query.insert(q.args.clone());
+                    let mut args = Vec::new();
+                    let args_clone = q.args.clone();
+
+                    // Get only Some type from args
+                    // Should be everything!
+                    for a in args_clone {
+                        if let Some(b) = a {
+                            args.push(b);
+                        } else {
+                            debug!("Optional passes to insert incorrectly!");
+                        }
+                    }
+
+                    query.insert(args);
+                }
+                QueryFunctions::Update => {
+                    let args_clone = q.args.clone();
+                    let first = args_clone.first();
+                    let rest = args_clone.iter().skip(1).cloned().collect();
+
+                    if let Some(f) = first {
+                        if let Some(a) = f {
+                            query.update(*a, rest);
+                        }
                     }
                 }
                 QueryFunctions::None => {
