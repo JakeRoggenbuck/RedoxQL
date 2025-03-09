@@ -1,5 +1,5 @@
 use super::container::{ReservedColumns, NUM_RESERVED_COLUMNS};
-use super::record::{Record, RReturnRecord};
+use super::record::{RReturnRecord, Record};
 use super::table::RTableHandle;
 use pyo3::prelude::*;
 use std::iter::zip;
@@ -92,7 +92,7 @@ impl RQuery {
                     out.push(Some(RReturnRecord { columns: a }))
                 }
             }
-            None => {},
+            None => {}
         }
 
         return Some(out);
@@ -179,7 +179,7 @@ impl RQuery {
         _search_key_index: i64,
         projected_columns_index: Vec<i64>,
         relative_version: i64,
-    ) -> Option<RReturnRecord> {
+    ) -> Option<Vec<Option<RReturnRecord>>> {
         match self.internal_select_version(
             primary_key,
             0,
@@ -187,7 +187,10 @@ impl RQuery {
             relative_version,
         ) {
             // Return the columns encased in the RReturnRecord struct
-            Some(columns) => Some(RReturnRecord { columns }),
+            Some(mut columns) => {
+                columns.drain(0..4);
+                Some(vec![Some(RReturnRecord { columns })])
+            }
             None => None,
         }
     }

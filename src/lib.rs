@@ -3,6 +3,8 @@ use pyo3::prelude::*;
 use query::RQuery;
 use record::Record;
 use table::{RTable, RTableHandle};
+use transaction::RTransaction;
+use transaction_worker::RTransactionWorker;
 
 pub mod bufferpool;
 pub mod container;
@@ -15,6 +17,8 @@ pub mod query;
 pub mod record;
 pub mod system;
 pub mod table;
+pub mod transaction;
+pub mod transaction_worker;
 
 /// Blazingly fast hello
 #[pyfunction]
@@ -26,6 +30,8 @@ fn hello_from_rust() -> PyResult<String> {
 #[pymodule]
 fn lstore(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<RDatabase>()?;
+    m.add_class::<RTransaction>()?;
+    m.add_class::<RTransactionWorker>()?;
     m.add_class::<RQuery>()?;
     m.add_class::<RTable>()?;
     m.add_class::<Record>()?;
