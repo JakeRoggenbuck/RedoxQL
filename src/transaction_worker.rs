@@ -16,8 +16,18 @@ impl RTransactionWorker {
         }
     }
 
-    pub fn add_transaction(&mut self, t: RTransaction) {
-        self.transactions.push_back(t);
+    pub fn add_transaction(&mut self, t: PyObject) {
+        // TODO: Find a way to do this better
+        // It might be find since adding a transaction only happens a few times
+        Python::with_gil(|py| {
+            let r_transaction = t.extract(py);
+            match r_transaction {
+                Ok(rt) => {
+                    self.transactions.push_back(rt);
+                }
+                Err(_) => {}
+            }
+        })
     }
 
     pub fn run(&mut self) {
