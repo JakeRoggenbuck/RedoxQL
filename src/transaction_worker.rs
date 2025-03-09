@@ -1,13 +1,9 @@
+use crate::transaction;
+
 use super::transaction::RTransaction;
 use log::debug;
 use pyo3::prelude::*;
 use std::collections::VecDeque;
-
-#[pyclass]
-#[derive(Clone)]
-pub struct PyTransaction {
-    transactions: Vec<RTransaction>,
-}
 
 #[pyclass]
 pub struct RTransactionWorker {
@@ -27,10 +23,22 @@ impl RTransactionWorker {
         // TODO: Find a way to do this better
         // It might be find since adding a transaction only happens a few times
         Python::with_gil(|py| {
-            let a = t.getattr(py, "transaction").unwrap();
-            let ts: RTransaction = a.extract(py).unwrap();
+            // Extract just the attribute `transaction` and serialize it to RTransaction
+            let transaction_attr = t.getattr(py, "transaction");
 
-            self.transactions.push_back(ts);
+            match transaction_attr {
+                Ok(t_attr) => {
+                    let ts: Result<RTransaction, _> = t_attr.extract(py);
+
+                    match ts {
+                        Ok(transaction) => {
+                            self.transactions.push_back(transaction);
+                        }
+                        Err(e) => debug!("{}", e),
+                    }
+                }
+                Err(e) => debug!("{}", e),
+            }
         })
     }
 
