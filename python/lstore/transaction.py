@@ -1,5 +1,4 @@
-from lstore.table import Table, Record
-from lstore.index import Index
+from .lstore import RTransaction
 
 
 class Transaction:
@@ -8,8 +7,7 @@ class Transaction:
     """
 
     def __init__(self):
-        self.queries = []
-        pass
+        self.transaction = RTransaction()
 
     """
     # Adds the given query to this transaction
@@ -20,22 +18,17 @@ class Transaction:
     """
 
     def add_query(self, query, table, *args):
-        self.queries.append((query, args))
-        # use grades_table for aborting
+        function_name = query.__name__
 
-    # If you choose to implement this differently this method must still return True if transaction commits or False on abort
+        self.transaction.add_query(function_name, table, list(args))
+
+    # If you choose to implement this differently this method must still return
+    # True if transaction commits or False on abort
     def run(self):
-        for query, args in self.queries:
-            result = query(*args)
-            # If the query has failed the transaction should abort
-            if result == False:
-                return self.abort()
-        return self.commit()
+        return self.transaction.run()
 
     def abort(self):
-        # TODO: do roll-back and any other necessary operations
-        return False
+        return self.transaction.abort()
 
     def commit(self):
-        # TODO: commit to database
-        return True
+        return self.transaction.commit()
