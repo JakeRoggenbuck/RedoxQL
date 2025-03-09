@@ -37,11 +37,7 @@ impl RTransaction {
             _ => QueryFunctions::None,
         };
 
-        let q = SingleQuery {
-            func: QueryFunctions::Insert,
-            table,
-            args,
-        };
+        let q = SingleQuery { func, table, args };
 
         self.queries.push_back(q.clone());
         debug!("Pushed {:?}", q.func);
