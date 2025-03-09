@@ -1,6 +1,13 @@
 use super::transaction::RTransaction;
+use log::debug;
 use pyo3::prelude::*;
 use std::collections::VecDeque;
+
+#[pyclass]
+#[derive(Clone)]
+pub struct PyTransaction {
+    transactions: Vec<RTransaction>,
+}
 
 #[pyclass]
 pub struct RTransactionWorker {
@@ -20,18 +27,19 @@ impl RTransactionWorker {
         // TODO: Find a way to do this better
         // It might be find since adding a transaction only happens a few times
         Python::with_gil(|py| {
-            let r_transaction = t.extract(py);
-            match r_transaction {
-                Ok(rt) => {
-                    self.transactions.push_back(rt);
-                }
-                Err(_) => {}
-            }
+            let a = t.getattr(py, "transaction").unwrap();
+            let ts: RTransaction = a.extract(py).unwrap();
+
+            self.transactions.push_back(ts);
         })
     }
 
     pub fn run(&mut self) {
         // TODO: Make a new thread!
+        debug!(
+            "Started run on transaction_worker! {}",
+            self.transactions.len()
+        );
 
         while self.transactions.len() > 0 {
             let transaction = self.transactions.pop_front();

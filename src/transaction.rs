@@ -51,11 +51,11 @@ impl RTransaction {
         let q = SingleQuery { func, table, args };
 
         self.queries.push_back(q.clone());
-        debug!("Pushed {:?}", q.func);
+        // debug!("Pushed {:?}", q.func);
     }
 
     pub fn run(&mut self) {
-        debug!("Started run!");
+        debug!("Started run for transaction!");
 
         for q in self.queries.iter_mut() {
             // TODO: Don't make a new RQuery for each call
