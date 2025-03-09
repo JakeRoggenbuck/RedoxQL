@@ -8,6 +8,7 @@ use std::sync::{Arc, Mutex};
 /// This is the Python object that we return in `select` and `select_version`
 /// Making this in Rust improved speed by 30%
 #[pyclass]
+#[derive(Debug)]
 pub struct RReturnRecord {
     #[pyo3(get)]
     pub columns: Vec<Option<i64>>,

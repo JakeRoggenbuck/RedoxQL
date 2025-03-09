@@ -7,14 +7,14 @@ use std::collections::VecDeque;
 
 #[derive(Debug, Clone)]
 enum QueryFunctions {
-    Update,
+    Insert,
 }
 
 #[derive(Clone)]
 struct SingleQuery {
     func: QueryFunctions,
     table: RTableHandle,
-    args: Vec<Option<i64>>,
+    args: Vec<i64>,
 }
 
 #[pyclass]
@@ -31,9 +31,9 @@ impl RTransaction {
         }
     }
 
-    pub fn add_query(&mut self, function_name: &str, table: RTableHandle, args: Vec<Option<i64>>) {
+    pub fn add_query(&mut self, function_name: &str, table: RTableHandle, args: Vec<i64>) {
         let q = SingleQuery {
-            func: QueryFunctions::Update,
+            func: QueryFunctions::Insert,
             table,
             args,
         };
@@ -49,19 +49,13 @@ impl RTransaction {
             // TODO: Don't make a new RQuery for each call
             // We need to right now because there might be a test where
             // different tables are in the same query
-            let mut query = RQuery::new(q.table.clone());
+            let t = q.table.clone();
+            let mut query = RQuery::new(t);
 
             match q.func {
-                QueryFunctions::Update => {
+                QueryFunctions::Insert => {
                     if q.args.len() > 0 {
-                        let first = q.args[0];
-                        q.args.drain(0..1);
-
-                        if let Some(f) = first {
-                            query.update(f, q.args.clone());
-
-                            debug!("Ran update!");
-                        }
+                        query.insert(q.args.clone());
                     }
                 }
             }
