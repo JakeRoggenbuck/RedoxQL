@@ -1,5 +1,3 @@
-use crate::transaction;
-
 use super::transaction::RTransaction;
 use log::debug;
 use pyo3::prelude::*;
