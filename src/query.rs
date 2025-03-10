@@ -1,7 +1,7 @@
 use super::container::{ReservedColumns, NUM_RESERVED_COLUMNS};
 use super::record::{RReturnRecord, Record};
 use super::table::RTableHandle;
-use super::utils::encode_str_to_ints;
+use super::utils::{decode_string_from_ints, encode_str_to_ints};
 use pyo3::prelude::*;
 use std::iter::zip;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -71,6 +71,19 @@ impl RQuery {
         values.extend(str);
 
         self.internal_insert(values).is_some()
+    }
+
+    pub fn select_string(&mut self, index: i64, width: i64) -> String {
+        let v = self.select(index, 0, vec![1; width as usize]);
+        let mut vals = vec![];
+
+        for x in &v.unwrap()[0].as_mut().unwrap().columns {
+            if let Some(d) = x {
+                vals.push(*d);
+            }
+        }
+
+        decode_string_from_ints(vals)
     }
 
     fn internal_insert(&mut self, values: Vec<i64>) -> Option<Record> {
@@ -408,7 +421,6 @@ impl RQuery {
 mod tests {
     use super::*;
     use crate::database::RDatabase;
-    use crate::utils::decode_string_from_ints;
 
     #[test]
     fn test_internal_insert_and_read_test() {
@@ -778,7 +790,7 @@ mod tests {
 
         let mut db = RDatabase::new();
         let table_ref = db.create_table(String::from("Names"), width, 0);
-        let mut q = RQuery::new(table_ref.clone());
+        let mut q = RQuery::new(table_ref);
 
         let name = "Jake";
         q.insert_string(0, name, width);
@@ -793,6 +805,24 @@ mod tests {
 
         assert_eq!(decode_string_from_ints(vals.clone()), "Jake");
         assert_ne!(decode_string_from_ints(vals), "Cake");
+    }
+
+    #[test]
+    fn insert_and_select_string_test() {
+        let width = 10;
+
+        let mut db = RDatabase::new();
+        let table_ref = db.create_table(String::from("Names"), width, 0);
+        let mut q = RQuery::new(table_ref);
+
+        let name = "Jake";
+
+        q.insert_string(0, name, width);
+
+        let str = q.select_string(0, width);
+
+        assert_eq!(str, "Jake");
+        assert_ne!(str, "JakeR");
     }
 
     /* Seems like M2 test wants us to delete the record if primary key is changed
