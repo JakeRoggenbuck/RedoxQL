@@ -134,7 +134,7 @@ fn bench_multiple_updates(c: &mut Criterion) {
 
 fn bench_sum(c: &mut Criterion) {
     let mut group = c.benchmark_group("sum operation");
-    for size in [10, 100, 1000].iter() {
+    for size in [10, 100, 1_000, 10_000, 100_000].iter() {
         group.bench_with_input(format!("sum {} records", size), size, |b, &size| {
             b.iter_with_setup(
                 || {
