@@ -12,7 +12,6 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
 
 type RedoxQLHasher<K, V> = FxHashMap<K, V>;
-// type RedoxQLHasher<K, V> = HashMap<K, V>;
 
 #[derive(Default, Clone, Serialize, Deserialize)]
 pub struct PageDirectoryMetadata {
