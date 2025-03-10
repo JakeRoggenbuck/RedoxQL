@@ -501,6 +501,20 @@ mod tests {
     }
 
     #[test]
+    fn large_sum_test() {
+        let mut db = RDatabase::new();
+        let table_ref = db.create_table("Scores".to_string(), 2, 0);
+        let mut table = table_ref.table.write().unwrap();
+
+        for x in 0..100_000 {
+            table.write(vec![x, x]);
+        }
+
+        let v = table.sum(0, 100_000, 0);
+        assert_eq!((100_000 - 1) * 100_000 / 2, v);
+    }
+
+    #[test]
     fn delete_test() {
         let mut db = RDatabase::new();
         let table_ref = db.create_table("Scores".to_string(), 3, 0);
