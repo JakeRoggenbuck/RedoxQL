@@ -172,5 +172,43 @@ impl RTransaction {
                 }
             }
         }
+
+        debug!("Finished run for transaction!");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::database::RDatabase;
+
+    #[test]
+    fn add_query_test() {
+        let mut t = RTransaction::new();
+        let mut db = RDatabase::new();
+
+        let table_ref = db.create_table("Scores".to_string(), 3, 0);
+        let mut query = RQuery::new(table_ref.clone());
+
+        t.add_query(
+            "insert",
+            table_ref.clone(),
+            vec![Some(0), Some(234), Some(345)],
+        );
+
+        let mut v = query.select(0, 0, vec![1, 1, 1]);
+
+        // We haven't run the transaction yet so nothing is returned
+        assert_eq!(v.clone().unwrap().len(), 0);
+
+        // Usually this is done by the transaction_worker but we are doing it manually here
+        t.run();
+
+        v = query.select(0, 0, vec![1, 1, 1]);
+
+        assert_eq!(
+            v.unwrap()[0].as_ref().unwrap().columns,
+            vec![Some(0), Some(234), Some(345)]
+        );
     }
 }
