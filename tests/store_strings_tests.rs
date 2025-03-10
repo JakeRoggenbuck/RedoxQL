@@ -1,53 +1,7 @@
 use log::debug;
 use redoxql::database::RDatabase;
 use redoxql::query::RQuery;
-
-fn encode_to_ints(text: &str) -> Vec<i64> {
-    let bytes = text.as_bytes();
-
-    let mut i = 0u64;
-    let mut value = 0u64;
-    let mut string = vec![];
-
-    for b in bytes {
-        // Add the byte to the u64 number
-        value |= (*b as u64) << i;
-        i += 8;
-
-        if i == 64 {
-            string.push(value as i64);
-            value = 0;
-            i = 0;
-        }
-    }
-
-    if value != 0 {
-        string.push(value as i64);
-    }
-
-    string
-}
-
-fn decode_from_ints(ints: Vec<i64>) -> String {
-    let mut out_ints = vec![];
-
-    for v in ints.into_iter() {
-        for i in (0..64).step_by(8) {
-            let c = ((v as u64) >> i) & 0xFF;
-            if c == 0 {
-                break;
-            }
-
-            out_ints.push(c as u8);
-        }
-    }
-
-    let s = String::from_utf8(out_ints);
-    match s {
-        Ok(a) => a,
-        Err(_) => String::new(),
-    }
-}
+use redoxql::utils::{decode_from_ints, encode_to_ints};
 
 #[test]
 fn store_strings() {

@@ -19,6 +19,7 @@ pub mod system;
 pub mod table;
 pub mod transaction;
 pub mod transaction_worker;
+pub mod utils;
 
 /// Blazingly fast hello
 #[pyfunction]
