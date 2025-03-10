@@ -1,7 +1,7 @@
 use log::debug;
 use redoxql::database::RDatabase;
 use redoxql::query::RQuery;
-use redoxql::utils::{decode_from_ints, encode_to_ints};
+use redoxql::utils::{decode_string_from_ints, encode_str_to_ints};
 
 #[test]
 fn store_strings() {
@@ -11,10 +11,10 @@ fn store_strings() {
 
     let name = "Cracking the Coding Interview";
 
-    let a = encode_to_ints(name);
+    let a = encode_str_to_ints(name);
     debug!("{:?}", a);
 
-    let b = decode_from_ints(a.clone());
+    let b = decode_string_from_ints(a.clone());
     debug!("{:?}", b);
 
     // Insert string into db
@@ -30,5 +30,8 @@ fn store_strings() {
         }
     }
 
-    assert_eq!(decode_from_ints(vals), "Cracking the Coding Interview");
+    assert_eq!(
+        decode_string_from_ints(vals),
+        "Cracking the Coding Interview"
+    );
 }
