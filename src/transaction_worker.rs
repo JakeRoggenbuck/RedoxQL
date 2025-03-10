@@ -42,19 +42,19 @@ impl RTransactionWorker {
     }
 
     pub fn run(&mut self) {
-        // TODO: Make a new thread!
         debug!(
             "Started run on transaction_worker! {}",
             self.transactions.len()
         );
+
+        // TODO: Keep the count of the number of threads in use
+        // Only run a transaction if there is a thread ready to do so
 
         while self.transactions.len() > 0 {
             let transaction = self.transactions.pop_front();
 
             // TODO: Limit threads to total_threads - 1
             thread::spawn(|| {
-                // TODO: Make this specifically a new thread for run
-                //
                 // TODO: I am going to need to push running threads into a new vec
                 // so that .join can check to see if all of the threads are done
                 if let Some(mut t) = transaction {
