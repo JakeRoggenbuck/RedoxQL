@@ -43,7 +43,7 @@ impl RTransactionWorker {
 
     pub fn run(&mut self) {
         debug!(
-            "Started run on transaction_worker! {}",
+            "Started run on transaction_worker! Transactions: {}",
             self.transactions.len()
         );
 
@@ -56,11 +56,15 @@ impl RTransactionWorker {
             // TODO: Limit threads to total_threads - 1
             // TODO: Don't spawn new threads when needed, spawn at the start and later assign them
             thread::spawn(|| {
+                debug!("Started {:?}", thread::current().id());
+
                 // TODO: I am going to need to push running threads into a new vec
                 // so that .join can check to see if all of the threads are done
                 if let Some(mut t) = transaction {
                     t.run();
                 }
+
+                debug!("Finished {:?}", thread::current().id());
             });
         }
     }
