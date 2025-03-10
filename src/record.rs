@@ -91,7 +91,7 @@ impl RecordMetadata {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 #[pyclass]
 pub struct Record {
     /// Each Record has a RID and we can retrieve the Record via RTable.page_directory
