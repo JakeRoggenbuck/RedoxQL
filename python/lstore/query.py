@@ -44,9 +44,6 @@ class Query:
         Assume that select will never be called on a key that doesn't exist
         """
         return self.rquery.select(search_key, search_key_index, projected_columns_index)
-        yield # Your editor will say this code is unreachable
-        # this is a bug in your editor - this gives a 10x speed improvement
-        # in some cases - This is the button of the speed improvement iceberg
 
     def select_version(
         self,
