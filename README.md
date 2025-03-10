@@ -285,7 +285,7 @@ py-spy record -o profile.svg -- python3 testM2.py
 
 ### Moving everything possible to Rust
 
-We used to make a ReturnRecord object for every single row! We also would turn the result of rquery into a list, wrap each in ReturnRecord and then make that back into a new list. ReturnRecord would also do list truncation each time it was initialized (for each row). We moved all of this logic into Rust can simply return what the Rust function returns. This change improved the performance by over 30%. The speed of testM2.py went from 1.30 seconds to 0.92 seconds. These results we consistent across 3 different runs each done in an interwoven fashion (with change, then without change, then with change again, etc.) for a total of 6 runs. The change can be seen in [PR#162](https://github.com/JakeRoggenbuck/ecs-165a-database/pull/162).
+We used to make a ReturnRecord object for every single row! We also would turn the result of rquery into a list, wrap each in ReturnRecord and then make that back into a new list. ReturnRecord would also do list truncation each time it was initialized (for each row). We moved all of this logic into Rust can simply return what the Rust function returns. This change improved the performance by nearly **30%**. The speed of testM2.py went from 1.30 seconds to 0.92 seconds. These results we consistent across 3 different runs each done in an interwoven fashion (with change, then without change, then with change again, etc.) for a total of 6 runs. The change can be seen in [PR#162](https://github.com/JakeRoggenbuck/ecs-165a-database/pull/162).
 
 ```diff
 -   class ReturnRecord:
@@ -320,7 +320,7 @@ This includes `insert` and `update`.
 ### Using FxHashMap instead of default HashMap
 
 The Rust defualt HashMap is a great general purpose HashMap implementation and is very fast but FxHashMap is a decent bit faster.
-After changing the page directory to use FxHashMap in [PR#186](https://github.com/JakeRoggenbuck/ecs-165a-database/pull/186), the speed of many reads and writes improved by over 28% and the overall speed of all the benchmarks improved by by over 26%.
+After changing the page directory to use FxHashMap in [PR#186](https://github.com/JakeRoggenbuck/ecs-165a-database/pull/186), the speed of many reads and writes improved by **over 28%** and the overall speed of all the benchmarks improved by by **over 26%**.
 
 ```rs
 use crate::container::{ReservedColumns, NUM_RESERVED_COLUMNS};
