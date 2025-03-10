@@ -5,6 +5,7 @@ use super::pagerange::{PageRange, PageRangeMetadata};
 use super::record::{Record, RecordMetadata};
 use crate::container::{ReservedColumns, NUM_RESERVED_COLUMNS};
 use crate::index::RIndexHandle;
+use fnv::FnvHashMap;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -12,18 +13,18 @@ use std::sync::{Arc, Mutex, RwLock};
 
 #[derive(Default, Clone, Serialize, Deserialize)]
 pub struct PageDirectoryMetadata {
-    pub directory: HashMap<i64, RecordMetadata>,
+    pub directory: FnvHashMap<i64, RecordMetadata>,
 }
 
 #[derive(Default, Clone)]
 pub struct PageDirectory {
-    pub directory: HashMap<i64, Record>,
+    pub directory: FnvHashMap<i64, Record>,
 }
 
 impl PageDirectory {
     pub fn new() -> Self {
         PageDirectory {
-            directory: HashMap::new(),
+            directory: FnvHashMap::default(),
         }
     }
 
@@ -65,7 +66,7 @@ impl PageDirectory {
         let page_meta: PageDirectoryMetadata = writer.read_file("./redoxdata/page_directory.data");
 
         let mut pd: PageDirectory = PageDirectory {
-            directory: HashMap::new(),
+            directory: FnvHashMap::default(),
         };
 
         // Load records into page_directory
@@ -81,7 +82,7 @@ impl PageDirectory {
 
     fn save_state(&self) {
         let mut pd_meta = PageDirectoryMetadata {
-            directory: HashMap::new(),
+            directory: FnvHashMap::default(),
         };
 
         for (rid, record) in &self.directory {
