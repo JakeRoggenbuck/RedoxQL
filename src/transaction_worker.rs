@@ -2,11 +2,12 @@ use super::transaction::RTransaction;
 use log::debug;
 use pyo3::prelude::*;
 use std::collections::VecDeque;
-use std::thread;
+use std::thread::{self, JoinHandle};
 
 #[pyclass]
 pub struct RTransactionWorker {
     transactions: VecDeque<RTransaction>,
+    handles: Vec<JoinHandle<()>>,
 }
 
 #[pymethods]
@@ -15,6 +16,7 @@ impl RTransactionWorker {
     pub fn new() -> Self {
         RTransactionWorker {
             transactions: VecDeque::new(),
+            handles: Vec::new(),
         }
     }
 
@@ -55,7 +57,7 @@ impl RTransactionWorker {
 
             // TODO: Limit threads to total_threads - 1
             // TODO: Don't spawn new threads when needed, spawn at the start and later assign them
-            thread::spawn(|| {
+            let handle = thread::spawn(|| {
                 debug!("Started {:?}", thread::current().id());
 
                 // TODO: I am going to need to push running threads into a new vec
@@ -66,10 +68,18 @@ impl RTransactionWorker {
 
                 debug!("Finished {:?}", thread::current().id());
             });
+
+            self.handles.push(handle);
         }
     }
 
     pub fn join(&mut self) {
-        // TODO: Wait until the transaction is done running
+        while self.handles.len() > 0 {
+            let handle = self.handles.pop();
+
+            if let Some(h) = handle {
+                let _ = h.join();
+            }
+        }
     }
 }
