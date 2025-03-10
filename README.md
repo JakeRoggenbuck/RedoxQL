@@ -365,3 +365,23 @@ opt-level = 3
 - `codegen-units = 1` means that rustc will not split up the source code into different parts to compile separately on different threads. Because of this, it's able to apply optimization tricks like inlining between libraries and our project source code.
 
 - `opt-level = 3` is just setting the optimization level. The reason you might want it lower is compilation speed.
+
+### Using snakeviz to profile
+
+After reading bits from the O'Reilly _High Performance Python, 3rd Edition_, I found out about profiling with snakeviz.
+
+```
+pip install snakeviz
+```
+
+```
+python3 -m cProfile -o profile.prof testM2.py
+```
+
+```
+snakeviz profile.prof
+```
+
+Here is the output from `testM2.py`
+
+![image](https://github.com/user-attachments/assets/11d9fbd6-b2b5-47e4-a4e6-4ecd32cba678)
