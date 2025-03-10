@@ -1,9 +1,11 @@
 use super::page::PhysicalPage;
 use crate::container::{ReservedColumns, NUM_RESERVED_COLUMNS};
 use pyo3::prelude::*;
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+
+type RedoxQLHashMap<K, V> = FxHashMap<K, V>;
 
 /// This is the Python object that we return in `select` and `select_version`
 /// Making this in Rust improved speed by 30%
@@ -69,8 +71,8 @@ pub struct RecordMetadata {
 impl RecordMetadata {
     pub fn load_state(
         &self,
-        base_pages: &HashMap<i64, Arc<Mutex<PhysicalPage>>>,
-        _tail_pages: &HashMap<i64, Arc<Mutex<PhysicalPage>>>,
+        base_pages: &RedoxQLHashMap<i64, Arc<Mutex<PhysicalPage>>>,
+        _tail_pages: &RedoxQLHashMap<i64, Arc<Mutex<PhysicalPage>>>,
     ) -> Record {
         let mut rec_addrs = Vec::new();
 

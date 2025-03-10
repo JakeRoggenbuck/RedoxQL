@@ -6,16 +6,18 @@ use super::table::{PageDirectory, RTable, RTableMetadata, StatePersistence};
 use crate::table::RTableHandle;
 use log::info;
 use pyo3::prelude::*;
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::fs::create_dir_all;
 use std::path::Path;
 use std::sync::{Arc, RwLock};
 
+type RedoxQLHashMap<K, V> = FxHashMap<K, V>;
+
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct RDatabaseMetadata {
     tables: Vec<RTableMetadata>,
-    tables_hashmap: HashMap<String, usize>,
+    tables_hashmap: RedoxQLHashMap<String, usize>,
     db_filepath: Option<String>,
 }
 
@@ -24,7 +26,7 @@ pub struct RDatabase {
     /// This is where we keep all of the tables
     pub tables: Vec<Arc<RwLock<RTable>>>,
     // Map table names to index on the tables: Vec<RTable>
-    tables_hashmap: HashMap<String, usize>,
+    tables_hashmap: RedoxQLHashMap<String, usize>,
 
     db_filepath: Option<String>,
 
@@ -51,7 +53,7 @@ impl RDatabase {
 
         RDatabase {
             tables: vec![],
-            tables_hashmap: HashMap::new(),
+            tables_hashmap: RedoxQLHashMap::default(),
             db_filepath: None,
             buffer_pool: BufferPool::new("./"),
         }

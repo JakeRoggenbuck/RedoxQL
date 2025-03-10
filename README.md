@@ -191,6 +191,8 @@ Try to run the bench as the only thing running on the system.
 
 ### Using maturin in release mode
 
+Maturin is what builds our Python package. Maturin has a mode called `--release` that significantly improves the speed. This is because release mode runs Cargo in release mode, and this does all of the optimization tricks to speed up the executable as much as possible.
+
 ![perf_chart](https://github.com/user-attachments/assets/31b18374-11b6-42fd-8405-5f32a751804f)
 ![tests_chart](https://github.com/user-attachments/assets/8e638ec0-12f7-461f-b1e6-7823d98004cf)
 
@@ -346,3 +348,20 @@ pub struct PageDirectory {
 }
 // -- snip --
 ```
+
+### Using Rust compilation flags
+
+You can set specific build flags that improve the optimization.
+
+```toml
+[profile.release]
+lto = "fat"
+codegen-units = 1
+opt-level = 3
+```
+
+- `lto = "fat"` is the max setting for "Link time optimization", meaning that when it links the binary together, it does the maximum amount of optimizations.
+
+- `codegen-units = 1` means that rustc will not split up the source code into different parts to compile separately on different threads. Because of this, it's able to apply optimization tricks like inlining between libraries and our project source code.
+
+- `opt-level = 3` is just setting the optimization level. The reason you might want it lower is compilation speed.
