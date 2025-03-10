@@ -54,6 +54,7 @@ impl RTransactionWorker {
             let transaction = self.transactions.pop_front();
 
             // TODO: Limit threads to total_threads - 1
+            // TODO: Don't spawn new threads when needed, spawn at the start and later assign them
             thread::spawn(|| {
                 // TODO: I am going to need to push running threads into a new vec
                 // so that .join can check to see if all of the threads are done
