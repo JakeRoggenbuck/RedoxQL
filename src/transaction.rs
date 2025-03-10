@@ -55,6 +55,8 @@ impl RTransaction {
     }
 
     pub fn run(&mut self) {
+        // TODO: Python expects a bool
+
         debug!("Started run for transaction!");
 
         for q in self.queries.iter_mut() {

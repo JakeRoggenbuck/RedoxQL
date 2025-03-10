@@ -2,11 +2,9 @@ from .lstore import RTransactionWorker
 
 
 class TransactionWorker:
-    """
-    # Creates a transaction worker object.
-    """
 
-    def __init__(self, transactions=[]):
+    def __init__(self, transactions=()):
+        """Creates a transaction worker object."""
         self.transaction_worker = RTransactionWorker()
 
         for t in transactions:
@@ -15,25 +13,16 @@ class TransactionWorker:
         self.stats = []
         self.result = 0
 
-    """
-    Appends t to transactions
-    """
-
     def add_transaction(self, t):
+        """Appends t to transactions"""
         self.transaction_worker.add_transaction(t)
 
-    """
-    Runs all transaction as a thread
-    """
-
     def run(self):
+        """Runs all transaction as a thread"""
         self.transaction_worker.run()
 
-    """
-    Waits for the worker to finish
-    """
-
     def join(self):
+        """Waits for the worker to finish"""
         self.transaction_worker.join()
 
     def __run(self):
