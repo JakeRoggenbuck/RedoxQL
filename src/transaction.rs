@@ -172,5 +172,130 @@ impl RTransaction {
                 }
             }
         }
+
+        debug!("Finished run for transaction!");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::database::RDatabase;
+
+    #[test]
+    fn add_query_test() {
+        let mut t = RTransaction::new();
+        let mut db = RDatabase::new();
+
+        let table_ref = db.create_table("Scores".to_string(), 3, 0);
+        let mut query = RQuery::new(table_ref.clone());
+
+        t.add_query(
+            "insert",
+            table_ref.clone(),
+            vec![Some(0), Some(234), Some(345)],
+        );
+
+        let mut v = query.select(0, 0, vec![1, 1, 1]);
+
+        // We haven't run the transaction yet so nothing is returned
+        assert_eq!(v.clone().unwrap().len(), 0);
+
+        // Usually this is done by the transaction_worker but we are doing it manually here
+        t.run();
+
+        v = query.select(0, 0, vec![1, 1, 1]);
+
+        assert_eq!(
+            v.unwrap()[0].as_ref().unwrap().columns,
+            vec![Some(0), Some(234), Some(345)]
+        );
+    }
+
+    #[test]
+    fn add_many_query_test() {
+        let mut t = RTransaction::new();
+        let mut db = RDatabase::new();
+
+        let table_ref = db.create_table("Scores".to_string(), 3, 0);
+        let mut query = RQuery::new(table_ref.clone());
+
+        for x in 0..100 {
+            t.add_query(
+                "insert",
+                table_ref.clone(),
+                vec![Some(x), Some(x * x), Some(345 + x)],
+            );
+        }
+
+        let mut v = query.select(0, 0, vec![1, 1, 1]);
+
+        // We haven't run the transaction yet so nothing is returned
+        assert_eq!(v.clone().unwrap().len(), 0);
+
+        // Usually this is done by the transaction_worker but we are doing it manually here
+        t.run();
+
+        // Test selecting on different columns
+        v = query.select(4, 1, vec![1, 1, 1]);
+
+        assert_eq!(
+            v.unwrap()[0].as_ref().unwrap().columns,
+            vec![Some(2), Some(4), Some(345 + 2)]
+        );
+
+        v = query.select(16, 1, vec![1, 1, 1]);
+
+        assert_eq!(
+            v.unwrap()[0].as_ref().unwrap().columns,
+            vec![Some(4), Some(16), Some(345 + 4)]
+        );
+
+        v = query.select(1024, 1, vec![1, 1, 1]);
+
+        assert_eq!(
+            v.unwrap()[0].as_ref().unwrap().columns,
+            vec![Some(32), Some(1024), Some(345 + 32)]
+        );
+    }
+
+    #[test]
+    fn add_query_insert_and_delete_test() {
+        let mut t = RTransaction::new();
+        let mut db = RDatabase::new();
+
+        let table_ref = db.create_table("Scores".to_string(), 3, 0);
+        let mut query = RQuery::new(table_ref.clone());
+
+        t.add_query(
+            "insert",
+            table_ref.clone(),
+            vec![Some(0), Some(234), Some(345)],
+        );
+
+        let mut v = query.select(0, 0, vec![1, 1, 1]);
+
+        // We haven't run the transaction yet so nothing is returned
+        assert_eq!(v.clone().unwrap().len(), 0);
+
+        // Usually this is done by the transaction_worker but we are doing it manually here
+        t.run();
+
+        v = query.select(0, 0, vec![1, 1, 1]);
+
+        assert_eq!(
+            v.unwrap()[0].as_ref().unwrap().columns,
+            vec![Some(0), Some(234), Some(345)]
+        );
+
+        t.add_query("delete", table_ref, vec![Some(0)]);
+
+        // Usually this is done by the transaction_worker but we are doing it manually here
+        t.run();
+
+        v = query.select(0, 0, vec![1, 1, 1]);
+
+        // We haven't run the transaction yet so nothing is returned
+        assert_eq!(v.clone().unwrap().len(), 0);
     }
 }
