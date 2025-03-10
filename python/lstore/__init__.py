@@ -1,5 +1,5 @@
 from typing import Final
-from .lstore import RDatabase, RTable, hello_from_rust, RTableHandle
+from .lstore import RDatabase, RTable, hello_from_rust, RTableHandle, RTransaction, RTransactionWorker, RQuery
 
 
 def print_logo():

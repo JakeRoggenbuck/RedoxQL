@@ -1,4 +1,4 @@
-from .lstore import RDatabase, RTable, RQuery
+from .lstore import RDatabase, RTable, RQuery, RTransactionWorker
 
 
 class TransactionWorker:
@@ -7,24 +7,21 @@ class TransactionWorker:
     """
 
     def __init__(self, transactions=[]):
-        self.stats = []
-        self.transactions = transactions
-        self.result = 0
-        pass
+        self.worker = RTransactionWorker()
 
     """
     Appends t to transactions
     """
 
     def add_transaction(self, t):
-        self.transactions.append(t)
+        self.worker.add_transaction(t.transaction) # Transaction(python).RTransaction(rust)
 
     """
     Runs all transaction as a thread
     """
 
     def run(self):
-        pass
+        self.worker.run()
         # here you need to create a thread and call __run
 
     """
@@ -32,7 +29,7 @@ class TransactionWorker:
     """
 
     def join(self):
-        pass
+        self.worker.join()
 
     def __run(self):
         for transaction in self.transactions:
