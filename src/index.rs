@@ -2,9 +2,12 @@ use super::filewriter::{build_binary_writer, Writer};
 use super::table::RTable;
 use crate::container::NUM_RESERVED_COLUMNS;
 use pyo3::prelude::*;
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::sync::{Arc, RwLock, Weak};
+
+type RedoxQLHashMap<K, V> = FxHashMap<K, V>;
 
 #[pyclass]
 #[derive(Clone, Default)]
@@ -34,9 +37,9 @@ impl RIndexHandle {
         index.drop_index_internal(col_index);
     }
 
-    pub fn get_secondary_indices(&self) -> HashMap<i64, Vec<(i64, Vec<i64>)>> {
+    pub fn get_secondary_indices(&self) -> RedoxQLHashMap<i64, Vec<(i64, Vec<i64>)>> {
         let index = self.index.read().unwrap();
-        let mut out = HashMap::new();
+        let mut out = RedoxQLHashMap::default();
         for (&col, tree) in index.secondary_indices.iter() {
             let mut vec = Vec::new();
             for (&val, rids) in tree.iter() {
@@ -51,7 +54,7 @@ impl RIndexHandle {
 #[derive(Clone, Default, Deserialize, Serialize)]
 pub struct RIndexMetadata {
     pub index: BTreeMap<i64, i64>,
-    pub secondary_indices: HashMap<i64, BTreeMap<i64, Vec<i64>>>,
+    pub secondary_indices: RedoxQLHashMap<i64, BTreeMap<i64, Vec<i64>>>,
 }
 
 #[pyclass]
@@ -61,7 +64,7 @@ pub struct RIndex {
     pub index: BTreeMap<i64, i64>,
 
     #[pyo3(get, set)]
-    pub secondary_indices: HashMap<i64, BTreeMap<i64, Vec<i64>>>,
+    pub secondary_indices: RedoxQLHashMap<i64, BTreeMap<i64, Vec<i64>>>,
     // Using Arc<RwLock<>> pattern which is safer than raw pointers
     // these fields are not python exposed
     pub owner: Option<Weak<RwLock<RTable>>>,
@@ -71,7 +74,7 @@ impl RIndex {
     pub fn new() -> RIndex {
         RIndex {
             index: BTreeMap::new(),
-            secondary_indices: HashMap::new(),
+            secondary_indices: RedoxQLHashMap::default(),
             owner: None,
         }
     }

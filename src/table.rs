@@ -8,25 +8,24 @@ use crate::index::RIndexHandle;
 use pyo3::prelude::*;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
 
-type RedoxQLHasher<K, V> = FxHashMap<K, V>;
+type RedoxQLHashMap<K, V> = FxHashMap<K, V>;
 
 #[derive(Default, Clone, Serialize, Deserialize)]
 pub struct PageDirectoryMetadata {
-    pub directory: RedoxQLHasher<i64, RecordMetadata>,
+    pub directory: RedoxQLHashMap<i64, RecordMetadata>,
 }
 
 #[derive(Default, Clone)]
 pub struct PageDirectory {
-    pub directory: RedoxQLHasher<i64, Record>,
+    pub directory: RedoxQLHashMap<i64, Record>,
 }
 
 impl PageDirectory {
     pub fn new() -> Self {
         PageDirectory {
-            directory: RedoxQLHasher::default(),
+            directory: RedoxQLHashMap::default(),
         }
     }
 
@@ -49,8 +48,8 @@ impl PageDirectory {
         let tail_phys_pages = &page_range.tail_container.physical_pages;
 
         // Create a map of column_indexes to the physical pages there are stored in
-        let mut base_pages = HashMap::<i64, Arc<Mutex<PhysicalPage>>>::new();
-        let mut tail_pages = HashMap::<i64, Arc<Mutex<PhysicalPage>>>::new();
+        let mut base_pages = RedoxQLHashMap::<i64, Arc<Mutex<PhysicalPage>>>::default();
+        let mut tail_pages = RedoxQLHashMap::<i64, Arc<Mutex<PhysicalPage>>>::default();
 
         // Load the base pages into the map
         for page in base_phys_pages {
@@ -68,7 +67,7 @@ impl PageDirectory {
         let page_meta: PageDirectoryMetadata = writer.read_file("./redoxdata/page_directory.data");
 
         let mut pd: PageDirectory = PageDirectory {
-            directory: RedoxQLHasher::default(),
+            directory: RedoxQLHashMap::default(),
         };
 
         // Load records into page_directory
@@ -84,7 +83,7 @@ impl PageDirectory {
 
     fn save_state(&self) {
         let mut pd_meta = PageDirectoryMetadata {
-            directory: RedoxQLHasher::default(),
+            directory: RedoxQLHashMap::default(),
         };
 
         for (rid, record) in &self.directory {
