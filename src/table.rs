@@ -11,20 +11,23 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
 
+type RedoxQLHasher<K, V> = FxHashMap<K, V>;
+// type RedoxQLHasher<K, V> = HashMap<K, V>;
+
 #[derive(Default, Clone, Serialize, Deserialize)]
 pub struct PageDirectoryMetadata {
-    pub directory: FxHashMap<i64, RecordMetadata>,
+    pub directory: RedoxQLHasher<i64, RecordMetadata>,
 }
 
 #[derive(Default, Clone)]
 pub struct PageDirectory {
-    pub directory: FxHashMap<i64, Record>,
+    pub directory: RedoxQLHasher<i64, Record>,
 }
 
 impl PageDirectory {
     pub fn new() -> Self {
         PageDirectory {
-            directory: FxHashMap::default(),
+            directory: RedoxQLHasher::default(),
         }
     }
 
@@ -66,7 +69,7 @@ impl PageDirectory {
         let page_meta: PageDirectoryMetadata = writer.read_file("./redoxdata/page_directory.data");
 
         let mut pd: PageDirectory = PageDirectory {
-            directory: FxHashMap::default(),
+            directory: RedoxQLHasher::default(),
         };
 
         // Load records into page_directory
@@ -82,7 +85,7 @@ impl PageDirectory {
 
     fn save_state(&self) {
         let mut pd_meta = PageDirectoryMetadata {
-            directory: FxHashMap::default(),
+            directory: RedoxQLHasher::default(),
         };
 
         for (rid, record) in &self.directory {
