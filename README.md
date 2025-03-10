@@ -385,3 +385,10 @@ snakeviz profile.prof
 Here is the output from `testM2.py`
 
 ![image](https://github.com/user-attachments/assets/11d9fbd6-b2b5-47e4-a4e6-4ecd32cba678)
+
+### Python dis library and bytecode
+
+Python gets parsed into byetcode and we can see it using the [dis](https://docs.python.org/3/library/dis.html) library. This can be useful to see what byte might be unneeded.
+
+![image](https://github.com/user-attachments/assets/5324d422-f21a-4484-9467-a247b202bd8a)
+
