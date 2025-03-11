@@ -64,12 +64,12 @@ impl RTransaction {
             let mut query = RQuery::new(t);
             let mut prev_values: Option<Vec<Option<i64>>> = None;
     
-            // Extract the number of columns safely **before** using query
+            // Extract the number of columns safely before using query
             let num_columns = {
                 let table_guard = query.handle.table.read().unwrap();
                 table_guard.num_columns
             };
-    
+            // Return if transaction completed entirely or not
             let success: bool = match q.func {
                 QueryFunctions::Delete => {
                     if let Some(Some(pk)) = q.args.first() {
@@ -129,8 +129,14 @@ impl RTransaction {
                     }
                 }
                 QueryFunctions::Increment => {
-                    if let (Some(Some(k)), Some(Some(c))) = (q.args.get(0), q.args.get(1)) {
-                        query.increment(*k, *c)
+                    if let (Some(Some(pk)), Some(Some(col))) = (q.args.get(0), q.args.get(1)) {
+                        // Get previous values before incrementing
+                        if let Some(records) = query.select(*pk, 0, vec![1; num_columns]) {
+                            if let Some(record) = records.into_iter().next().flatten() {
+                                prev_values = Some(record.columns.clone());
+                            }
+                        }
+                        query.increment(*pk, *col)
                     } else {
                         false
                     }
@@ -168,7 +174,7 @@ impl RTransaction {
 }
 
 impl RTransaction {
-    /// Rolls back successfully executed queries and releases any locks.
+    /// Rolls back successfully executed queries
     fn abort(&mut self, queries_executed: Vec<(SingleQuery, bool, Option<Vec<Option<i64>>>)>) -> bool {
         debug!(
             "Aborting transaction. Rolling back {} successful queries.",
