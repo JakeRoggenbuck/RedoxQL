@@ -54,130 +54,165 @@ impl RTransaction {
         // debug!("Pushed {:?}", q.func);
     }
 
-    pub fn run(&mut self) {
-        // TODO: Python expects a bool
-
+    pub fn run(&mut self) -> bool {
         debug!("Started run for transaction!");
-
+    
+        let mut queries_executed: Vec<(SingleQuery, bool, Option<Vec<Option<i64>>>)> = Vec::new(); // Track executed queries and previous values
+    
         for q in self.queries.iter_mut() {
-            // TODO: Don't make a new RQuery for each call
-            // We need to right now because there might be a test where
-            // different tables are in the same query
             let t = q.table.clone();
             let mut query = RQuery::new(t);
-
-            match q.func {
+            let mut prev_values: Option<Vec<Option<i64>>> = None;
+    
+            // Extract the number of columns safely **before** using query
+            let num_columns = {
+                let table_guard = query.handle.table.read().unwrap();
+                table_guard.num_columns
+            };
+    
+            let success: bool = match q.func {
                 QueryFunctions::Delete => {
-                    let args_clone = q.args.clone();
-                    let first = args_clone.first();
-
-                    if let Some(f) = first {
-                        if let Some(a) = f {
-                            query.delete(*a);
+                    if let Some(Some(pk)) = q.args.first() {
+                        // Capture previous values before deletion
+                        if let Some(records) = query.select(*pk, 0, vec![1; num_columns]) {
+                            if let Some(record) = records.into_iter().next().flatten() {
+                                prev_values = Some(record.columns.clone()); // Save old row before deleting
+                            }
                         }
+                        query.delete(*pk);
+                        true
+                    } else {
+                        false
                     }
                 }
                 QueryFunctions::Insert => {
-                    let mut args = Vec::new();
-                    let args_clone = q.args.clone();
-
-                    // Get only Some type from args
-                    // Should be everything!
-                    for a in args_clone {
-                        if let Some(b) = a {
-                            args.push(b);
-                        } else {
-                            debug!("Optional passes to insert incorrectly!");
-                        }
-                    }
-
-                    query.insert(args);
+                    let args: Vec<i64> = q.args.iter().filter_map(|x| *x).collect();
+                    query.insert(args)
                 }
                 QueryFunctions::Update => {
-                    let args_clone = q.args.clone();
-                    let first = args_clone.first();
-                    let rest = args_clone.iter().skip(1).cloned().collect();
-
-                    if let Some(f) = first {
-                        if let Some(a) = f {
-                            query.update(*a, rest);
+                    if let Some(Some(pk)) = q.args.first() {
+                        // Capture previous values before updating
+                        if let Some(records) = query.select(*pk, 0, vec![1; num_columns]) {
+                            if let Some(record) = records.into_iter().next().flatten() {
+                                prev_values = Some(record.columns.clone());
+                            }
                         }
+                        let rest = q.args.iter().skip(1).cloned().collect();
+                        query.update(*pk, rest)
+                    } else {
+                        false
                     }
                 }
                 QueryFunctions::Sum => {
-                    let args_clone = q.args.clone();
-                    if args_clone.len() == 3 {
-                        let start = args_clone[0];
-                        let end = args_clone[1];
-                        let col = args_clone[2];
-
-                        match (start, end, col) {
-                            (Some(s), Some(e), Some(c)) => {
-                                query.sum(s, e, c);
-                            }
-                            _ => {
-                                debug!("Wrong args for sum.");
-                            }
-                        }
+                    if let (Some(Some(s)), Some(Some(e)), Some(Some(c))) = (q.args.get(0), q.args.get(1), q.args.get(2)) {
+                        query.sum(*s, *e, *c);
+                        true
+                    } else {
+                        false
                     }
                 }
                 QueryFunctions::SumVersion => {
-                    let args_clone = q.args.clone();
-                    if args_clone.len() > 4 {
-                        // TODO: Figure out if indexing is actually slower than .get and then
-                        // checking if it's optional
-                        let start = args_clone[0];
-                        let end = args_clone[1];
-                        let cols = &args_clone[2..args_clone.len() - 1].to_vec();
-
-                        let ver = args_clone[args_clone.len() - 1];
-
-                        // Get just Some type
-                        let mut new_cols = vec![];
-                        for c in cols {
-                            if let Some(a) = c {
-                                new_cols.push(*a);
-                            }
+                    if q.args.len() > 4 {
+                        let start = q.args[0];
+                        let end = q.args[1];
+                        let cols: Vec<i64> = q.args[2..q.args.len() - 1].iter().filter_map(|x| *x).collect();
+                        let ver = q.args[q.args.len() - 1];
+    
+                        if let (Some(s), Some(e), Some(v)) = (start, end, ver) {
+                            query.select_version(s, e, cols, v);
+                            true
+                        } else {
+                            false
                         }
-
-                        let newer_cols = Some(new_cols);
-
-                        // Run select_version version safely only if all args are there
-                        match (start, end, newer_cols, ver) {
-                            (Some(s), Some(e), Some(c), Some(v)) => {
-                                query.select_version(s, e, c, v);
-                            }
-                            _ => {
-                                debug!("Wrong args for sum_version.");
-                            }
-                        }
+                    } else {
+                        false
                     }
                 }
                 QueryFunctions::Increment => {
-                    let args_clone = q.args.clone();
-                    if args_clone.len() == 2 {
-                        let key = args_clone[0];
-                        let col = args_clone[1];
-
-                        match (key, col) {
-                            (Some(k), Some(c)) => {
-                                query.increment(k, c);
-                            }
-                            _ => {
-                                debug!("Wrong args for increment.");
-                            }
-                        }
+                    if let (Some(Some(k)), Some(Some(c))) = (q.args.get(0), q.args.get(1)) {
+                        query.increment(*k, *c)
+                    } else {
+                        false
                     }
                 }
                 QueryFunctions::None => {
-                    debug!("Something went wrong.")
+                    debug!("Something went wrong.");
+                    false
+                }
+            };
+    
+            queries_executed.push((q.clone(), success, prev_values));
+    
+            if !success {
+                debug!("Transaction failed, rolling back.");
+                return self.abort(queries_executed);
+            }
+        }
+    
+        debug!("Transaction successful, committing.");
+        self.commit();
+        true
+    }
+    
+    pub fn commit(&mut self) -> bool {
+        debug!("Committing transaction with {} queries.", self.queries.len());
+
+        // Release any necessary locks
+        for q in &self.queries {
+            let _guard = q.table.table.write().unwrap(); // Unlock tables after commit
+        }
+
+        debug!("Transaction committed.");
+        true
+    }
+}
+
+impl RTransaction {
+    /// Rolls back successfully executed queries and releases any locks.
+    fn abort(&mut self, queries_executed: Vec<(SingleQuery, bool, Option<Vec<Option<i64>>>)>) -> bool {
+        debug!(
+            "Aborting transaction. Rolling back {} successful queries.",
+            queries_executed.iter().filter(|(_, success, _)| *success).count()
+        );
+    
+        for (q, success, prev_values) in queries_executed.into_iter().rev() {
+            if !success {
+                continue; // Skip queries that failed or weren't executed
+            }
+    
+            let mut query = RQuery::new(q.table.clone());
+    
+            match q.func {
+                QueryFunctions::Insert => {
+                    if let Some(Some(pk)) = q.args.first() {
+                        debug!("Rolling back insert: Deleting {}", pk);
+                        query.delete(*pk);
+                    }
+                }
+                QueryFunctions::Update => {
+                    if let Some(Some(pk)) = q.args.first() {
+                        if let Some(previous_values) = prev_values {
+                            debug!("Rolling back update: Restoring {:?}", previous_values);
+                            query.update(*pk, previous_values);
+                        }
+                    }
+                }
+                QueryFunctions::Delete => {
+                    if let Some(previous_values) = prev_values {
+                        debug!("Rolling back delete: Re-inserting {:?}", previous_values);
+                        query.insert(previous_values.into_iter().map(|x| x.unwrap_or(0)).collect());
+                    }
+                }
+                _ => {
+                    debug!("Query type {:?} does not require rollback.", q.func);
                 }
             }
         }
-
-        debug!("Finished run for transaction!");
-    }
+        debug!("Transaction aborted.");
+        false
+    }    
 }
+
 
 #[cfg(test)]
 mod tests {

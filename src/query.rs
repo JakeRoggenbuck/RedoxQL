@@ -5,12 +5,14 @@ use super::utils::{decode_string_from_ints, encode_str_to_ints};
 use pyo3::prelude::*;
 use std::iter::zip;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, RwLock};
 
 #[pyclass]
 pub struct RQuery {
     // pub table: RTable,
     pub handle: RTableHandle,
     merging: AtomicBool,
+    transaction_lock: Arc<RwLock<()>>,
 }
 
 /// Use the projected vector to decide which columns to set to None
@@ -39,6 +41,7 @@ impl RQuery {
     pub fn new(handle: RTableHandle) -> Self {
         let binding = handle.table.clone();
         let mut t = binding.write().unwrap();
+        let lock = Arc::new(RwLock::new(()));
 
         if t.num_records > 0 && t.updates_since_merge > 100000 {
             t.merge();
@@ -48,15 +51,18 @@ impl RQuery {
         RQuery {
             handle,
             merging: AtomicBool::new(false),
+            transaction_lock: lock,
         }
     }
 
     pub fn delete(&mut self, primary_key: i64) {
+        let _guard = self.transaction_lock.write().unwrap(); // Acquire write lock
         let mut table = self.handle.table.write().unwrap();
         table.delete(primary_key);
     }
 
     pub fn insert(&mut self, values: Vec<i64>) -> bool {
+        {let _guard = self.transaction_lock.write().unwrap();} // Acquire write lock
         self.internal_insert(values).is_some()
     }
 
@@ -87,6 +93,7 @@ impl RQuery {
     }
 
     fn internal_insert(&mut self, values: Vec<i64>) -> Option<Record> {
+        let _guard = self.transaction_lock.write().unwrap(); // Acquire write lock
         let mut table = self.handle.table.write().unwrap();
         // check if primary key already exists
         {
@@ -224,6 +231,7 @@ impl RQuery {
 
     pub fn update(&mut self, primary_key: i64, columns: Vec<Option<i64>>) -> bool {
         let mut table = self.handle.table.write().unwrap();
+        let _guard = self.transaction_lock.write().unwrap(); // 🚀 Acquire write lock
 
         {
             if table.num_records > 0
@@ -504,32 +512,6 @@ mod tests {
         );
     }
 
-    /*
-    #[test]
-    fn increment_test() {
-        let mut db = RDatabase::new();
-        let t = db.create_table(String::from("Counts"), 3, 0);
-        let mut q = RQuery::new(t);
-
-        q.internal_insert(vec![1, 2, 3]); // Insert [Primary Key: 1, Col1: 2, Col2: 3]
-
-        // Increment the first user column (column 1)
-        q.increment(1, 1);
-
-        let vals = q.select(1, 0, vec![1, 1, 1]); // Select entire row
-        assert_eq!(vals.unwrap()[0], vec![Some(0), Some(0), Some(0), Some(1), Some(3), Some(3)]);
-
-        q.increment(1, 1);
-        let vals2 = q.select(1, 0, vec![1, 1, 1]);
-        assert_eq!(vals2.unwrap()[0], vec![Some(1), Some(0), Some(1), Some(1), Some(4), Some(3)]);
-
-        q.increment(1, 1);
-        let vals3 = q.select(1, 0, vec![1, 1, 1]);
-        assert_eq!(vals3.unwrap()[0], vec![Some(2), Some(0), Some(2), Some(1), Some(5), Some(3)]);
-    }
-
-     */
-
     #[test]
     fn test_update_read_test() {
         let mut db = RDatabase::new();
@@ -570,19 +552,6 @@ mod tests {
             ]
         );
     }
-
-    // #[test]
-    // #[should_panic(expected = "Primary key cannot be changed")]
-    // fn test_update_primary_key_should_panic() {
-    //     let mut db = RDatabase::new();
-    //     let t = db.create_table(String::from("Grades"), 3, 0);
-    //     let mut q = RQuery::new(t);
-
-    //     q.internal_insert(vec![1, 2, 3]);
-
-    //     // Try to update primary key from 1 to 2
-    //     q.update(1, vec![Some(2), Some(5), Some(6)]);
-    // }
 
     #[test]
     fn test_multiple_updates() {
@@ -824,28 +793,4 @@ mod tests {
         assert_eq!(str, "Jake");
         assert_ne!(str, "JakeR");
     }
-
-    /* Seems like M2 test wants us to delete the record if primary key is changed
-
-    #[test]
-    fn test_update_existing_primary_key() {
-        let mut db = RDatabase::new();
-        let t = db.create_table(String::from("Grades"), 3, 0);
-        let mut q = RQuery::new(t);
-
-        q.internal_insert(vec![1, 2, 3]);
-        q.internal_insert(vec![4, 5, 6]);
-
-        // Attempt to update the primary key of the first record to an existing primary key
-        let result = q.update(1, vec![Some(4), Some(7), Some(8)]);
-        assert!(!result);
-
-        // Verify that the original records are still intact
-        let vals1 = q.select(1, 0, vec![1, 1, 1]);
-        assert_eq!(vals1.unwrap()[0], vec![Some(0), Some(0), Some(0), Some(1), Some(2), Some(3)]);
-
-        let vals2 = q.select(4, 0, vec![1, 1, 1]);
-        assert_eq!(vals2.unwrap()[0], vec![Some(1), Some(0), Some(1), Some(4), Some(5), Some(6)]);
-    }
-    */
 }
