@@ -39,6 +39,7 @@ impl std::fmt::Display for LockType {
 
 // A unique identifier for a record: (RTableHandle, record_id, lock_type)
 pub type RecordId = (RTableHandle, i64, LockType);
+pub type RecordId2 = (String, i64, LockType);
 
 #[pyclass]
 pub struct RDatabase {
