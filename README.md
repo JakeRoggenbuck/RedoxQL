@@ -124,6 +124,12 @@ The src (`./src`) directory is where the Rust code goes. This gets called by the
 `system.rs` - all the functions and structs related to getting information from the system machine
 `database.rs` - the database struct and the related functions
 
+## Demo Project
+
+In the demo project, we made an API that uses our database to store grades. Here we are sending a PUT and then doing a GET.
+
+![image](https://github.com/user-attachments/assets/f06156d7-c31b-4afb-ba7e-e5156deedac7)
+
 ## Testing
 
 ### Rust testing
