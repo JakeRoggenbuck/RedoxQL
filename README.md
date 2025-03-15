@@ -124,6 +124,8 @@ The src (`./src`) directory is where the Rust code goes. This gets called by the
 `system.rs` - all the functions and structs related to getting information from the system machine
 `database.rs` - the database struct and the related functions
 
+## Demo Project
+
 ## Testing
 
 ### Rust testing

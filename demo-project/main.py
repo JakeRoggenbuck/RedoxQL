@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from lstore.db import Database
 from lstore.query import Query
 from pydantic import BaseModel
+from fastapi.responses import JSONResponse
 
 
 app = FastAPI()
@@ -33,7 +34,9 @@ def read_value(value_id: int):
         val = res[0]
 
         if val is not None:
-            return val.columns
+            return JSONResponse(content=val.columns)
+
+    return JSONResponse(content={})
 
 
 """
@@ -53,10 +56,12 @@ curl -X PUT "http://127.0.0.1:8000/values"
 """
 @app.put("/values")
 def update_item(values: Scores):
-    return query.insert(
+    ret = query.insert(
         values.student_id,
         values.score_1,
         values.score_2,
         values.score_3,
         values.score_4,
     )
+
+    return JSONResponse(content=ret)
