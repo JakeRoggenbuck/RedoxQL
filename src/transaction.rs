@@ -54,6 +54,10 @@ impl RTransaction {
         // debug!("Pushed {:?}", q.func);
     }
 
+    pub fn commit(&self) {}
+
+    pub fn abort(&self) {}
+
     pub fn run(&mut self) {
         // TODO: Python expects a bool
 
