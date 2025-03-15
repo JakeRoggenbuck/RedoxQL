@@ -3,7 +3,7 @@ use crate::container::{ReservedColumns, NUM_RESERVED_COLUMNS};
 use pyo3::prelude::*;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 
 type RedoxQLHashMap<K, V> = FxHashMap<K, V>;
 
@@ -89,6 +89,7 @@ impl RecordMetadata {
         Record {
             rid: self.rid,
             addresses: Arc::new(Mutex::new(rec_addrs)),
+            lock: Arc::new(RwLock::new(RecordLock::default())),
         }
     }
 }
@@ -102,6 +103,14 @@ pub struct Record {
     /// The Record keeps a Vector of the RecordAddress, which allow us to actually call
     /// RecordAddress.page.read() to get the value stored at the page using the offset
     pub addresses: Arc<Mutex<Vec<RecordAddress>>>,
+
+    pub lock: Arc<RwLock<RecordLock>>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct RecordLock {
+    pub reader_count: i64,
+    pub writer_count: i64,
 }
 
 impl Record {
@@ -120,6 +129,48 @@ impl Record {
         }
 
         return rm;
+    }
+
+    pub fn attempt_obtain_read(&self) -> bool {
+        let mut a = self.lock.write().unwrap();
+
+        if a.writer_count != 0 {
+            return false;
+        }
+
+        a.reader_count += 1;
+
+        true
+    }
+
+    pub fn attempt_obtain_write(&self) -> bool {
+        let mut a = self.lock.write().unwrap();
+
+        if a.writer_count != 0 || a.reader_count != 0 {
+            return false;
+        }
+
+        a.writer_count += 1;
+
+        true
+    }
+
+    pub fn release_read_lock(&self) {
+        let mut a = self.lock.write().unwrap();
+        a.reader_count -= 1;
+
+        if a.reader_count < 0 {
+            panic!("write_count less than 0, rid {}", self.rid)
+        }
+    }
+
+    pub fn release_write_lock(&self) {
+        let mut a = self.lock.write().unwrap();
+        a.writer_count -= 1;
+
+        if a.writer_count < 0 {
+            panic!("write_count less than 0, rid {}", self.rid)
+        }
     }
 }
 
