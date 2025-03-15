@@ -416,7 +416,7 @@ impl RTableHandle {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::database::RDatabase;
+    use crate::{database::RDatabase, query::RQuery};
 
     #[test]
     fn load_and_save_test() {
@@ -529,5 +529,40 @@ mod tests {
         table.delete(0);
         // Read and find None
         assert_eq!(table.read_base(0), None);
+    }
+
+    #[test]
+    fn merge_into_base_page_test() {
+        let mut db: RDatabase = RDatabase::new();
+        let mut table: RTable = db.create_table("Scores".to_string(), 3, 0);
+        let mut q = RQuery::new(table);
+
+        table.write(vec![0, 10, 10]);
+        table.write(vec![1, 20, 20]);
+        table.write(vec![2, 30, 30]);
+
+        q.update(0, vec![Some(1), Some(11), Some(11)]);
+        q.update(1, vec![Some(2), Some(21), Some(21)]);
+        q.update(1, vec![Some(3), Some(22), Some(22)]);
+        q.update(2, vec![Some(3), Some(31), Some(31)]);
+
+        table._merge();
+
+        // Update after merge is called
+        q.update(2, vec![Some(4), Some(32), Some(32)]);
+
+        let merged0 = q.select(0, 0, vec![1, 1, 1]);
+        let merged1 = q.select(1, 0, vec![1, 1, 1]);
+        let merged2 = q.select(2, 0, vec![1, 1, 1]);
+
+        // TODO: Need to update the schema encoding (I'm not sure how we are doing it/if we are doing it)
+        assert_eq!(merged0.unwrap()[0], vec![Some(0), Some(0), Some(3), Some(1), Some(11), Some(11)]);
+        assert_eq!(merged1.unwrap()[0], vec![Some(1), Some(0), Some(5), Some(2), Some(21), Some(21)]);
+        assert_eq!(merged2.unwrap()[0], vec![Some(2), Some(0), Some(3), Some(3), Some(31), Some(31)]);
+
+        // Check the update after merge
+        // Updated record should point back to the base record
+        let update_after_merge = q.select(2, 0, vec![1, 1, 1]);
+        assert_eq!(update_after_merge.unwrap()[0], vec![Some(3), Some(0), Some(2), Some(3), Some(32), Some(32)]);
     }
 }
