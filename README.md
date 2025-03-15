@@ -38,7 +38,7 @@ maturin build --release
 
 Install the module (Note: the version will change so check the exact filename in `target/wheels/`)
 ```
-pip install target/wheels/lstore-0.1.0-cp3* --force-reinstall
+pip install target/wheels/lstore* --force-reinstall
 ```
 
 Run the database benchmark
