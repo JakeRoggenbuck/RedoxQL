@@ -21,6 +21,26 @@ pub struct RDatabaseMetadata {
     db_filepath: Option<String>,
 }
 
+// Define lock types for 2PL
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum LockType {
+    Shared,    // Read lock (S)
+    Exclusive, // Write lock (X)
+}
+
+impl std::fmt::Display for LockType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LockType::Shared => write!(f, "Shared"),
+            LockType::Exclusive => write!(f, "Exclusive"),
+        }
+    }
+}
+
+// A unique identifier for a record: (RTableHandle, record_id, lock_type)
+pub type RecordId = (RTableHandle, i64, LockType);
+pub type RecordId2 = (String, i64, LockType);
+
 #[pyclass]
 pub struct RDatabase {
     /// This is where we keep all of the tables
@@ -156,14 +176,6 @@ impl RDatabase {
             let mut index_guard = table_guard.index.write().unwrap();
             index_guard.set_owner(Arc::downgrade(&arc_table));
         }
-
-        // PREVIOUS IMPLEMENTATION
-        // let i = self.tables.len();
-
-        // Map a name of a table to it's index on the self.tables field
-        // self.tables_hashmap.insert(name, i);
-
-        // self.tables.push(t);
 
         // Push t into the tables vector so its address becomes stable.
         self.tables.push(arc_table.clone());

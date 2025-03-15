@@ -3,12 +3,12 @@ use super::container::{
 };
 use super::filewriter::{build_binary_writer, Writer};
 use super::record::Record;
-use crate::record::RecordAddress;
+use crate::record::{RecordAddress, RecordLock};
 use crate::table::PageDirectory;
 use log::info;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use std::thread;
 
 #[derive(Clone, Default, Deserialize, Serialize, Debug)]
@@ -136,6 +136,7 @@ impl PageRange {
                     let new_record = Record {
                         rid: base_rid,
                         addresses: Arc::new(Mutex::new(Vec::new())),
+                        lock: Arc::new(RwLock::new(RecordLock::default())),
                     };
 
                     {
@@ -345,6 +346,7 @@ impl PageRange {
                     let new_record = Record {
                         rid: base_rid,
                         addresses: Arc::new(Mutex::new(Vec::new())),
+                        lock: Arc::new(RwLock::new(RecordLock::default())),
                     };
 
                     {

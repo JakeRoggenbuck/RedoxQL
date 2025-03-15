@@ -1,8 +1,8 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use redoxql::pagerange::PageRange;
-use redoxql::record::{Record, RecordAddress};
+use redoxql::record::{Record, RecordAddress, RecordLock};
 use redoxql::table::PageDirectory;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use std::time::Duration;
 
 fn setup_benchmark_data(
@@ -28,6 +28,7 @@ fn setup_benchmark_data(
             let record = Record {
                 rid,
                 addresses: Arc::new(Mutex::new(addresses)),
+                lock: Arc::new(RwLock::new(RecordLock::default())),
             };
 
             pd.directory.insert(rid, record);
@@ -45,6 +46,7 @@ fn setup_benchmark_data(
             let record = Record {
                 rid,
                 addresses: Arc::new(Mutex::new(addresses)),
+                lock: Arc::new(RwLock::new(RecordLock::default())),
             };
 
             pd.directory.insert(rid, record);

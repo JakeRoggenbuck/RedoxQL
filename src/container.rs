@@ -1,8 +1,10 @@
+use crate::record::RecordLock;
+
 use super::filewriter::{build_binary_writer, Writer};
 use super::page::PhysicalPage;
 use super::record::{Record, RecordAddress};
 use serde::{Deserialize, Serialize};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 
 #[derive(Clone, Default, Deserialize, Serialize, Debug)]
 pub struct BaseContainerMetadata {
@@ -191,6 +193,7 @@ impl BaseContainer {
         Record {
             rid,
             addresses: addresses.clone(),
+            lock: Arc::new(RwLock::new(RecordLock::default())),
         }
     }
 
@@ -483,6 +486,7 @@ impl TailContainer {
         Record {
             rid,
             addresses: addresses.clone(),
+            lock: Arc::new(RwLock::new(RecordLock::default())),
         }
     }
 
