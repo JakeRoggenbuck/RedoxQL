@@ -25,11 +25,10 @@
  * - Ensure guards are dropped as soon as possible by using separate scopes
  */
 
-use crate::database::RecordId2;
-
 use super::database::{LockType, RecordId};
 use super::query::RQuery;
 use super::table::RTableHandle;
+use crate::database::RecordId2;
 use log::debug;
 use pyo3::prelude::*;
 use std::collections::{HashSet, VecDeque};
@@ -600,7 +599,6 @@ mod tests {
     use super::*;
     use crate::database::RDatabase;
     use std::sync::mpsc;
-    use std::sync::Mutex;
     use std::thread;
     use std::time::{Duration, Instant};
 
@@ -627,7 +625,7 @@ mod tests {
     {
         let (tx, rx) = mpsc::channel();
 
-        let handle = thread::spawn(move || {
+        let _ = thread::spawn(move || {
             let result = test_fn();
             let _ = tx.send(result);
         });
