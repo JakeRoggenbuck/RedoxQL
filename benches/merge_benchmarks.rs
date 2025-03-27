@@ -73,7 +73,8 @@ fn benchmark_merge(c: &mut Criterion) {
             b.iter_with_setup(
                 || setup_benchmark_data(size as usize, 5),
                 |(mut page_range, pd)| {
-                    black_box(page_range.merge(pd));
+                    page_range.merge(pd);
+                    black_box(());
                 },
             );
         });
@@ -82,7 +83,8 @@ fn benchmark_merge(c: &mut Criterion) {
             b.iter_with_setup(
                 || setup_benchmark_data(size as usize, 5),
                 |(mut page_range, pd)| {
-                    black_box(page_range.optimized_merge(pd));
+                    page_range.optimized_merge(pd);
+                    black_box(());
                 },
             );
         });
@@ -99,7 +101,8 @@ fn benchmark_column_counts(c: &mut Criterion) {
             b.iter_with_setup(
                 || setup_benchmark_data(100, cols),
                 |(mut page_range, pd)| {
-                    black_box(page_range.merge(pd));
+                    page_range.merge(pd);
+                    black_box(());
                 },
             );
         });
@@ -108,7 +111,8 @@ fn benchmark_column_counts(c: &mut Criterion) {
             b.iter_with_setup(
                 || setup_benchmark_data(100, cols),
                 |(mut page_range, pd)| {
-                    black_box(page_range.optimized_merge(pd));
+                    page_range.optimized_merge(pd);
+                    black_box(());
                 },
             );
         });

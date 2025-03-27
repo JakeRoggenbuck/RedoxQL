@@ -5,7 +5,7 @@ use redoxql::table::PageDirectory;
 fn bench_single_write(c: &mut Criterion) {
     c.bench_function("write to page dir once", |b| {
         b.iter_with_setup(
-            || PageDirectory::new(),
+            PageDirectory::new,
             |mut pagedir| {
                 pagedir.directory.insert(black_box(42), Record::default());
             },
@@ -20,7 +20,7 @@ fn bench_many_writes(c: &mut Criterion) {
     for size in sizes.iter() {
         group.bench_with_input(format!("{} writes", size), size, |b, &size| {
             b.iter_with_setup(
-                || PageDirectory::new(),
+                PageDirectory::new,
                 |mut pagedir| {
                     for i in 0..size {
                         pagedir.directory.insert(black_box(i), Record::default());
