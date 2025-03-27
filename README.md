@@ -421,3 +421,8 @@ Python gets parsed into byetcode and we can see it using the [dis](https://docs.
 
 ![image](https://github.com/user-attachments/assets/5324d422-f21a-4484-9467-a247b202bd8a)
 
+### Speed Improvement PRs
+
+- [Improve hashing speed for page directory by over 26%](https://github.com/JakeRoggenbuck/RedoxQL/pull/186)
+- [~70% speed improvement with lazy select](https://github.com/JakeRoggenbuck/RedoxQL/pull/191) (Not used because the API expects an iterable)
+- [Move select return record logic all to Rust to achieve 30% speed improvement](https://github.com/JakeRoggenbuck/RedoxQL/pull/162)
