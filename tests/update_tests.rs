@@ -12,7 +12,7 @@ fn thousands_of_updates_test() {
     // Instead of constantly updating primary_key_column, update the second column
     for x in 0..100_000 {
         let res = q.update(0, vec![None, Some(x), None]);
-        assert_eq!(res, true);
+        assert!(res);
     }
 }
 
@@ -31,7 +31,7 @@ fn thousands_of_ops_test() {
 
     for x in 0..100_000 {
         let res = q.update(x, vec![None, Some(x), Some(4)]);
-        assert_eq!(res, true);
+        assert!(res);
     }
 
     for x in 0..100_000 {
