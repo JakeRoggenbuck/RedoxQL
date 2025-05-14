@@ -17,12 +17,12 @@ RedoxQL is our implementation of an [L-Store](https://openproceedings.org/2018/c
 > Read the Structure section — We use both Rust and Python and they go in different places
 
 ## Setup
-Create a virtual envirement
+Create a virtual environment
 ```
 python3 -m venv venv
 ```
 
-Source the virtual envirement
+Source the virtual environment
 ```
 source venv/bin/activate
 ```
@@ -184,7 +184,7 @@ Python tests are located in a separate directory called `tests` located in `./py
 
 ## Rust Docs
 
-Rust has a way of making docs from the source code. Run `cargo doc` and view the produced HTML page in your browser. Adding comments to yor code starting with `///` will be put into these docs.
+Rust has a way of making docs from the source code. Run `cargo doc` and view the produced HTML page in your browser. Adding comments to your code starting with `///` will be put into these docs.
 
 ## Speed Analysis
 
@@ -352,8 +352,8 @@ This includes `insert` and `update`.
 
 ### Using FxHashMap instead of default HashMap
 
-The Rust defualt HashMap is a great general purpose HashMap implementation and is very fast but FxHashMap is a decent bit faster.
-After changing the page directory to use FxHashMap in [PR#186](https://github.com/JakeRoggenbuck/ecs-165a-database/pull/186), the speed of many reads and writes improved by **over 28%** and the overall speed of all the benchmarks improved by by **over 26%**.
+The Rust default HashMap is a great general purpose HashMap implementation and is very fast but FxHashMap is a decent bit faster.
+After changing the page directory to use FxHashMap in [PR#186](https://github.com/JakeRoggenbuck/ecs-165a-database/pull/186), the speed of many reads and writes improved by **over 28%** and the overall speed of all the benchmarks improved by **over 26%**.
 
 ```rs
 use crate::container::{ReservedColumns, NUM_RESERVED_COLUMNS};
@@ -419,7 +419,7 @@ Here is the output from `testM2.py`
 
 ### Python dis library and bytecode
 
-Python gets parsed into byetcode and we can see it using the [dis](https://docs.python.org/3/library/dis.html) library. This can be useful to see what byte might be unneeded.
+Python gets parsed into bytecode and we can see it using the [dis](https://docs.python.org/3/library/dis.html) library. This can be useful to see what byte might be unneeded.
 
 ![image](https://github.com/user-attachments/assets/5324d422-f21a-4484-9467-a247b202bd8a)
 
