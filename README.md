@@ -154,6 +154,38 @@ After a simple fix after we submitted, we were able to get everything working.
 
 ![image](https://github.com/user-attachments/assets/03b8be78-b710-42ee-b572-48e470cdc6ab)
 
+## Use in Python
+
+This is a quickstart for how to use RedosQL as a library in Python. To follow along, run the [setup instructions](https://github.com/JakeRoggenbuck/RedoxQL?tab=readme-ov-file#setup) and then you can write the following code.
+
+```py
+# Import the database class
+from lstore.db import Database
+
+# Create an instance of the database
+db = Database()
+```
+
+```py
+# Create a table in the database
+# This table has 5 columns and the primary key is the 0th column
+grades_table = db.create_table('Grades', 5, 0)
+```
+
+```py
+# Import the query
+from lstore.query import Query
+```
+
+```py
+# Insert a row with the primary key 0 and 4 grades
+query.insert([0, 91, 92, 93, 94])
+```
+
+```py
+# Update the 1st column in the database
+query.update(0, [90, None, None, None])
+```
 
 ## Testing
 
