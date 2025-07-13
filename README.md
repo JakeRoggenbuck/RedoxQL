@@ -4,7 +4,7 @@
 
 🦀 RedoxQL is an L-Store database written in Rust and Python 🚀
 
-🥇 Fastest database speed in the class for milestone 2 (Winter 2025) ⚡
+🥇 Fastest database speed in the class for milestone 2 (ECS165A Winter 2025) ⚡
 
 ![Rust](https://img.shields.io/badge/Rust-1A5D8A?style=for-the-badge&logo=rust&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
