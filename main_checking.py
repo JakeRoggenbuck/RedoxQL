@@ -18,16 +18,20 @@ def wrap_green(text):
 
     still_zero = True
 
+    count = 0
     for c in text:
         if c not in set("0.") and still_zero:
             still_zero = False
             full_text += green
+        if count > 8:
+            break
+
+        count += 1
 
         full_text += c
 
-    return full_text + reset
+    return full_text + reset + " seconds"
 
-# Student Id and 4 grades
 db = Database()
 grades_table = db.create_table('Grades', 5, 0)
 query = Query(grades_table)
@@ -36,15 +40,24 @@ keys = []
 insert_time_0 = process_time()
 for i in range(0, 10000):
     a = query.insert(906659671 + i, 93, 0, 0, 0)
-
-    # Print occasionally
-    # if i % 100 == 0:
-    #     print(a)
-
     keys.append(906659671 + i)
 insert_time_1 = process_time()
 
 print("Inserting 10k records took:  \t\t\t", wrap_green(insert_time_1 - insert_time_0))
+
+times = []
+for _ in range(5):
+    db = Database()
+    grades_table = db.create_table('Grades', 5, 0)
+    query = Query(grades_table)
+
+    start = process_time()
+    for i in range(10000):
+        query.insert(906659671 + i, 93, 0, 0, 0)
+    end = process_time()
+    times.append(end - start)
+
+print("Insert 10k records average:\t\t\t", wrap_green(sum(times)/len(times)))
 
 # Measuring update Performance
 update_cols = [
